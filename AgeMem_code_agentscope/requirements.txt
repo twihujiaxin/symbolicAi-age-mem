@@ -1,0 +1,15 @@
+# 本示例使用 AgentScope 1.x API；2.x 存在破坏性接口变更。
+agentscope>=1.0.5,<2
+# AgentScope 1.x 仍导入 streamablehttp_client，MCP 2.x 已移除该兼容接口。
+mcp>=1.24,<2
+openai>=1.0.0
+pydantic>=2.0
+shortuuid>=1.0.0
+# 当 AGEMEM_MODEL_PROVIDER=ollama 时使用；仍需单独安装并启动 Ollama 桌面程序。
+ollama>=0.5.4
+
+# Optional for local model (transformers + LoRA)
+# transformers>=4.36.0
+# torch>=2.0.0
+# peft>=0.10.0
+# accelerate>=0.25.0

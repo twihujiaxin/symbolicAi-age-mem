@@ -1,0 +1,53 @@
+project: unittest
+name: test
+mode: both
+checkpoint_root_dir: ''
+algorithm:
+  algorithm_type: ppo
+  repeat_times: 1
+  policy_loss_fn: ppo
+  policy_loss_fn_args:
+    clip_range: 0.2
+  advantage_fn: ppo
+  kl_penalty_fn: k3
+  kl_loss_fn: k2
+model:
+  model_path: ''
+  max_response_tokens: 2048
+  max_model_len: 4096
+cluster:  # 2 for explorer, 2 for trainer
+  node_num: 2
+  gpu_per_node: 2
+buffer:
+  total_epochs: 1
+  batch_size: 4
+  explorer_input:
+    taskset:
+      name: taskset
+      storage_type: file
+      path: 'placeholder'
+      split: 'train'
+      enable_progress_bar: false
+    default_workflow_type: ''
+    default_eval_workflow_type: ''
+    default_reward_fn_type: ''
+explorer:
+  eval_interval: 100
+  runner_per_model: 8
+  rollout_model:
+    engine_num: 2
+    tensor_parallel_size: 1
+    enable_prefix_caching: false
+    enforce_eager: true
+    dtype: bfloat16
+    seed: 42
+    use_v1: true
+trainer:
+  trainer_type: verl
+  trainer_config_path: tests/template/verl_config.yaml
+  save_interval: 100
+synchronizer:
+  sync_method: checkpoint
+  sync_interval: 10
+  sync_timeout: 1200
+  wait_for_checkpoint: false

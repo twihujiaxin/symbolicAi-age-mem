@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & temp
+*.log
+*.tmp
+*.cache
+
+# Secrets (never commit these)
+.env
+.env.*
+secrets.json
+command.txt
+
+# Experiment logs / runtime artifacts
+wandb/
+runs/
+checkpoints/
+outputs/
+
+# Database files
+*.db
+
+# Debug / profiling artifacts
+debug_*.html
+*_runner.html
