@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "seed": 20260802,
+  "train_size": 6,
+  "dev_size": 2,
+  "test_size": 2,
+  "min_supporting_facts": 2,
+  "max_supporting_facts": 4,
+  "stage1_distractors": 6,
+  "stage2_distractors": 3,
+  "policies": [
+    "gold",
+    "wrong_answer",
+    "missing_support"
+  ]
+}

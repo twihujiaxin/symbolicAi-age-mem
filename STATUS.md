@@ -2,7 +2,7 @@
 
 ## Current milestone
 
-M4：Memory Oracle AP + 手工 DFA + 离线奖励
+M5：真实 HotpotQA 数据适配与 Oracle Benchmark
 
 状态：完成
 
@@ -71,6 +71,26 @@ M4：Memory Oracle AP + 手工 DFA + 离线奖励
 - [x] reward JSONL 和 replay digest 重复运行完全一致
 - [x] 全链路不调用真实 LLM、在线/model embedding 或网络
 
+### M5
+
+- [x] 使用 `datasets.load_from_disk` 读取本地 HotpotQA fullwiki `DatasetDict`，运行期不下载数据
+- [x] 校验 source train / validation / official test 规模分别为 90,447 / 7,405 / 7,405
+- [x] 对官方 test 全量 7,405 条执行 label-blind 校验：answer 为 `None` 且 supporting labels 为空
+- [x] 建立固定 6 train / 2 dev / 2 held-out test smoke split；train 来自 source train，dev/test 来自 source validation 且任务互斥
+- [x] manifest 保存 source fingerprints、完整 smoke config digest、source index、Hotpot ID、type、level 和 supporting-fact 数量
+- [x] supporting facts 只按精确 `(title, sent_id)` 解析，不使用标题或句子的字符串包含匹配
+- [x] 从精确 source pointer 与句子正文生成稳定 SHA-256 fact IDs，并保留可审计 pointer
+- [x] 适配真实任务中 2～4 条 supporting facts；不为真实句子伪造 M6 subject/relation/object 三元组
+- [x] 复用 M3 三阶段环境、M2 rollout store、M1 `TrajectoryRecorder`/`TrajectoryReplay` 和 M4 Oracle AP/DFA
+- [x] public `StageInput` 不含 answer、supporting IDs 或 Oracle labels；改变私有 answer 不改变三阶段 observation
+- [x] 收集并重放 30 条轨迹：10 个真实任务 × gold / wrong-answer / missing-support 三种确定性策略
+- [x] 10/10 gold episode 成功且 DFA 接受；20/20 失败对照 episode 失败且 DFA 拒绝
+- [x] 计算 Answer EM/F1（含 HotpotQA yes/no/noanswer 规则）、support coverage、memory precision、Oracle cumulative retrieval recall@k、context-token estimate 和工具调用次数
+- [x] 每条失败审计保存 exact source pointers、最终 memory 版本历史和逐步 AP/DFA state/edge trace，不复制完整上下文或答案
+- [x] 完整 JSONL 只写入 gitignored `runs/`；提交固定 manifest、紧凑 JSON report、failure JSONL 和 Markdown 报告
+- [x] 同一真实 smoke benchmark 重跑后 report、trajectory 和 reward 文件 SHA-256 完全一致
+- [x] 全链路真实 LLM 调用数为 0；未开始自然语言 AP 抽取、Critic、GRPO 或模型训练
+
 ## Environment
 
 - OS: Windows NT 10.0.26200.0
@@ -78,41 +98,46 @@ M4：Memory Oracle AP + 手工 DFA + 离线奖励
 - Python: 3.10.20 (`.venv`)
 - AgentScope: 1.0.21
 - Pydantic: 2.13.4
-- PyTorch: 未安装（M4 不需要）
+- Datasets: 4.8.5
+- PyArrow: 25.0.0
+- PyTorch: 未安装（M5 不需要）
 - pytest/Ruff/Flake8: 当前环境未安装；使用标准库 `unittest`
 
 ## Git state
 
-- Current branch: `feat/m4-oracle-dfa-reward`
-- Base: `4ff948b feat(agemem): add HotpotQA-style toy memory environment`
-- `PROJECT_HANDOFF.md` 是用户在 M3 开始前更新的未提交文件，Codex 未修改、未暂存
-- M4 未推送远程
+- Current branch: `feat/m5-hotpotqa-oracle-benchmark`
+- Base: `6878498 feat(agemem): add offline Oracle DFA rewards`
+- `PROJECT_HANDOFF.md` 是用户维护的未提交文件，Codex 未修改、未暂存
+- M5 未推送远程
 
-## Files changed in M4
+## Files changed in M5
 
-- `AgeMem_code_agentscope/memory_oracle/__init__.py`（新增）
-- `AgeMem_code_agentscope/memory_oracle/models.py`（新增）
-- `AgeMem_code_agentscope/memory_oracle/grounder.py`（新增）
-- `AgeMem_code_agentscope/memory_oracle/automaton.py`（新增）
-- `AgeMem_code_agentscope/memory_oracle/replay.py`（新增）
-- `configs/m4_reward.json`（新增）
-- `tests/common/memory_oracle_reward_test.py`（新增）
+- `AgeMem_code_agentscope/hotpotqa_benchmark/`（新增）
+- `AgeMem_code_agentscope/requirements-hotpotqa.txt`（新增）
+- `configs/m5_hotpotqa_smoke.json`（新增）
+- `data/splits/hotpotqa_smoke_manifest.json`（新增）
+- `artifacts/m5_hotpotqa_smoke/`（新增）
+- `docs/m5_hotpotqa_oracle_benchmark.md`（新增）
+- `tests/common/hotpotqa_oracle_benchmark_test.py`（新增）
+- `AgeMem_code_agentscope/toy_hotpotqa/environment.py`
 - `AgeMem_code_agentscope/__init__.py`
 - `AgeMem_code_agentscope/README.md`
 - `STATUS.md`
 
 ## Verification
 
-- M4 Oracle AP/DFA/reward tests：10/10 PASS
-- M3 dataset/environment/trajectory regression：15/15 PASS
-- M2 memory regression：11/11 PASS
-- M1 trajectory regression：14/14 PASS
+- M5 adapter/benchmark/local-data tests：10/10 PASS
+- M1～M5 core regression：60/60 PASS
 - Existing tool-trace regression：28/28 PASS
-- Combined unittest suite：78/78 PASS
-- M4 gold acceptance：30/30
-- M4 predefined failure rejection：4/4
+- Combined scoped unittest suite：88/88 PASS
+- M5 gold success + DFA acceptance：10/10
+- M5 wrong-answer/missing-support failure + DFA rejection：20/20
+- Official test label-blind validation：7,405/7,405
+- Real smoke report/trajectory/reward repeated-run SHA-256 stability：PASS
+- Oracle report schema/digest validation：PASS
 - Python compile/import smoke：PASS
-- M4 scoped `git diff --check`：PASS
+- M5 scoped `git diff --check`：PASS
+- Oracle report digest：`c18b21b59506733b133ac3510b9c9136c780b79e14af2c96d74b81b6b8d8eef0`
 
 ## Known constraints
 
@@ -125,13 +150,18 @@ M4：Memory Oracle AP + 手工 DFA + 离线奖励
 - 当前正向 DFA 是手工有限状态基线，没有 LTLf 编译或自动 Critic
 - `violation_weight=0.0`：M4 记录无关存储/检索，但不启用负奖励或 Negative Automata
 - `format=0.0`：输入已经通过 M1 严格 schema；M4 不额外设计格式奖励
-- 全局 `git diff --check` 仅报告用户更新的 `PROJECT_HANDOFF.md` 两处 Markdown 行尾空格；M4 文件检查通过
+- M5 的 `gold` 是 Oracle 上界；`wrong_answer` / `missing_support` 是确定性失败对照，不代表真实 base model 表现
+- M5 smoke dev/test 都从 labeled source validation 派生；official test 因无标签只用于泄漏检查，不报告 Oracle 分数
+- M5 retrieval 使用 fact-ID metadata 精确过滤；报告的 Recall@k 是 Oracle-directed 多次 top-1 检索的累计诊断，不是标准单查询模型 Recall@k
+- context tokens 是对每个 timestep observation 的 tokenizer-independent 累计估算，会包含重复上下文
+- M5 完整 trajectory/reward JSONL 含原始事实正文与 embedding，只保存在 gitignored `runs/` 并按敏感数据处理
+- 全局 `git diff --check` 仍只报告用户更新的 `PROJECT_HANDOFF.md` 两处 Markdown 行尾空格；M5 范围文件检查通过
 
 ## Failures and blockers
 
-- 无未解决的 M4 测试失败
-- 无需模型、GPU、API 或外部数据
+- 无未解决的 M5 测试失败
+- 本地 HotpotQA fullwiki 已可用；无需模型、GPU、API 或网络
 
 ## Next recommended action
 
-用户验收 M4 后再执行 M5：接入真实 HotpotQA 小规模 smoke split，并继续使用 Oracle AP 生成离线 benchmark。不要提前进入自然语言抽取、Critic 或 GRPO。
+用户验收 M5 后再执行 M6：自然语言 AP 抽取与 Oracle 对照。不要提前进入 Critic、GRPO 或模型训练。

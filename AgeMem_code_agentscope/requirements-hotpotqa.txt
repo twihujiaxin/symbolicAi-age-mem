@@ -1,0 +1,3 @@
+-r requirements.txt
+# Required to read the local Hugging Face save_to_disk Arrow DatasetDict.
+datasets>=4,<5

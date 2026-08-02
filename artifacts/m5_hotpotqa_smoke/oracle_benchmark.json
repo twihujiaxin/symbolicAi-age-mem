@@ -1,0 +1,3966 @@
+{
+  "aggregates": [
+    {
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "dfa_acceptance_rate": 1.0,
+      "episode_success_rate": 1.0,
+      "mean_context_tokens": 1700.0,
+      "mean_retrieval_k": 2.1666666666666665,
+      "mean_tool_calls": 7.333333333333333,
+      "mean_total_reward": 2.0,
+      "memory_precision": 1.0,
+      "policy": "gold",
+      "retrieval_recall_at_k": 1.0,
+      "rollout_count": 6,
+      "split": "train",
+      "supporting_fact_coverage": 1.0
+    },
+    {
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "dfa_acceptance_rate": 0.0,
+      "episode_success_rate": 0.0,
+      "mean_context_tokens": 1700.0,
+      "mean_retrieval_k": 2.1666666666666665,
+      "mean_tool_calls": 7.333333333333333,
+      "mean_total_reward": 0.75,
+      "memory_precision": 1.0,
+      "policy": "wrong_answer",
+      "retrieval_recall_at_k": 1.0,
+      "rollout_count": 6,
+      "split": "train",
+      "supporting_fact_coverage": 1.0
+    },
+    {
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "dfa_acceptance_rate": 0.0,
+      "episode_success_rate": 0.0,
+      "mean_context_tokens": 1287.8333333333333,
+      "mean_retrieval_k": 1.1666666666666667,
+      "mean_tool_calls": 6.333333333333333,
+      "mean_total_reward": 0.25,
+      "memory_precision": 1.0,
+      "policy": "missing_support",
+      "retrieval_recall_at_k": 0.5277777777777778,
+      "rollout_count": 6,
+      "split": "train",
+      "supporting_fact_coverage": 0.5277777777777778
+    },
+    {
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "dfa_acceptance_rate": 1.0,
+      "episode_success_rate": 1.0,
+      "mean_context_tokens": 2358.5,
+      "mean_retrieval_k": 3.0,
+      "mean_tool_calls": 9.0,
+      "mean_total_reward": 2.0,
+      "memory_precision": 1.0,
+      "policy": "gold",
+      "retrieval_recall_at_k": 1.0,
+      "rollout_count": 2,
+      "split": "dev",
+      "supporting_fact_coverage": 1.0
+    },
+    {
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "dfa_acceptance_rate": 0.0,
+      "episode_success_rate": 0.0,
+      "mean_context_tokens": 2358.5,
+      "mean_retrieval_k": 3.0,
+      "mean_tool_calls": 9.0,
+      "mean_total_reward": 0.75,
+      "memory_precision": 1.0,
+      "policy": "wrong_answer",
+      "retrieval_recall_at_k": 1.0,
+      "rollout_count": 2,
+      "split": "dev",
+      "supporting_fact_coverage": 1.0
+    },
+    {
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "dfa_acceptance_rate": 0.0,
+      "episode_success_rate": 0.0,
+      "mean_context_tokens": 1856.5,
+      "mean_retrieval_k": 2.0,
+      "mean_tool_calls": 8.0,
+      "mean_total_reward": 0.25,
+      "memory_precision": 1.0,
+      "policy": "missing_support",
+      "retrieval_recall_at_k": 0.6666666666666666,
+      "rollout_count": 2,
+      "split": "dev",
+      "supporting_fact_coverage": 0.6666666666666666
+    },
+    {
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "dfa_acceptance_rate": 1.0,
+      "episode_success_rate": 1.0,
+      "mean_context_tokens": 1866.0,
+      "mean_retrieval_k": 2.5,
+      "mean_tool_calls": 8.0,
+      "mean_total_reward": 2.0,
+      "memory_precision": 1.0,
+      "policy": "gold",
+      "retrieval_recall_at_k": 1.0,
+      "rollout_count": 2,
+      "split": "test",
+      "supporting_fact_coverage": 1.0
+    },
+    {
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "dfa_acceptance_rate": 0.0,
+      "episode_success_rate": 0.0,
+      "mean_context_tokens": 1866.0,
+      "mean_retrieval_k": 2.5,
+      "mean_tool_calls": 8.0,
+      "mean_total_reward": 0.75,
+      "memory_precision": 1.0,
+      "policy": "wrong_answer",
+      "retrieval_recall_at_k": 1.0,
+      "rollout_count": 2,
+      "split": "test",
+      "supporting_fact_coverage": 1.0
+    },
+    {
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "dfa_acceptance_rate": 0.0,
+      "episode_success_rate": 0.0,
+      "mean_context_tokens": 1456.5,
+      "mean_retrieval_k": 1.5,
+      "mean_tool_calls": 7.0,
+      "mean_total_reward": 0.25,
+      "memory_precision": 1.0,
+      "policy": "missing_support",
+      "retrieval_recall_at_k": 0.5833333333333333,
+      "rollout_count": 2,
+      "split": "test",
+      "supporting_fact_coverage": 0.5833333333333333
+    }
+  ],
+  "benchmark_name": "m5-hotpotqa-fullwiki-oracle-smoke",
+  "dataset_config": "fullwiki",
+  "dataset_name": "hotpot_qa",
+  "digest": "c18b21b59506733b133ac3510b9c9136c780b79e14af2c96d74b81b6b8d8eef0",
+  "failures": [
+    {
+      "active_memory_fact_ids": [
+        "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+        "hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+        "hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc"
+      ],
+      "answer_exact_match": 0.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 6
+        },
+        {
+          "fired_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "propositions": [
+            "retrieved_supporting_fact",
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q3",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 7
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q3",
+          "status": "rejected",
+          "timestep": 8
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+        "hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+        "hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc"
+      ],
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "memory_history": [
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+          "memory_id": "m5-train-5a85aaee5542991dd0999e84-wrong_answer:memory:hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc",
+          "memory_id": "m5-train-5a85aaee5542991dd0999e84-wrong_answer:memory:hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+          "memory_id": "m5-train-5a85aaee5542991dd0999e84-wrong_answer:memory:hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "wrong_answer",
+      "retrieved_supporting_fact_ids": [
+        "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+        "hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+        "hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+          "sent_id": 1,
+          "title": "Junko Noda"
+        },
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc",
+          "sent_id": 0,
+          "title": "Love Hina"
+        },
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+          "sent_id": 1,
+          "title": "Love Hina"
+        }
+      ],
+      "task_id": "hotpot-5a85aaee5542991dd0999e84"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+        "hp-5a85aaee5542991dd0999e84-269502059920a0b2"
+      ],
+      "answer_exact_match": 1.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 6
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "answered_correctly"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q1",
+          "status": "rejected",
+          "timestep": 7
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+        "hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+        "hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc"
+      ],
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "memory_history": [
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+          "memory_id": "m5-train-5a85aaee5542991dd0999e84-missing_support:memory:hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+          "memory_id": "m5-train-5a85aaee5542991dd0999e84-missing_support:memory:hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "missing_support",
+      "retrieved_supporting_fact_ids": [
+        "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+        "hp-5a85aaee5542991dd0999e84-269502059920a0b2"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+          "sent_id": 1,
+          "title": "Junko Noda"
+        },
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc",
+          "sent_id": 0,
+          "title": "Love Hina"
+        },
+        {
+          "fact_id": "hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+          "sent_id": 1,
+          "title": "Love Hina"
+        }
+      ],
+      "task_id": "hotpot-5a85aaee5542991dd0999e84"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+        "hp-5a74b19355429916b01641dd-30ef399c6dc7becf"
+      ],
+      "answer_exact_match": 0.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "propositions": [
+            "retrieved_supporting_fact",
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q3",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q3",
+          "status": "rejected",
+          "timestep": 6
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+        "hp-5a74b19355429916b01641dd-30ef399c6dc7becf"
+      ],
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "memory_history": [
+        {
+          "fact_id": "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+          "memory_id": "m5-train-5a74b19355429916b01641dd-wrong_answer:memory:hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5a74b19355429916b01641dd-30ef399c6dc7becf",
+          "memory_id": "m5-train-5a74b19355429916b01641dd-wrong_answer:memory:hp-5a74b19355429916b01641dd-30ef399c6dc7becf",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "wrong_answer",
+      "retrieved_supporting_fact_ids": [
+        "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+        "hp-5a74b19355429916b01641dd-30ef399c6dc7becf"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+          "sent_id": 0,
+          "title": "Sunye"
+        },
+        {
+          "fact_id": "hp-5a74b19355429916b01641dd-30ef399c6dc7becf",
+          "sent_id": 0,
+          "title": "Mike Ness"
+        }
+      ],
+      "task_id": "hotpot-5a74b19355429916b01641dd"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b"
+      ],
+      "answer_exact_match": 1.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "answered_correctly"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q1",
+          "status": "rejected",
+          "timestep": 5
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+        "hp-5a74b19355429916b01641dd-30ef399c6dc7becf"
+      ],
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "memory_history": [
+        {
+          "fact_id": "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+          "memory_id": "m5-train-5a74b19355429916b01641dd-missing_support:memory:hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "missing_support",
+      "retrieved_supporting_fact_ids": [
+        "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+          "sent_id": 0,
+          "title": "Sunye"
+        },
+        {
+          "fact_id": "hp-5a74b19355429916b01641dd-30ef399c6dc7becf",
+          "sent_id": 0,
+          "title": "Mike Ness"
+        }
+      ],
+      "task_id": "hotpot-5a74b19355429916b01641dd"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+        "hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7"
+      ],
+      "answer_exact_match": 0.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "propositions": [
+            "retrieved_supporting_fact",
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q3",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q3",
+          "status": "rejected",
+          "timestep": 6
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+        "hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7"
+      ],
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "memory_history": [
+        {
+          "fact_id": "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+          "memory_id": "m5-train-5abecbed5542997719eab5c5-wrong_answer:memory:hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7",
+          "memory_id": "m5-train-5abecbed5542997719eab5c5-wrong_answer:memory:hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "wrong_answer",
+      "retrieved_supporting_fact_ids": [
+        "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+        "hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+          "sent_id": 4,
+          "title": "Coming of Age (2008 TV series)"
+        },
+        {
+          "fact_id": "hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7",
+          "sent_id": 0,
+          "title": "Ideal (TV series)"
+        }
+      ],
+      "task_id": "hotpot-5abecbed5542997719eab5c5"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda"
+      ],
+      "answer_exact_match": 1.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "answered_correctly"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q1",
+          "status": "rejected",
+          "timestep": 5
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+        "hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7"
+      ],
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "memory_history": [
+        {
+          "fact_id": "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+          "memory_id": "m5-train-5abecbed5542997719eab5c5-missing_support:memory:hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "missing_support",
+      "retrieved_supporting_fact_ids": [
+        "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+          "sent_id": 4,
+          "title": "Coming of Age (2008 TV series)"
+        },
+        {
+          "fact_id": "hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7",
+          "sent_id": 0,
+          "title": "Ideal (TV series)"
+        }
+      ],
+      "task_id": "hotpot-5abecbed5542997719eab5c5"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+        "hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460"
+      ],
+      "answer_exact_match": 0.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "propositions": [
+            "retrieved_supporting_fact",
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q3",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q3",
+          "status": "rejected",
+          "timestep": 6
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+        "hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460"
+      ],
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "memory_history": [
+        {
+          "fact_id": "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+          "memory_id": "m5-train-5a8ac7d055429950cd6afb8f-wrong_answer:memory:hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460",
+          "memory_id": "m5-train-5a8ac7d055429950cd6afb8f-wrong_answer:memory:hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "wrong_answer",
+      "retrieved_supporting_fact_ids": [
+        "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+        "hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+          "sent_id": 0,
+          "title": "Veitchia"
+        },
+        {
+          "fact_id": "hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460",
+          "sent_id": 0,
+          "title": "Lamium"
+        }
+      ],
+      "task_id": "hotpot-5a8ac7d055429950cd6afb8f"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649"
+      ],
+      "answer_exact_match": 1.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "answered_correctly"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q1",
+          "status": "rejected",
+          "timestep": 5
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+        "hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460"
+      ],
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "memory_history": [
+        {
+          "fact_id": "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+          "memory_id": "m5-train-5a8ac7d055429950cd6afb8f-missing_support:memory:hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "missing_support",
+      "retrieved_supporting_fact_ids": [
+        "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+          "sent_id": 0,
+          "title": "Veitchia"
+        },
+        {
+          "fact_id": "hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460",
+          "sent_id": 0,
+          "title": "Lamium"
+        }
+      ],
+      "task_id": "hotpot-5a8ac7d055429950cd6afb8f"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5a83df2655429933447460a1-8260aac478284146",
+        "hp-5a83df2655429933447460a1-ecc145a5e394a3e0"
+      ],
+      "answer_exact_match": 0.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "propositions": [
+            "retrieved_supporting_fact",
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q3",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q3",
+          "status": "rejected",
+          "timestep": 6
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5a83df2655429933447460a1-8260aac478284146",
+        "hp-5a83df2655429933447460a1-ecc145a5e394a3e0"
+      ],
+      "hotpot_id": "5a83df2655429933447460a1",
+      "memory_history": [
+        {
+          "fact_id": "hp-5a83df2655429933447460a1-8260aac478284146",
+          "memory_id": "m5-train-5a83df2655429933447460a1-wrong_answer:memory:hp-5a83df2655429933447460a1-8260aac478284146",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5a83df2655429933447460a1-ecc145a5e394a3e0",
+          "memory_id": "m5-train-5a83df2655429933447460a1-wrong_answer:memory:hp-5a83df2655429933447460a1-ecc145a5e394a3e0",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "wrong_answer",
+      "retrieved_supporting_fact_ids": [
+        "hp-5a83df2655429933447460a1-8260aac478284146",
+        "hp-5a83df2655429933447460a1-ecc145a5e394a3e0"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5a83df2655429933447460a1-8260aac478284146",
+          "sent_id": 0,
+          "title": "Grant O'Riley"
+        },
+        {
+          "fact_id": "hp-5a83df2655429933447460a1-ecc145a5e394a3e0",
+          "sent_id": 0,
+          "title": "Fitzroy Football Club"
+        }
+      ],
+      "task_id": "hotpot-5a83df2655429933447460a1"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5a83df2655429933447460a1-8260aac478284146"
+      ],
+      "answer_exact_match": 1.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "answered_correctly"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q1",
+          "status": "rejected",
+          "timestep": 5
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5a83df2655429933447460a1-8260aac478284146",
+        "hp-5a83df2655429933447460a1-ecc145a5e394a3e0"
+      ],
+      "hotpot_id": "5a83df2655429933447460a1",
+      "memory_history": [
+        {
+          "fact_id": "hp-5a83df2655429933447460a1-8260aac478284146",
+          "memory_id": "m5-train-5a83df2655429933447460a1-missing_support:memory:hp-5a83df2655429933447460a1-8260aac478284146",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "missing_support",
+      "retrieved_supporting_fact_ids": [
+        "hp-5a83df2655429933447460a1-8260aac478284146"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5a83df2655429933447460a1-8260aac478284146",
+          "sent_id": 0,
+          "title": "Grant O'Riley"
+        },
+        {
+          "fact_id": "hp-5a83df2655429933447460a1-ecc145a5e394a3e0",
+          "sent_id": 0,
+          "title": "Fitzroy Football Club"
+        }
+      ],
+      "task_id": "hotpot-5a83df2655429933447460a1"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+        "hp-5a76f83e55429972597f1405-f6866e4ee5bef906"
+      ],
+      "answer_exact_match": 0.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "propositions": [
+            "retrieved_supporting_fact",
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q3",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q3",
+          "status": "rejected",
+          "timestep": 6
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+        "hp-5a76f83e55429972597f1405-f6866e4ee5bef906"
+      ],
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "memory_history": [
+        {
+          "fact_id": "hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+          "memory_id": "m5-train-5a76f83e55429972597f1405-wrong_answer:memory:hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5a76f83e55429972597f1405-f6866e4ee5bef906",
+          "memory_id": "m5-train-5a76f83e55429972597f1405-wrong_answer:memory:hp-5a76f83e55429972597f1405-f6866e4ee5bef906",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "wrong_answer",
+      "retrieved_supporting_fact_ids": [
+        "hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+        "hp-5a76f83e55429972597f1405-f6866e4ee5bef906"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+          "sent_id": 0,
+          "title": "Jim Diamond (singer)"
+        },
+        {
+          "fact_id": "hp-5a76f83e55429972597f1405-f6866e4ee5bef906",
+          "sent_id": 0,
+          "title": "Marie Currie"
+        }
+      ],
+      "task_id": "hotpot-5a76f83e55429972597f1405"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5a76f83e55429972597f1405-f5253cb5324c4581"
+      ],
+      "answer_exact_match": 1.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "answered_correctly"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q1",
+          "status": "rejected",
+          "timestep": 5
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+        "hp-5a76f83e55429972597f1405-f6866e4ee5bef906"
+      ],
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "memory_history": [
+        {
+          "fact_id": "hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+          "memory_id": "m5-train-5a76f83e55429972597f1405-missing_support:memory:hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "missing_support",
+      "retrieved_supporting_fact_ids": [
+        "hp-5a76f83e55429972597f1405-f5253cb5324c4581"
+      ],
+      "split": "train",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+          "sent_id": 0,
+          "title": "Jim Diamond (singer)"
+        },
+        {
+          "fact_id": "hp-5a76f83e55429972597f1405-f6866e4ee5bef906",
+          "sent_id": 0,
+          "title": "Marie Currie"
+        }
+      ],
+      "task_id": "hotpot-5a76f83e55429972597f1405"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+        "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+        "hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0"
+      ],
+      "answer_exact_match": 0.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 6
+        },
+        {
+          "fired_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "propositions": [
+            "retrieved_supporting_fact",
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q3",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 7
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q3",
+          "status": "rejected",
+          "timestep": 8
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+        "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+        "hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0"
+      ],
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "memory_history": [
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+          "memory_id": "m5-dev-5ab3d2b7554299233954ffb8-wrong_answer:memory:hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0",
+          "memory_id": "m5-dev-5ab3d2b7554299233954ffb8-wrong_answer:memory:hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+          "memory_id": "m5-dev-5ab3d2b7554299233954ffb8-wrong_answer:memory:hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "wrong_answer",
+      "retrieved_supporting_fact_ids": [
+        "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+        "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+        "hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0"
+      ],
+      "split": "dev",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+          "sent_id": 1,
+          "title": "Viscount Barnewall"
+        },
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0",
+          "sent_id": 4,
+          "title": "Viscount Barnewall"
+        },
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+          "sent_id": 0,
+          "title": "James II of England"
+        }
+      ],
+      "task_id": "hotpot-5ab3d2b7554299233954ffb8"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+        "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7"
+      ],
+      "answer_exact_match": 1.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 6
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "answered_correctly"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q1",
+          "status": "rejected",
+          "timestep": 7
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+        "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+        "hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0"
+      ],
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "memory_history": [
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+          "memory_id": "m5-dev-5ab3d2b7554299233954ffb8-missing_support:memory:hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+          "memory_id": "m5-dev-5ab3d2b7554299233954ffb8-missing_support:memory:hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "missing_support",
+      "retrieved_supporting_fact_ids": [
+        "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+        "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7"
+      ],
+      "split": "dev",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+          "sent_id": 1,
+          "title": "Viscount Barnewall"
+        },
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0",
+          "sent_id": 4,
+          "title": "Viscount Barnewall"
+        },
+        {
+          "fact_id": "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+          "sent_id": 0,
+          "title": "James II of England"
+        }
+      ],
+      "task_id": "hotpot-5ab3d2b7554299233954ffb8"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+        "hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+        "hp-5ab299d6554299449642c926-f57eb15513a4c227"
+      ],
+      "answer_exact_match": 0.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 6
+        },
+        {
+          "fired_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "propositions": [
+            "retrieved_supporting_fact",
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q3",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 7
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q3",
+          "status": "rejected",
+          "timestep": 8
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+        "hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+        "hp-5ab299d6554299449642c926-f57eb15513a4c227"
+      ],
+      "hotpot_id": "5ab299d6554299449642c926",
+      "memory_history": [
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+          "memory_id": "m5-dev-5ab299d6554299449642c926-wrong_answer:memory:hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+          "memory_id": "m5-dev-5ab299d6554299449642c926-wrong_answer:memory:hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-f57eb15513a4c227",
+          "memory_id": "m5-dev-5ab299d6554299449642c926-wrong_answer:memory:hp-5ab299d6554299449642c926-f57eb15513a4c227",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "wrong_answer",
+      "retrieved_supporting_fact_ids": [
+        "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+        "hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+        "hp-5ab299d6554299449642c926-f57eb15513a4c227"
+      ],
+      "split": "dev",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+          "sent_id": 0,
+          "title": "One Manhattan Square"
+        },
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+          "sent_id": 2,
+          "title": "One Manhattan Square"
+        },
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-f57eb15513a4c227",
+          "sent_id": 1,
+          "title": "Time Warner Center"
+        }
+      ],
+      "task_id": "hotpot-5ab299d6554299449642c926"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+        "hp-5ab299d6554299449642c926-f57eb15513a4c227"
+      ],
+      "answer_exact_match": 1.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 6
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "answered_correctly"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q1",
+          "status": "rejected",
+          "timestep": 7
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+        "hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+        "hp-5ab299d6554299449642c926-f57eb15513a4c227"
+      ],
+      "hotpot_id": "5ab299d6554299449642c926",
+      "memory_history": [
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+          "memory_id": "m5-dev-5ab299d6554299449642c926-missing_support:memory:hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-f57eb15513a4c227",
+          "memory_id": "m5-dev-5ab299d6554299449642c926-missing_support:memory:hp-5ab299d6554299449642c926-f57eb15513a4c227",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "missing_support",
+      "retrieved_supporting_fact_ids": [
+        "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+        "hp-5ab299d6554299449642c926-f57eb15513a4c227"
+      ],
+      "split": "dev",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+          "sent_id": 0,
+          "title": "One Manhattan Square"
+        },
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+          "sent_id": 2,
+          "title": "One Manhattan Square"
+        },
+        {
+          "fact_id": "hp-5ab299d6554299449642c926-f57eb15513a4c227",
+          "sent_id": 1,
+          "title": "Time Warner Center"
+        }
+      ],
+      "task_id": "hotpot-5ab299d6554299449642c926"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5ab7c6995542993667794005-0a1c17bda8245219",
+        "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+        "hp-5ab7c6995542993667794005-ff05d2680daa579c"
+      ],
+      "answer_exact_match": 0.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 6
+        },
+        {
+          "fired_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "propositions": [
+            "retrieved_supporting_fact",
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q3",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 7
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q3",
+          "status": "rejected",
+          "timestep": 8
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5ab7c6995542993667794005-0a1c17bda8245219",
+        "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+        "hp-5ab7c6995542993667794005-ff05d2680daa579c"
+      ],
+      "hotpot_id": "5ab7c6995542993667794005",
+      "memory_history": [
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-ff05d2680daa579c",
+          "memory_id": "m5-test-5ab7c6995542993667794005-wrong_answer:memory:hp-5ab7c6995542993667794005-ff05d2680daa579c",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-0a1c17bda8245219",
+          "memory_id": "m5-test-5ab7c6995542993667794005-wrong_answer:memory:hp-5ab7c6995542993667794005-0a1c17bda8245219",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+          "memory_id": "m5-test-5ab7c6995542993667794005-wrong_answer:memory:hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "wrong_answer",
+      "retrieved_supporting_fact_ids": [
+        "hp-5ab7c6995542993667794005-0a1c17bda8245219",
+        "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+        "hp-5ab7c6995542993667794005-ff05d2680daa579c"
+      ],
+      "split": "test",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-ff05d2680daa579c",
+          "sent_id": 0,
+          "title": "Masaharu Iwata"
+        },
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-0a1c17bda8245219",
+          "sent_id": 1,
+          "title": "Masaharu Iwata"
+        },
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+          "sent_id": 3,
+          "title": "Final Fantasy XII"
+        }
+      ],
+      "task_id": "hotpot-5ab7c6995542993667794005"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+        "hp-5ab7c6995542993667794005-ff05d2680daa579c"
+      ],
+      "answer_exact_match": 1.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 6
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "answered_correctly"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q1",
+          "status": "rejected",
+          "timestep": 7
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5ab7c6995542993667794005-0a1c17bda8245219",
+        "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+        "hp-5ab7c6995542993667794005-ff05d2680daa579c"
+      ],
+      "hotpot_id": "5ab7c6995542993667794005",
+      "memory_history": [
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-ff05d2680daa579c",
+          "memory_id": "m5-test-5ab7c6995542993667794005-missing_support:memory:hp-5ab7c6995542993667794005-ff05d2680daa579c",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+          "memory_id": "m5-test-5ab7c6995542993667794005-missing_support:memory:hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "missing_support",
+      "retrieved_supporting_fact_ids": [
+        "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+        "hp-5ab7c6995542993667794005-ff05d2680daa579c"
+      ],
+      "split": "test",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-ff05d2680daa579c",
+          "sent_id": 0,
+          "title": "Masaharu Iwata"
+        },
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-0a1c17bda8245219",
+          "sent_id": 1,
+          "title": "Masaharu Iwata"
+        },
+        {
+          "fact_id": "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+          "sent_id": 3,
+          "title": "Final Fantasy XII"
+        }
+      ],
+      "task_id": "hotpot-5ab7c6995542993667794005"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5adc8c545542994734353734-536720a4fee8534c",
+        "hp-5adc8c545542994734353734-a241c4cf8071f78e"
+      ],
+      "answer_exact_match": 0.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_support_coverage",
+            "progress_retrieve_support"
+          ],
+          "propositions": [
+            "retrieved_supporting_fact",
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q3",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 5
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "supporting_coverage_complete"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q3",
+          "status": "rejected",
+          "timestep": 6
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5adc8c545542994734353734-536720a4fee8534c",
+        "hp-5adc8c545542994734353734-a241c4cf8071f78e"
+      ],
+      "hotpot_id": "5adc8c545542994734353734",
+      "memory_history": [
+        {
+          "fact_id": "hp-5adc8c545542994734353734-536720a4fee8534c",
+          "memory_id": "m5-test-5adc8c545542994734353734-wrong_answer:memory:hp-5adc8c545542994734353734-536720a4fee8534c",
+          "status": "active",
+          "version": 1
+        },
+        {
+          "fact_id": "hp-5adc8c545542994734353734-a241c4cf8071f78e",
+          "memory_id": "m5-test-5adc8c545542994734353734-wrong_answer:memory:hp-5adc8c545542994734353734-a241c4cf8071f78e",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "wrong_answer",
+      "retrieved_supporting_fact_ids": [
+        "hp-5adc8c545542994734353734-536720a4fee8534c",
+        "hp-5adc8c545542994734353734-a241c4cf8071f78e"
+      ],
+      "split": "test",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5adc8c545542994734353734-536720a4fee8534c",
+          "sent_id": 0,
+          "title": "Wilco Melissant"
+        },
+        {
+          "fact_id": "hp-5adc8c545542994734353734-a241c4cf8071f78e",
+          "sent_id": 0,
+          "title": "Todd Field"
+        }
+      ],
+      "task_id": "hotpot-5adc8c545542994734353734"
+    },
+    {
+      "active_memory_fact_ids": [
+        "hp-5adc8c545542994734353734-536720a4fee8534c"
+      ],
+      "answer_exact_match": 1.0,
+      "automaton_state": "q_reject",
+      "automaton_status": "rejected",
+      "automaton_trace": [
+        {
+          "fired_edges": [
+            "progress_store_support"
+          ],
+          "newly_rewarded_edges": [
+            "progress_store_support"
+          ],
+          "propositions": [
+            "observed_supporting_fact",
+            "stored_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q0",
+          "status": "running",
+          "timestep": 0
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 1
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 2
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "retrieved_supporting_fact"
+          ],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 3
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [],
+          "state_after": "q1",
+          "state_before": "q1",
+          "status": "running",
+          "timestep": 4
+        },
+        {
+          "fired_edges": [],
+          "newly_rewarded_edges": [],
+          "propositions": [
+            "answered_correctly"
+          ],
+          "state_after": "q_reject",
+          "state_before": "q1",
+          "status": "rejected",
+          "timestep": 5
+        }
+      ],
+      "expected_supporting_fact_ids": [
+        "hp-5adc8c545542994734353734-536720a4fee8534c",
+        "hp-5adc8c545542994734353734-a241c4cf8071f78e"
+      ],
+      "hotpot_id": "5adc8c545542994734353734",
+      "memory_history": [
+        {
+          "fact_id": "hp-5adc8c545542994734353734-536720a4fee8534c",
+          "memory_id": "m5-test-5adc8c545542994734353734-missing_support:memory:hp-5adc8c545542994734353734-536720a4fee8534c",
+          "status": "active",
+          "version": 1
+        }
+      ],
+      "policy": "missing_support",
+      "retrieved_supporting_fact_ids": [
+        "hp-5adc8c545542994734353734-536720a4fee8534c"
+      ],
+      "split": "test",
+      "supporting_fact_pointers": [
+        {
+          "fact_id": "hp-5adc8c545542994734353734-536720a4fee8534c",
+          "sent_id": 0,
+          "title": "Wilco Melissant"
+        },
+        {
+          "fact_id": "hp-5adc8c545542994734353734-a241c4cf8071f78e",
+          "sent_id": 0,
+          "title": "Todd Field"
+        }
+      ],
+      "task_id": "hotpot-5adc8c545542994734353734"
+    }
+  ],
+  "manifest_digest": "fc875795fcf764d97aa104af9d7f1e3e14a2b94e315abf71670b827f4677af85",
+  "official_test_label_blind_count": 7405,
+  "records": [
+    {
+      "active_memory_count": 3,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 2124,
+      "dfa_accepted": true,
+      "dfa_status": "accepted",
+      "env_reward": 1.0,
+      "episode_success": true,
+      "format_reward": 0.0,
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 6,
+      "milestone_reward": 1.0,
+      "policy": "gold",
+      "retrieval_calls": 3,
+      "retrieval_k": 3,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 157,
+      "reward_digest": "fcf0f2e639f74ee3bd27034d517a9a8cf1eaca786a6c4abd176a9841407f7e92",
+      "reward_path": "rewards/train/aa730665bd4617f5ccc6de8e.gold.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 3,
+      "task_id": "hotpot-5a85aaee5542991dd0999e84",
+      "total_reward": 2.0,
+      "total_tool_calls": 9,
+      "trajectory_digest": "09480d30fb19137314f9712923286a4f45eb47fc0bed8ddd4c6ce1587fde0453",
+      "trajectory_path": "trajectories/train/aa730665bd4617f5ccc6de8e.gold.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 3,
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "context_tokens": 2124,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 6,
+      "milestone_reward": 0.75,
+      "policy": "wrong_answer",
+      "retrieval_calls": 3,
+      "retrieval_k": 3,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 157,
+      "reward_digest": "d04a53fdcb4454cfd53a0837c7ac21ca16c62645b0ad6310473cb46b2e7c014a",
+      "reward_path": "rewards/train/aa730665bd4617f5ccc6de8e.wrong_answer.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 3,
+      "task_id": "hotpot-5a85aaee5542991dd0999e84",
+      "total_reward": 0.75,
+      "total_tool_calls": 9,
+      "trajectory_digest": "21f04f8815366e8b665603e867422d4eaefc7e68f86d1a48db900091c1eda90d",
+      "trajectory_path": "trajectories/train/aa730665bd4617f5ccc6de8e.wrong_answer.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1705,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 5,
+      "milestone_reward": 0.25,
+      "policy": "missing_support",
+      "retrieval_calls": 3,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 0.6666666666666666,
+      "retrieved_context_tokens": 116,
+      "reward_digest": "120667facc06f6e226fa15e0ce2c5c9226f004121e0069af0116603ddf20cb0c",
+      "reward_path": "rewards/train/aa730665bd4617f5ccc6de8e.missing_support.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 0.6666666666666666,
+      "supporting_fact_exact": 0.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5a85aaee5542991dd0999e84",
+      "total_reward": 0.25,
+      "total_tool_calls": 8,
+      "trajectory_digest": "6016e9f9d39fb0d4324f45ff27c877c986a65650d4c22672e4aaa52542b1eafc",
+      "trajectory_path": "trajectories/train/aa730665bd4617f5ccc6de8e.missing_support.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1926,
+      "dfa_accepted": true,
+      "dfa_status": "accepted",
+      "env_reward": 1.0,
+      "episode_success": true,
+      "format_reward": 0.0,
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 1.0,
+      "policy": "gold",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 126,
+      "reward_digest": "5caff32fbaa408aed321d10e1bc76cba0a7503e7b2434340cc041a2816f80eff",
+      "reward_path": "rewards/train/241f1d8b606eccecf83741fe.gold.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5a74b19355429916b01641dd",
+      "total_reward": 2.0,
+      "total_tool_calls": 7,
+      "trajectory_digest": "cedcde65505c0d328071bb15657610eb415fc320f0de10a299c75356a11190f5",
+      "trajectory_path": "trajectories/train/241f1d8b606eccecf83741fe.gold.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "context_tokens": 1926,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 0.75,
+      "policy": "wrong_answer",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 126,
+      "reward_digest": "f8c9ba61df67fdff4710894f327aa2bbcde7771aef84d5d41c0a9af6ba8a44c9",
+      "reward_path": "rewards/train/241f1d8b606eccecf83741fe.wrong_answer.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5a74b19355429916b01641dd",
+      "total_reward": 0.75,
+      "total_tool_calls": 7,
+      "trajectory_digest": "67371e0b97629a507f89be42986f0ea8dc7f9d65430397eb28ad3996e8d73888",
+      "trajectory_path": "trajectories/train/241f1d8b606eccecf83741fe.wrong_answer.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 1,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1443,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 3,
+      "milestone_reward": 0.25,
+      "policy": "missing_support",
+      "retrieval_calls": 2,
+      "retrieval_k": 1,
+      "retrieval_recall_at_k": 0.5,
+      "retrieved_context_tokens": 75,
+      "reward_digest": "c95a419c3fe100af47652f9eb6397bb85b54987b2eb5fbebc345d9cf2950d21b",
+      "reward_path": "rewards/train/241f1d8b606eccecf83741fe.missing_support.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 0.5,
+      "supporting_fact_exact": 0.0,
+      "supporting_memory_count": 1,
+      "task_id": "hotpot-5a74b19355429916b01641dd",
+      "total_reward": 0.25,
+      "total_tool_calls": 6,
+      "trajectory_digest": "69b12de66c3edf2eeba2f19d94fa58bf45a3ecb04970bb594d97b78a101ca94a",
+      "trajectory_path": "trajectories/train/241f1d8b606eccecf83741fe.missing_support.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1818,
+      "dfa_accepted": true,
+      "dfa_status": "accepted",
+      "env_reward": 1.0,
+      "episode_success": true,
+      "format_reward": 0.0,
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 1.0,
+      "policy": "gold",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 126,
+      "reward_digest": "d114f4017263d0649eea9b7f6a34aa9f33300d69572c352d76a99044ebcf036c",
+      "reward_path": "rewards/train/64afd20571e744ba8e4fc711.gold.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5abecbed5542997719eab5c5",
+      "total_reward": 2.0,
+      "total_tool_calls": 7,
+      "trajectory_digest": "d82bd2b5f258e9650a06a473bbd1db1ba86aabf4b2980496a1cf7bb33d5ef148",
+      "trajectory_path": "trajectories/train/64afd20571e744ba8e4fc711.gold.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "context_tokens": 1818,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 0.75,
+      "policy": "wrong_answer",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 126,
+      "reward_digest": "d069e712363b71d80171e5ce738d5b68f02bb4943bf9779f015600d6ec8bdc13",
+      "reward_path": "rewards/train/64afd20571e744ba8e4fc711.wrong_answer.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5abecbed5542997719eab5c5",
+      "total_reward": 0.75,
+      "total_tool_calls": 7,
+      "trajectory_digest": "4ab1930b050f5cd9a3748c36cf60a4a80fb10a33cb0af78917779f144d30a9d6",
+      "trajectory_path": "trajectories/train/64afd20571e744ba8e4fc711.wrong_answer.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 1,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1338,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 3,
+      "milestone_reward": 0.25,
+      "policy": "missing_support",
+      "retrieval_calls": 2,
+      "retrieval_k": 1,
+      "retrieval_recall_at_k": 0.5,
+      "retrieved_context_tokens": 78,
+      "reward_digest": "0f84d5ebee88145891db5adb92f8a48c2a9a536da1e5b45da20c7d2e1703d6ad",
+      "reward_path": "rewards/train/64afd20571e744ba8e4fc711.missing_support.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 0.5,
+      "supporting_fact_exact": 0.0,
+      "supporting_memory_count": 1,
+      "task_id": "hotpot-5abecbed5542997719eab5c5",
+      "total_reward": 0.25,
+      "total_tool_calls": 6,
+      "trajectory_digest": "668a5e66c896630cef463df77548f557b29381a39abb787763386feea8909d30",
+      "trajectory_path": "trajectories/train/64afd20571e744ba8e4fc711.missing_support.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1065,
+      "dfa_accepted": true,
+      "dfa_status": "accepted",
+      "env_reward": 1.0,
+      "episode_success": true,
+      "format_reward": 0.0,
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "hotpot_type": "comparison",
+      "level": "easy",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 1.0,
+      "policy": "gold",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 91,
+      "reward_digest": "856313f1591f98bf15add736b19b93b774ba8f26431d7bc1950d95e1ad302d2e",
+      "reward_path": "rewards/train/db48983a655ccc42f140b707.gold.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5a8ac7d055429950cd6afb8f",
+      "total_reward": 2.0,
+      "total_tool_calls": 7,
+      "trajectory_digest": "c21a7b4e2450c95c78a8370e268d6449b603486680385dfca74bcf192dcd6d4c",
+      "trajectory_path": "trajectories/train/db48983a655ccc42f140b707.gold.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "context_tokens": 1065,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "hotpot_type": "comparison",
+      "level": "easy",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 0.75,
+      "policy": "wrong_answer",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 91,
+      "reward_digest": "8e13cdb251d221a892b06ddfa8a9bd802cb1f11d83a286d5f82b727d3b263166",
+      "reward_path": "rewards/train/db48983a655ccc42f140b707.wrong_answer.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5a8ac7d055429950cd6afb8f",
+      "total_reward": 0.75,
+      "total_tool_calls": 7,
+      "trajectory_digest": "885d7235dda58700896d1b03a9c6b7e527f5412f5b81de352031ccdbf98a98dd",
+      "trajectory_path": "trajectories/train/db48983a655ccc42f140b707.wrong_answer.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 1,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 788,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "hotpot_type": "comparison",
+      "level": "easy",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 3,
+      "milestone_reward": 0.25,
+      "policy": "missing_support",
+      "retrieval_calls": 2,
+      "retrieval_k": 1,
+      "retrieval_recall_at_k": 0.5,
+      "retrieved_context_tokens": 44,
+      "reward_digest": "c5221e9c325d558b99684155723df9315f922f7ab7582c9b872030748a4428f6",
+      "reward_path": "rewards/train/db48983a655ccc42f140b707.missing_support.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 0.5,
+      "supporting_fact_exact": 0.0,
+      "supporting_memory_count": 1,
+      "task_id": "hotpot-5a8ac7d055429950cd6afb8f",
+      "total_reward": 0.25,
+      "total_tool_calls": 6,
+      "trajectory_digest": "c5cdeb770a228ec778eebd39cf68cc0664848ded0a731a8174624ca184cbf0d6",
+      "trajectory_path": "trajectories/train/db48983a655ccc42f140b707.missing_support.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1874,
+      "dfa_accepted": true,
+      "dfa_status": "accepted",
+      "env_reward": 1.0,
+      "episode_success": true,
+      "format_reward": 0.0,
+      "hotpot_id": "5a83df2655429933447460a1",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 1.0,
+      "policy": "gold",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 136,
+      "reward_digest": "625cacf3ea005309b3bc63b431469cd1373b223953fb4855d11eb193f3003a57",
+      "reward_path": "rewards/train/2aaeae49984e497fe593b3e2.gold.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5a83df2655429933447460a1",
+      "total_reward": 2.0,
+      "total_tool_calls": 7,
+      "trajectory_digest": "1c001f8481577a37fb2a3ae71ab594909bdcacdad5187aeb1a6d5f5548489f7b",
+      "trajectory_path": "trajectories/train/2aaeae49984e497fe593b3e2.gold.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "context_tokens": 1874,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5a83df2655429933447460a1",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 0.75,
+      "policy": "wrong_answer",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 136,
+      "reward_digest": "e4d5a574c128b2e941ac64dca71f916ed6f71a0e17757434df67a62b6dde1699",
+      "reward_path": "rewards/train/2aaeae49984e497fe593b3e2.wrong_answer.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5a83df2655429933447460a1",
+      "total_reward": 0.75,
+      "total_tool_calls": 7,
+      "trajectory_digest": "d8d63de012f4d32fe62154b49bce2365eec987193b2afefa814bef2d67e71d2f",
+      "trajectory_path": "trajectories/train/2aaeae49984e497fe593b3e2.wrong_answer.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 1,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1421,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5a83df2655429933447460a1",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 3,
+      "milestone_reward": 0.25,
+      "policy": "missing_support",
+      "retrieval_calls": 2,
+      "retrieval_k": 1,
+      "retrieval_recall_at_k": 0.5,
+      "retrieved_context_tokens": 64,
+      "reward_digest": "dcf5c0313189f2aa61a15595a2946c9fe8c83292e0852be7af5a74575061e913",
+      "reward_path": "rewards/train/2aaeae49984e497fe593b3e2.missing_support.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 0.5,
+      "supporting_fact_exact": 0.0,
+      "supporting_memory_count": 1,
+      "task_id": "hotpot-5a83df2655429933447460a1",
+      "total_reward": 0.25,
+      "total_tool_calls": 6,
+      "trajectory_digest": "62904954f09a96948b72704821856951f81ed66c8af3eefcac960ee9ee945347",
+      "trajectory_path": "trajectories/train/2aaeae49984e497fe593b3e2.missing_support.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1393,
+      "dfa_accepted": true,
+      "dfa_status": "accepted",
+      "env_reward": 1.0,
+      "episode_success": true,
+      "format_reward": 0.0,
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 1.0,
+      "policy": "gold",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 98,
+      "reward_digest": "41575385efad23a67e1af0fa4b546118120ea3eac36250758a4c2fb77b1867c3",
+      "reward_path": "rewards/train/fe07e19167b25f8839f96027.gold.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5a76f83e55429972597f1405",
+      "total_reward": 2.0,
+      "total_tool_calls": 7,
+      "trajectory_digest": "c7f7dcc15ddec6495d8eb711e9018f8b4c60155b571f3d94d36e9ed1c827cbc0",
+      "trajectory_path": "trajectories/train/fe07e19167b25f8839f96027.gold.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "context_tokens": 1393,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 0.75,
+      "policy": "wrong_answer",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 98,
+      "reward_digest": "a2346654c066372e982785393f275370fe28e4500b6c4ee29f7693019e0fe123",
+      "reward_path": "rewards/train/fe07e19167b25f8839f96027.wrong_answer.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5a76f83e55429972597f1405",
+      "total_reward": 0.75,
+      "total_tool_calls": 7,
+      "trajectory_digest": "8a12f6ff5f96477ce40b278f150165e27df936d1e257bfd7caee2050bdeaf96a",
+      "trajectory_path": "trajectories/train/fe07e19167b25f8839f96027.wrong_answer.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 1,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1032,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 3,
+      "milestone_reward": 0.25,
+      "policy": "missing_support",
+      "retrieval_calls": 2,
+      "retrieval_k": 1,
+      "retrieval_recall_at_k": 0.5,
+      "retrieved_context_tokens": 60,
+      "reward_digest": "74d76b42c81d57b7dbf45fc7bbd0ce8cfb42398a630cf4d5d49450fd7b4e5379",
+      "reward_path": "rewards/train/fe07e19167b25f8839f96027.missing_support.jsonl",
+      "seed": 20260802,
+      "source_split": "train",
+      "split": "train",
+      "supporting_fact_coverage": 0.5,
+      "supporting_fact_exact": 0.0,
+      "supporting_memory_count": 1,
+      "task_id": "hotpot-5a76f83e55429972597f1405",
+      "total_reward": 0.25,
+      "total_tool_calls": 6,
+      "trajectory_digest": "a9d619ec42f4e1df4c360ee058e6d93bd7f9562f497f41c7e8300a0b1f0da13b",
+      "trajectory_path": "trajectories/train/fe07e19167b25f8839f96027.missing_support.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 3,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 2178,
+      "dfa_accepted": true,
+      "dfa_status": "accepted",
+      "env_reward": 1.0,
+      "episode_success": true,
+      "format_reward": 0.0,
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "hotpot_type": "bridge",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 6,
+      "milestone_reward": 1.0,
+      "policy": "gold",
+      "retrieval_calls": 3,
+      "retrieval_k": 3,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 157,
+      "reward_digest": "47027941ed900d64c84f0bdc644a3a978d38c4e12c00f97023c79d86a0396e4e",
+      "reward_path": "rewards/dev/3399b01aa013fc5ced86c4aa.gold.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "dev",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 3,
+      "task_id": "hotpot-5ab3d2b7554299233954ffb8",
+      "total_reward": 2.0,
+      "total_tool_calls": 9,
+      "trajectory_digest": "302ce912faff09075926e78b113a00e6cac8088c52fccfcaa49769714383adcd",
+      "trajectory_path": "trajectories/dev/3399b01aa013fc5ced86c4aa.gold.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 3,
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "context_tokens": 2178,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "hotpot_type": "bridge",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 6,
+      "milestone_reward": 0.75,
+      "policy": "wrong_answer",
+      "retrieval_calls": 3,
+      "retrieval_k": 3,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 157,
+      "reward_digest": "e6f9338764f5761cfda51f15e607569fb67369add609605dcc879cf2e849d820",
+      "reward_path": "rewards/dev/3399b01aa013fc5ced86c4aa.wrong_answer.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "dev",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 3,
+      "task_id": "hotpot-5ab3d2b7554299233954ffb8",
+      "total_reward": 0.75,
+      "total_tool_calls": 9,
+      "trajectory_digest": "121b0604337e1b9aeffb552164a92c108f4663c76d50c72c32611aa80a0aa3db",
+      "trajectory_path": "trajectories/dev/3399b01aa013fc5ced86c4aa.wrong_answer.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1740,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "hotpot_type": "bridge",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 5,
+      "milestone_reward": 0.25,
+      "policy": "missing_support",
+      "retrieval_calls": 3,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 0.6666666666666666,
+      "retrieved_context_tokens": 125,
+      "reward_digest": "e011e9d6b3786f1d3424d099c30cccb3da7eb236c1d946784d8f3628ce45f503",
+      "reward_path": "rewards/dev/3399b01aa013fc5ced86c4aa.missing_support.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "dev",
+      "supporting_fact_coverage": 0.6666666666666666,
+      "supporting_fact_exact": 0.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5ab3d2b7554299233954ffb8",
+      "total_reward": 0.25,
+      "total_tool_calls": 8,
+      "trajectory_digest": "ca2cf6a7f9bb373755614fb544ad5b636efff0943b5f6efb135159753a19cccc",
+      "trajectory_path": "trajectories/dev/3399b01aa013fc5ced86c4aa.missing_support.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 3,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 2539,
+      "dfa_accepted": true,
+      "dfa_status": "accepted",
+      "env_reward": 1.0,
+      "episode_success": true,
+      "format_reward": 0.0,
+      "hotpot_id": "5ab299d6554299449642c926",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 6,
+      "milestone_reward": 1.0,
+      "policy": "gold",
+      "retrieval_calls": 3,
+      "retrieval_k": 3,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 193,
+      "reward_digest": "f4ce98d6b9e6e9e82ae92ecab580a26c8020724abd9c3be3eed10fb011bf1ae7",
+      "reward_path": "rewards/dev/bda4a7f9d800a44e27d49a66.gold.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "dev",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 3,
+      "task_id": "hotpot-5ab299d6554299449642c926",
+      "total_reward": 2.0,
+      "total_tool_calls": 9,
+      "trajectory_digest": "4103d8ec90c656dedbee572ffb43277e7c516c3a0406b8bbb9e7fb8d52bd84f0",
+      "trajectory_path": "trajectories/dev/bda4a7f9d800a44e27d49a66.gold.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 3,
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "context_tokens": 2539,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5ab299d6554299449642c926",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 6,
+      "milestone_reward": 0.75,
+      "policy": "wrong_answer",
+      "retrieval_calls": 3,
+      "retrieval_k": 3,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 193,
+      "reward_digest": "a785e0d580de7952254e54e88d58bc7ce86c2d0bf43cf771ef13ea0620ef8e7e",
+      "reward_path": "rewards/dev/bda4a7f9d800a44e27d49a66.wrong_answer.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "dev",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 3,
+      "task_id": "hotpot-5ab299d6554299449642c926",
+      "total_reward": 0.75,
+      "total_tool_calls": 9,
+      "trajectory_digest": "9b44d4a6b8a2680f7d73de4120f90beca54332430f8b371af33231bcdf4c98b3",
+      "trajectory_path": "trajectories/dev/bda4a7f9d800a44e27d49a66.wrong_answer.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1973,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5ab299d6554299449642c926",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 5,
+      "milestone_reward": 0.25,
+      "policy": "missing_support",
+      "retrieval_calls": 3,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 0.6666666666666666,
+      "retrieved_context_tokens": 146,
+      "reward_digest": "53349fc94dc5532a3c36b7ba5f0de4053f6913bdbf6bb7ff90c95600d49b57b1",
+      "reward_path": "rewards/dev/bda4a7f9d800a44e27d49a66.missing_support.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "dev",
+      "supporting_fact_coverage": 0.6666666666666666,
+      "supporting_fact_exact": 0.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5ab299d6554299449642c926",
+      "total_reward": 0.25,
+      "total_tool_calls": 8,
+      "trajectory_digest": "630640e99a1c31c571e651f0b5d3df1a8943fa5a805a47f0650899dbe48a73ab",
+      "trajectory_path": "trajectories/dev/bda4a7f9d800a44e27d49a66.missing_support.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 3,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 2275,
+      "dfa_accepted": true,
+      "dfa_status": "accepted",
+      "env_reward": 1.0,
+      "episode_success": true,
+      "format_reward": 0.0,
+      "hotpot_id": "5ab7c6995542993667794005",
+      "hotpot_type": "bridge",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 6,
+      "milestone_reward": 1.0,
+      "policy": "gold",
+      "retrieval_calls": 3,
+      "retrieval_k": 3,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 144,
+      "reward_digest": "b7d92ad6261a42708453e9b2b5039c86da59bf4b1bc82b49f9b9bf488b5e2a74",
+      "reward_path": "rewards/test/c9e75d299b872ccc6f46e57e.gold.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "test",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 3,
+      "task_id": "hotpot-5ab7c6995542993667794005",
+      "total_reward": 2.0,
+      "total_tool_calls": 9,
+      "trajectory_digest": "18cf07350b0fb306ddb0b0d14ee9bbf8313dde77e8089121209da332512346b6",
+      "trajectory_path": "trajectories/test/c9e75d299b872ccc6f46e57e.gold.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 3,
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "context_tokens": 2275,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5ab7c6995542993667794005",
+      "hotpot_type": "bridge",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 6,
+      "milestone_reward": 0.75,
+      "policy": "wrong_answer",
+      "retrieval_calls": 3,
+      "retrieval_k": 3,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 144,
+      "reward_digest": "566b772ce91fbc5821380a62cf860cfbe520c59e683f1d2b25fc3de3b7e63227",
+      "reward_path": "rewards/test/c9e75d299b872ccc6f46e57e.wrong_answer.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "test",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 3,
+      "task_id": "hotpot-5ab7c6995542993667794005",
+      "total_reward": 0.75,
+      "total_tool_calls": 9,
+      "trajectory_digest": "1d3ad87151aca6899a66e5094b32522902695d135e46f2b18c8bea1912ed25f7",
+      "trajectory_path": "trajectories/test/c9e75d299b872ccc6f46e57e.wrong_answer.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1798,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5ab7c6995542993667794005",
+      "hotpot_type": "bridge",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 5,
+      "milestone_reward": 0.25,
+      "policy": "missing_support",
+      "retrieval_calls": 3,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 0.6666666666666666,
+      "retrieved_context_tokens": 99,
+      "reward_digest": "cce14f27f1d1da668d1196be51ae25dead44c347dcb614e2dd3f245beddb7cdd",
+      "reward_path": "rewards/test/c9e75d299b872ccc6f46e57e.missing_support.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "test",
+      "supporting_fact_coverage": 0.6666666666666666,
+      "supporting_fact_exact": 0.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5ab7c6995542993667794005",
+      "total_reward": 0.25,
+      "total_tool_calls": 8,
+      "trajectory_digest": "c3cd84b39d1e68ea791462109ff174ebb2617032bc2b4246c5224a7bf51ef7b9",
+      "trajectory_path": "trajectories/test/c9e75d299b872ccc6f46e57e.missing_support.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1457,
+      "dfa_accepted": true,
+      "dfa_status": "accepted",
+      "env_reward": 1.0,
+      "episode_success": true,
+      "format_reward": 0.0,
+      "hotpot_id": "5adc8c545542994734353734",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 1.0,
+      "policy": "gold",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 102,
+      "reward_digest": "06d5af10699ec397e51ad937164806e66bdbe81b81d536c35e2b1900daf4142a",
+      "reward_path": "rewards/test/a4eb502bb3f35a9d68b294d9.gold.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "test",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5adc8c545542994734353734",
+      "total_reward": 2.0,
+      "total_tool_calls": 7,
+      "trajectory_digest": "c901b77e8be841a43562f36d5e18fff9d8b71e185ee7c1bd6a7d93cf1af50127",
+      "trajectory_path": "trajectories/test/a4eb502bb3f35a9d68b294d9.gold.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 2,
+      "answer_em": 0.0,
+      "answer_f1": 0.0,
+      "context_tokens": 1457,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5adc8c545542994734353734",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 4,
+      "milestone_reward": 0.75,
+      "policy": "wrong_answer",
+      "retrieval_calls": 2,
+      "retrieval_k": 2,
+      "retrieval_recall_at_k": 1.0,
+      "retrieved_context_tokens": 102,
+      "reward_digest": "f6bb1de6431ae878ef901eabf6fc82fb87f5dc80b76d41f36044d8857f4c09b3",
+      "reward_path": "rewards/test/a4eb502bb3f35a9d68b294d9.wrong_answer.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "test",
+      "supporting_fact_coverage": 1.0,
+      "supporting_fact_exact": 1.0,
+      "supporting_memory_count": 2,
+      "task_id": "hotpot-5adc8c545542994734353734",
+      "total_reward": 0.75,
+      "total_tool_calls": 7,
+      "trajectory_digest": "fe994d87b1ceac8931e1a3472f7beffaba8c92e7ea3b399bf1b6d9ce65758e51",
+      "trajectory_path": "trajectories/test/a4eb502bb3f35a9d68b294d9.wrong_answer.jsonl",
+      "violation_reward": 0.0
+    },
+    {
+      "active_memory_count": 1,
+      "answer_em": 1.0,
+      "answer_f1": 1.0,
+      "context_tokens": 1115,
+      "dfa_accepted": false,
+      "dfa_status": "rejected",
+      "env_reward": 0.0,
+      "episode_success": false,
+      "format_reward": 0.0,
+      "hotpot_id": "5adc8c545542994734353734",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "memory_precision": 1.0,
+      "memory_tool_calls": 3,
+      "milestone_reward": 0.25,
+      "policy": "missing_support",
+      "retrieval_calls": 2,
+      "retrieval_k": 1,
+      "retrieval_recall_at_k": 0.5,
+      "retrieved_context_tokens": 63,
+      "reward_digest": "cbcecf1af78fd45aa838de4d13d446399decc7d0d211ba9e891d713f1a6b2282",
+      "reward_path": "rewards/test/a4eb502bb3f35a9d68b294d9.missing_support.jsonl",
+      "seed": 20260802,
+      "source_split": "validation",
+      "split": "test",
+      "supporting_fact_coverage": 0.5,
+      "supporting_fact_exact": 0.0,
+      "supporting_memory_count": 1,
+      "task_id": "hotpot-5adc8c545542994734353734",
+      "total_reward": 0.25,
+      "total_tool_calls": 6,
+      "trajectory_digest": "b36ae003063f6d8e0c54f49300bcf26519dc5693c314a2fe1b57f7662618d53d",
+      "trajectory_path": "trajectories/test/a4eb502bb3f35a9d68b294d9.missing_support.jsonl",
+      "violation_reward": 0.0
+    }
+  ],
+  "reward_profile": {
+    "env_weight": 1.0,
+    "format_weight": 1.0,
+    "logic_beta": 1.0,
+    "max_steps": 12,
+    "milestone_weight": 0.25,
+    "name": "terminal_dfa",
+    "trend_weight": 0.0,
+    "violation_weight": 0.0
+  },
+  "reward_profile_digest": "da02223de72cde8f235401890831ee3683e204977452cf98f7e8e9371e3571e0",
+  "schema_version": 1,
+  "seed": 20260802,
+  "smoke_config": {
+    "dev_size": 2,
+    "max_supporting_facts": 4,
+    "min_supporting_facts": 2,
+    "policies": [
+      "gold",
+      "wrong_answer",
+      "missing_support"
+    ],
+    "schema_version": 1,
+    "seed": 20260802,
+    "stage1_distractors": 6,
+    "stage2_distractors": 3,
+    "test_size": 2,
+    "train_size": 6
+  },
+  "smoke_config_digest": "49c0a36109e3597b228f7fbedd0af37d8a18f93635f31e99b6275ada4dc7945d",
+  "source_fingerprints": {
+    "test": "a00e503f3f17d4be",
+    "train": "c369f1b07b350d37",
+    "validation": "fbe86cb2d14cb199"
+  },
+  "source_split_sizes": {
+    "test": 7405,
+    "train": 90447,
+    "validation": 7405
+  }
+}

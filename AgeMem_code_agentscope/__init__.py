@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 """AgeMem: Agent with long/short-term memory (AgentScope)."""
 from .agent import AgeMem
+from .hotpotqa_benchmark import (
+    HotpotQADataAdapter,
+    HotpotQAOracleBenchmark,
+    HotpotQASmokeConfig,
+    HotpotQASmokeManifest,
+    OracleBenchmarkReport,
+)
 from .memory import AgentScopeLongtermMemory
 from .memory_store import (
     InMemoryStore,
@@ -45,6 +52,10 @@ __all__ = [
     "ErrorMemoryPolicy",
     "GoldMemoryPolicy",
     "HotpotQAToyEnvironment",
+    "HotpotQADataAdapter",
+    "HotpotQAOracleBenchmark",
+    "HotpotQASmokeConfig",
+    "HotpotQASmokeManifest",
     "InMemoryStore",
     "MemoryRecord",
     "MemoryOracleGrounder",
@@ -52,6 +63,7 @@ __all__ = [
     "MemoryStoreSnapshot",
     "OfflineRewardReplay",
     "OracleAPEvent",
+    "OracleBenchmarkReport",
     "ReplayResult",
     "RewardBreakdown",
     "RewardConfig",

@@ -1,0 +1,109 @@
+{
+  "dataset_config": "fullwiki",
+  "dataset_name": "hotpot_qa",
+  "schema_version": 1,
+  "seed": 20260802,
+  "selections": [
+    {
+      "benchmark_split": "train",
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "source_index": 60480,
+      "source_split": "train",
+      "supporting_fact_count": 3
+    },
+    {
+      "benchmark_split": "train",
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "source_index": 64387,
+      "source_split": "train",
+      "supporting_fact_count": 2
+    },
+    {
+      "benchmark_split": "train",
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "source_index": 29294,
+      "source_split": "train",
+      "supporting_fact_count": 2
+    },
+    {
+      "benchmark_split": "train",
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "hotpot_type": "comparison",
+      "level": "easy",
+      "source_index": 14935,
+      "source_split": "train",
+      "supporting_fact_count": 2
+    },
+    {
+      "benchmark_split": "train",
+      "hotpot_id": "5a83df2655429933447460a1",
+      "hotpot_type": "bridge",
+      "level": "medium",
+      "source_index": 86169,
+      "source_split": "train",
+      "supporting_fact_count": 2
+    },
+    {
+      "benchmark_split": "train",
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "source_index": 71348,
+      "source_split": "train",
+      "supporting_fact_count": 2
+    },
+    {
+      "benchmark_split": "dev",
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "hotpot_type": "bridge",
+      "level": "hard",
+      "source_index": 1880,
+      "source_split": "validation",
+      "supporting_fact_count": 3
+    },
+    {
+      "benchmark_split": "dev",
+      "hotpot_id": "5ab299d6554299449642c926",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "source_index": 4920,
+      "source_split": "validation",
+      "supporting_fact_count": 3
+    },
+    {
+      "benchmark_split": "test",
+      "hotpot_id": "5ab7c6995542993667794005",
+      "hotpot_type": "bridge",
+      "level": "hard",
+      "source_index": 4073,
+      "source_split": "validation",
+      "supporting_fact_count": 3
+    },
+    {
+      "benchmark_split": "test",
+      "hotpot_id": "5adc8c545542994734353734",
+      "hotpot_type": "comparison",
+      "level": "hard",
+      "source_index": 5204,
+      "source_split": "validation",
+      "supporting_fact_count": 2
+    }
+  ],
+  "smoke_config_digest": "49c0a36109e3597b228f7fbedd0af37d8a18f93635f31e99b6275ada4dc7945d",
+  "source_fingerprints": {
+    "test": "a00e503f3f17d4be",
+    "train": "c369f1b07b350d37",
+    "validation": "fbe86cb2d14cb199"
+  },
+  "split_sizes": {
+    "dev": 2,
+    "test": 2,
+    "train": 6
+  }
+}

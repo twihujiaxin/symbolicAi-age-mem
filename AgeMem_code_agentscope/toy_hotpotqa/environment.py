@@ -247,17 +247,23 @@ class HotpotQAToyEnvironment:
         return "other"
 
     def _memory_metadata(self, fact: ToyFact) -> Dict[str, object]:
-        return {
+        metadata: Dict[str, object] = {
             "task_id": self.task.task_id,
             "fact_id": fact.fact_id,
             "role": self._fact_role(fact.fact_id),
-            "subject": fact.subject,
-            "relation": fact.relation,
-            "object": fact.object,
             "stale": fact.fact_id in self.task.stale_fact_ids,
             "duplicate_of_fact_id": fact.duplicate_of_fact_id,
             "stage": str(self.stage),
+            "title": fact.title,
         }
+        # M3 synthetic facts carry explicit subject/relation/object fields. Real
+        # M5 HotpotQA sentences deliberately do not invent M6 semantic triples;
+        # their exact (title, sent_id) source pointer is retained instead.
+        for field_name in ("subject", "relation", "object", "sent_id"):
+            value = getattr(fact, field_name, None)
+            if value is not None:
+                metadata[field_name] = value
+        return metadata
 
     def _memory_id(self, fact_id: str) -> str:
         return f"{self.rollout_id}:memory:{fact_id}"

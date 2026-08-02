@@ -11,6 +11,7 @@ Standalone release of the **AgeMem** agent: a ReAct-style agent with **6 tools**
 - **Replayable trajectories**: optional strict JSONL recording with complete memory snapshots
 - **Offline M3 environment**: 30 deterministic HotpotQA-style two-hop memory tasks
 - **Offline M4 rewards**: Oracle AP grounding, a hand-authored DFA, and once-only milestone rewards
+- **Offline M5 benchmark**: real local HotpotQA adaptation, fixed smoke splits, and auditable Oracle reports
 
 ### The 6 Memory Tools
 
@@ -131,6 +132,59 @@ save environment, milestone, violation, trend, and format components. Trend
 shaping is fixed to zero in M4; violations are audited with zero penalty until
 a later experiment explicitly enables a non-positive weight.
 
+### M5 real HotpotQA Oracle benchmark
+
+M5 reads a local Hugging Face `DatasetDict` saved with `save_to_disk`; it never
+downloads data at runtime. By default the adapter expects
+`../data/hotpot_qa/fullwiki` relative to the repository, or the path in
+`HOTPOTQA_PATH`. Install the additional reader dependency with:
+
+```powershell
+.\.venv\python.exe -m pip install -r AgeMem_code_agentscope\requirements-hotpotqa.txt
+```
+
+Run the fixed 6-train / 2-dev / 2-test smoke benchmark:
+
+```powershell
+.\.venv\python.exe -m AgeMem_code_agentscope.hotpotqa_benchmark `
+  --data-path D:\Project\Age-Mem\data\hotpot_qa\fullwiki
+```
+
+Add `--rebuild-manifest` only when intentionally regenerating the deterministic
+selection manifest. Smoke train comes from source train; smoke dev and test are
+disjoint labeled subsets of source validation. The official source test split
+is checked end-to-end for absent answers and supporting-fact labels, but is not
+used for Oracle scoring.
+
+The adapter resolves every supporting fact by the exact `(title, sent_id)`
+annotation and derives a stable content-bound fact ID. It does not use title or
+sentence substring matching. The public three-stage `StageInput` contains no
+answer field, supporting IDs, or Oracle labels.
+
+The benchmark records and replays M1 trajectories, then runs the M4
+`terminal_dfa` profile entirely offline. `gold` is an Oracle upper bound;
+`wrong_answer` and `missing_support` are deterministic failure controls. They do
+not represent real base-model performance, because M5 deliberately makes zero
+LLM calls. Natural-language AP extraction and model training remain out of
+scope.
+
+Outputs:
+
+- Full context-bearing trajectory and reward JSONL: `runs/m5_hotpotqa_smoke/`
+  (gitignored; treat as sensitive data).
+- Reproducible split manifest: `data/splits/hotpotqa_smoke_manifest.json`.
+- Compact metrics and failure audit: `artifacts/m5_hotpotqa_smoke/`.
+- Human-readable report: `docs/m5_hotpotqa_oracle_benchmark.md`.
+
+`Retrieval recall@k` is an Oracle-directed cumulative diagnostic: it measures
+supporting-fact recall over the union of repeated top-1 retrieval results, where
+`k` is the number of unique returned facts. It is not standard single-query
+model Recall@k. Context tokens are a tokenizer-independent cumulative estimate
+over every processed observation, including repeated context across timesteps.
+Memory precision is computed over final active memory records. Failure audits
+retain exact source pointers, memory version history, and every grounded AP/DFA
+transition without copying full context or answer text.
+
 ## Install
 
 From the folder containing `AgeMem_code_agentscope` (e.g. project root):
@@ -166,6 +220,7 @@ python -m AgeMem_code_agentscope.main
 | `AGEMEM_TRAJECTORY_PATH` | Optional JSONL path; enables complete replayable trajectory recording |
 | `AGEMEM_TASK_ID` | Task identifier written to trajectory records; defaults to `standalone-demo` |
 | `AGEMEM_ROLLOUT_ID` | Optional rollout identifier; a UUID is generated when omitted |
+| `HOTPOTQA_PATH` | Optional local `save_to_disk` HotpotQA fullwiki DatasetDict path used by M5 |
 
 ### Show tool calls while the agent is answering
 
@@ -247,6 +302,7 @@ AgeMem_code_agentscope/
   replay.py      # Offline trajectory query/replay CLI
   toy_hotpotqa/  # M3 task models, environment, policies and JSONL runner
   memory_oracle/ # M4 Oracle AP grounding, DFA runner and reward replay
+  hotpotqa_benchmark/ # M5 local-data adapter, smoke manifest, metrics and CLI
   src/           # Helpers: utils, llm_client, schemas, hooks
   requirements.txt
   README.md
