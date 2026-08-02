@@ -101,6 +101,7 @@ wandb/
 
 # checkpoints
 checkpoints/
+/trajectories/
 
 # database file
 *.db

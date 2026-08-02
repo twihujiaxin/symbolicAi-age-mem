@@ -1,26 +1,40 @@
 from __future__ import annotations
 
 import json
-import os
+import time
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from trinity.common.experience import Experience
 from trinity.common.models.model import ModelWrapper
+from trinity.common.tool_trace import ToolTraceRecorder
 from trinity.common.workflows.workflow import WORKFLOWS, MultiTurnWorkflow, Task
 from trinity.utils.log import get_logger
 
 from .memory_store import MemoryManager, chat_client
-from .workflow_prompt import TOOL_CALL_SYS_PROMPT, SUMMARY_CONTEXT_SYS_PROMPT, TEXT_SIMILARITY_SYS_PROMPT
+from .workflow_prompt import (
+    TOOL_CALL_SYS_PROMPT,
+    SUMMARY_CONTEXT_SYS_PROMPT,
+    TEXT_SIMILARITY_SYS_PROMPT,
+)
 from .utils import (
     TOOL_SCHEMA as COMMON_TOOL_SCHEMA,
+    TOOL_NAMES,
     DistractorGenerator as CommonDistractorGenerator,
     extract_score as common_extract_score,
     parse_answer as common_parse_answer,
     parse_tool_calls as common_parse_tool_calls,
+    should_collect_intermediate_experience,
+    validate_tool_call,
 )
 
-from ..memory_reward.my_reward import ThreeStageRewardCalculator, extract_tool_usage_stats, extract_context_stats, extract_memory_stats
+from ..memory_reward.my_reward import (
+    ThreeStageRewardCalculator,
+    extract_context_stats,
+    extract_memory_stats,
+    extract_tool_attempt_stats,
+    extract_tool_usage_stats,
+)
 from .workflow_metrics import get_answer_llm_judge_score
 
 # Use shared utility implementations to avoid train/eval drift.
@@ -40,14 +54,15 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
     Stage 2：清空短期上下文并注入干扰信息，让模型学习压缩/过滤上下文。
     Stage 3：提出正式问题，让模型联合使用 STM 与此前保留的 LTM 作答。
     """
+
     can_repeat: bool = True
     is_async: bool = True
 
     def __init__(
-            self,
-            task: Task,
-            model: ModelWrapper,
-            auxiliary_models: Optional[List] = None,
+        self,
+        task: Task,
+        model: ModelWrapper,
+        auxiliary_models: Optional[List] = None,
     ):
         super().__init__(
             model=model,
@@ -65,17 +80,36 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
 
         # STM（context_messages）的容量与自动摘要阈值。
         self.max_context_tokens = self.workflow_args.get("max_context_tokens", 32768)
-        self.auto_summary_token_threshold = self.workflow_args.get("auto_summary_threshold", 0.8)
-        self.max_tool_rounds_per_turn = self.workflow_args.get("max_tool_rounds_per_turn", 3)
+        self.auto_summary_token_threshold = self.workflow_args.get(
+            "auto_summary_threshold", 0.8
+        )
+        self.max_tool_rounds_per_turn = self.workflow_args.get(
+            "max_tool_rounds_per_turn", 3
+        )
 
         # Multi-stage configuration.
-        self.stage2_distractor_messages = self.workflow_args.get("stage2_distractor_messages", 5)
+        self.stage2_distractor_messages = self.workflow_args.get(
+            "stage2_distractor_messages", 5
+        )
         self.stage3_max_rounds = self.workflow_args.get("stage3_max_rounds", 5)
         self.stage1_max_rounds = self.workflow_args.get("stage1_max_rounds", 5)
         self.stage2_max_rounds = self.workflow_args.get("stage2_max_rounds", 5)
+        self.tool_reward_stats_source = (
+            str(self.workflow_args.get("tool_reward_stats_source", "legacy"))
+            .strip()
+            .lower()
+        )
+        if self.tool_reward_stats_source not in {"legacy", "trace"}:
+            self.logger.warning(
+                "Unknown tool_reward_stats_source=%r; falling back to legacy",
+                self.tool_reward_stats_source,
+            )
+            self.tool_reward_stats_source = "legacy"
 
         # memory_manager 是 LTM；chat_client 是摘要、相似度判断、Judge 等辅助调用。
-        self.memory_manager = MemoryManager(embedding_model="text-embedding-v4", embedding_dim=256)
+        self.memory_manager = MemoryManager(
+            embedding_model="text-embedding-v4", embedding_dim=256
+        )
         self.chat_client = chat_client()
         self.distractor_generator = DistractorGenerator(self.chat_client)
 
@@ -83,6 +117,25 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.context_messages: List[Dict] = []
         self.current_turn: int = 0
         self.final_reward: float = 0.0
+        self.current_stage: int = 0
+        self.current_round: int = 0
+        self.current_step: int = 0
+        self.current_turn_index: Optional[int] = None
+        self.current_run_id: int = 0
+        self.run_id_base: int = 0
+        self.current_execution_id: str = ""
+        self._model_round_count: int = 0
+        self._stage3_round_count: int = 0
+
+        # 完整工具轨迹单独写 JSONL；Experience.info 只保存轻量关联 ID。
+        self.tool_trace_recorder = ToolTraceRecorder.from_workflow_args(
+            self.workflow_args
+        )
+        self.tool_trace_console = bool(
+            self.workflow_args.get("tool_trace_console", False)
+        )
+        self._tool_trace_events: List[Dict[str, Any]] = []
+        self._last_tool_result: Dict[str, Any] = {}
 
         # Question and expected answer
         self.question: Optional[str] = None
@@ -101,7 +154,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
     @property
     def repeatable(self):
         return True
-    
+
     def set_repeat_times(self, repeat_times, run_id_base):
         self.repeat_times = repeat_times
         self.run_id_base = run_id_base
@@ -114,9 +167,11 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         """Check if context should be auto-summarized based on token threshold."""
         total_chars = sum(len(m.get("content", "")) for m in self.context_messages)
         approx_tokens = total_chars / 4
-        return approx_tokens > self.max_context_tokens * self.auto_summary_token_threshold
+        return (
+            approx_tokens > self.max_context_tokens * self.auto_summary_token_threshold
+        )
 
-    def _apply_tools(self, tool_calls: List[Dict]) -> Optional[str]:
+    def _execute_tool_calls(self, tool_calls: List[Dict]) -> Optional[str]:
         """执行模型输出的工具调用，并直接修改 STM 或 LTM。
 
         这是“工具协议”落到真实状态变化的汇合点：
@@ -127,6 +182,10 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         for call in tool_calls:
             name = call.get("name")
             args = call.get("arguments", {})
+            self._last_tool_result = {
+                "effect_applied": False,
+                "outcome": "not_executed",
+            }
 
             # self.logger.info(f"Applying tool: {name} with args: {args}")
 
@@ -151,43 +210,45 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     messages_to_summarize = [(i, m) for i, m in non_system_messages]
                     indices_to_replace = [i for i, m in non_system_messages]
                 else:
-                    # Handle different span formats
-                    if "-" in span:
-                        # Range format like "3-7"
-                        try:
-                            start, end = map(int, span.split("-"))
-                            messages_to_summarize = non_system_messages[start - 2: end-1]
-                            indices_to_replace = [i for i, m in messages_to_summarize]
-                        except Exception:
-                            # Fallback to all if parsing fails
-                            messages_to_summarize = [(i, m) for i, m in non_system_messages]
-                            indices_to_replace = [i for i, m in non_system_messages]
-                    else:
-                        # Number format like "5" for last N messages
-                        try:
-                            n = int(span)
-                            messages_to_summarize = non_system_messages[-n:]
-                            indices_to_replace = [i for i, m in messages_to_summarize]
-                        except Exception:
-                            # Fallback to all if parsing fails
-                            messages_to_summarize = [(i, m) for i, m in non_system_messages]
-                            indices_to_replace = [i for i, m in non_system_messages]
+                    # Validation guarantees a positive integer here.
+                    n = int(span)
+                    messages_to_summarize = non_system_messages[-n:]
+                    indices_to_replace = [i for i, m in messages_to_summarize]
 
                 # Preserve user query if requested
                 if preserve_user_query:
                     # Find user messages and exclude them from summarization
-                    user_indices = [i for i, m in messages_to_summarize if m.get("role") == "user"]
-                    indices_to_replace = [i for i in indices_to_replace if i not in user_indices]
-                    messages_to_summarize = [(i, m) for i, m in messages_to_summarize if i not in user_indices]
+                    user_indices = [
+                        i for i, m in messages_to_summarize if m.get("role") == "user"
+                    ]
+                    indices_to_replace = [
+                        i for i in indices_to_replace if i not in user_indices
+                    ]
+                    messages_to_summarize = [
+                        (i, m)
+                        for i, m in messages_to_summarize
+                        if i not in user_indices
+                    ]
 
                 # Generate summary from selected messages
                 if messages_to_summarize:
                     conversation_text = "\n".join(
-                        [f"{m.get('role', 'unknown')}: {m.get('content', '')}" for i, m in messages_to_summarize])
-                    summary = self.chat_client.chat(messages=[{"role": "user",
-                                                               "content": SUMMARY_CONTEXT_SYS_PROMPT.format(
-                                                                   conversation_text=conversation_text)}],
-                                                    model_name="qwen-max")
+                        [
+                            f"{m.get('role', 'unknown')}: {m.get('content', '')}"
+                            for i, m in messages_to_summarize
+                        ]
+                    )
+                    summary = self.chat_client.chat(
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": SUMMARY_CONTEXT_SYS_PROMPT.format(
+                                    conversation_text=conversation_text
+                                ),
+                            }
+                        ],
+                        model_name="qwen-max",
+                    )
 
                     # Replace the original messages with summary
                     # Sort indices in descending order to avoid index shifting issues
@@ -200,18 +261,34 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     # Insert summary at the position of the first removed message
                     if indices_to_replace:
                         insert_position = min(indices_to_replace)
-                        self.context_messages.insert(insert_position, {
-                            "role": "tool",
-                            "content": f"[summary of {len(messages_to_summarize)} messages]\n{summary}"
-                        })
+                        self.context_messages.insert(
+                            insert_position,
+                            {
+                                "role": "tool",
+                                "content": f"[summary of {len(messages_to_summarize)} messages]\n{summary}",
+                            },
+                        )
 
-                    reply_note = f"summary_context_applied:success"
+                    reply_note = "summary_context_applied:success"
+                    self._last_tool_result = {
+                        "effect_applied": True,
+                        "outcome": "summarized",
+                        "summarized_count": len(messages_to_summarize),
+                        "summary": summary,
+                    }
 
                     # self.logger.info(f"Summarized {len(messages_to_summarize)} messages and replaced them with summary")
                 else:
-                    reply_note = f"summary_context_applied:no_messages_to_summarize"
+                    reply_note = "summary_context_applied:no_messages_to_summarize"
+                    self._last_tool_result = {
+                        "effect_applied": False,
+                        "outcome": "no_messages",
+                        "summarized_count": 0,
+                    }
                     # self.logger.info("No messages to summarize")
-                self._append_context("tool", f"[context tool result]\n{reply_note}")
+                result_text = f"[context tool result]\n{reply_note}"
+                self._append_context("tool", result_text)
+                self._last_tool_result["result_text"] = result_text
 
             elif name == "Clear_context":
                 # FILTER：逐条判断消息与删除条件的语义相似度，命中阈值则移除。
@@ -235,11 +312,16 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                         filtered_messages.append(m)
                         continue
 
-
                     if criteria:
                         similarity_text = self.chat_client.chat(
-                            messages=[{"role": "user", "content": TEXT_SIMILARITY_SYS_PROMPT.format(
-                                text1=criteria, text2=m.get("content", ""))}],
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": TEXT_SIMILARITY_SYS_PROMPT.format(
+                                        text1=criteria, text2=m.get("content", "")
+                                    ),
+                                }
+                            ],
                             model_name="qwen-max",
                         )
 
@@ -255,8 +337,17 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     filtered_messages.append(m)
 
                 self.context_messages = filtered_messages
-                reply_note = f"clear_context_applied:success:removed_{removed_count}_messages"
-                self._append_context("tool", f"[context tool result]\n{reply_note}")
+                reply_note = (
+                    f"clear_context_applied:success:removed_{removed_count}_messages"
+                )
+                result_text = f"[context tool result]\n{reply_note}"
+                self._append_context("tool", result_text)
+                self._last_tool_result = {
+                    "effect_applied": removed_count > 0,
+                    "outcome": "cleared",
+                    "removed_count": removed_count,
+                    "result_text": result_text,
+                }
 
             elif name == "Retrieve_memory":
                 # RETRIEVE：从 LTM 取回内容后写入 STM，长期存储本身不发生变化。
@@ -265,11 +356,28 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 metadata_filter = args.get("metadata_filter", {})
 
                 items = self.memory_manager.retrieve(query, top_k, metadata_filter)
-                retrieved_block = "\n".join(f"- {it.content} (Memory ID: {it.memory_id})" for it in items)
+                retrieved_block = "\n".join(
+                    f"- {it.content} (Memory ID: {it.memory_id})" for it in items
+                )
                 if retrieved_block:
-                    self._append_context("tool", f"[retrieved memories]\n{retrieved_block}")
+                    result_text = f"[retrieved memories]\n{retrieved_block}"
                 else:
-                    self._append_context("tool", f"[no related memories found]")
+                    result_text = "[no related memories found]"
+                self._append_context("tool", result_text)
+                self._last_tool_result = {
+                    "effect_applied": bool(items),
+                    "outcome": "retrieved" if items else "no_matches",
+                    "retrieved_count": len(items),
+                    "items": [
+                        {
+                            "memory_id": item.memory_id,
+                            "content": item.content,
+                            "metadata": dict(item.metadata or {}),
+                        }
+                        for item in items
+                    ],
+                    "result_text": result_text,
+                }
 
             elif name == "Add_memory":
                 # ADD：为新记忆生成唯一 ID，并记录产生它的训练阶段。
@@ -283,9 +391,16 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 metadata["stage"] = str(self.current_stage)
 
                 mem_id = str(uuid.uuid4())
-                self.memory_manager.add_memory(mem_id, content, metadata)
+                stored = self.memory_manager.add_memory(mem_id, content, metadata)
                 reply_note = f"memory_added:{mem_id}"
-                self._append_context("tool", f"[memory tool result]\n{reply_note}")
+                result_text = f"[memory tool result]\n{reply_note}"
+                self._append_context("tool", result_text)
+                self._last_tool_result = {
+                    "effect_applied": bool(stored),
+                    "outcome": "added" if stored else "not_added",
+                    "memory_id": mem_id,
+                    "result_text": result_text,
+                }
 
             elif name == "Update_memory":
                 mem_id = args.get("memory_id", "")
@@ -294,7 +409,14 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
 
                 ok = self.memory_manager.update_memory(mem_id, content, metadata)
                 reply_note = f"memory_updated:{ok}"
-                self._append_context("tool", f"[memory tool result]\n{reply_note}")
+                result_text = f"[memory tool result]\n{reply_note}"
+                self._append_context("tool", result_text)
+                self._last_tool_result = {
+                    "effect_applied": ok,
+                    "outcome": "updated" if ok else "not_found",
+                    "memory_id": mem_id,
+                    "result_text": result_text,
+                }
 
             elif name == "Delete_memory":
                 mem_id = args.get("memory_id", "")
@@ -303,9 +425,290 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 if confirmation:
                     ok = self.memory_manager.delete_memory(mem_id)
                     reply_note = f"memory_deleted:{ok}"
+                    outcome = "deleted" if ok else "not_found"
                 else:
                     reply_note = "memory_deletion_cancelled:confirmation_required"
-                self._append_context("tool", f"[memory tool result]\n{reply_note}")
+                    ok = False
+                    outcome = "cancelled"
+                result_text = f"[memory tool result]\n{reply_note}"
+                self._append_context("tool", result_text)
+                self._last_tool_result = {
+                    "effect_applied": ok,
+                    "outcome": outcome,
+                    "memory_id": mem_id,
+                    "result_text": result_text,
+                }
+
+        return reply_note
+
+    def _tool_trace_context(self) -> Dict[str, Any]:
+        """Build the stable identity shared by all records for one call."""
+        batch_id = getattr(self.task, "batch_id", "")
+        task_id = getattr(self.task, "task_id", "")
+        return {
+            "batch_id": batch_id,
+            "task_id": task_id,
+            "run_id": self.current_run_id,
+            "rollout_id": f"{batch_id}/{task_id}/{self.current_run_id}",
+            "execution_id": self.current_execution_id,
+            "stage": self.current_stage,
+            "round": self.current_round,
+            "step": self.current_step,
+            "turn": self.current_turn_index,
+        }
+
+    def _tool_state_summary(self) -> Dict[str, Any]:
+        """Return a compact state summary without clients, embeddings, or keys."""
+        role_counts: Dict[str, int] = {}
+        total_chars = 0
+        for message in self.context_messages:
+            role = str(message.get("role", "unknown"))
+            role_counts[role] = role_counts.get(role, 0) + 1
+            total_chars += len(str(message.get("content", "")))
+
+        memory_count = None
+        try:
+            memory_count = self.memory_manager.count()
+        except (AttributeError, TypeError):
+            pass
+
+        return {
+            "context_message_count": len(self.context_messages),
+            "context_chars": total_chars,
+            "context_roles": role_counts,
+            "memory_count": memory_count,
+        }
+
+    def _annotate_experiences(
+        self,
+        experiences: List[Experience],
+        *,
+        stage: int,
+        round_index: int,
+        step_index: int,
+    ) -> None:
+        """Attach only compact trace linkage to candidate Experiences."""
+        for experience in experiences:
+            info = dict(experience.info or {})
+            info.update(
+                {
+                    "trace_execution_id": self.current_execution_id,
+                    "trace_stage": stage,
+                    "trace_round": round_index,
+                    "trace_step": step_index,
+                }
+            )
+            experience.info = info
+
+    @staticmethod
+    def _attach_tool_call_id(
+        experiences: List[Experience],
+        call_id: str,
+    ) -> None:
+        for experience in experiences:
+            info = dict(experience.info or {})
+            call_ids = list(info.get("tool_call_ids", []))
+            call_ids.append(call_id)
+            info["tool_call_ids"] = call_ids
+            experience.info = info
+
+    def _finish_tool_trace(
+        self,
+        *,
+        call_id: str,
+        started_at: float,
+        trace_context: Dict[str, Any],
+        tool_name: str,
+        tool_index: int,
+        arguments: Any,
+        status: str,
+        result: Dict[str, Any],
+        experiences: List[Experience],
+        error: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        trace_error_message = None
+        try:
+            self.tool_trace_recorder.record_finish(
+                call_id=call_id,
+                started_at=started_at,
+                context=trace_context,
+                tool_name=tool_name,
+                tool_index=tool_index,
+                arguments=arguments,
+                status=status,
+                result=result,
+                state_after=self._tool_state_summary(),
+                error=error,
+            )
+        except Exception as trace_error:
+            # Trace failures must never change tool execution semantics.
+            trace_error_message = f"{type(trace_error).__name__}: {trace_error}"
+            try:
+                self.logger.warning(
+                    "Unable to serialize tool trace call %s: %s",
+                    call_id,
+                    trace_error,
+                )
+            except Exception:
+                pass
+
+        # Reward/statistics use the original execution data. Only the JSONL
+        # copy returned by ToolTraceRecorder is redacted and truncated.
+        finish_event = {
+            "phase": "finish",
+            "call_id": call_id,
+            "tool_name": tool_name,
+            "tool_index": tool_index,
+            "status": status,
+            "arguments": arguments,
+            "result": result,
+            "error": error,
+            **trace_context,
+        }
+        if trace_error_message:
+            finish_event["trace_error"] = trace_error_message
+        self._tool_trace_events.append(finish_event)
+        self._attach_tool_call_id(experiences, call_id)
+
+        if self.tool_trace_console:
+            try:
+                self.logger.info(
+                    "Tool trace: execution=%s stage=%s round=%s index=%s "
+                    "tool=%s status=%s call_id=%s",
+                    self.current_execution_id,
+                    self.current_stage,
+                    self.current_round,
+                    tool_index,
+                    tool_name,
+                    status,
+                    call_id,
+                )
+            except Exception:
+                pass
+        return finish_event
+
+    def _apply_tools(
+        self,
+        tool_calls: List[Dict],
+        experiences: Optional[List[Experience]] = None,
+    ) -> Optional[str]:
+        """Validate, trace, and execute every parsed call in its original order."""
+        experiences = experiences or []
+        reply_note: Optional[str] = None
+
+        for tool_index, raw_call in enumerate(tool_calls):
+            raw_name = (
+                raw_call.get("name")
+                if isinstance(raw_call, dict)
+                else "<invalid_tool_call>"
+            )
+            tool_name = raw_name if isinstance(raw_name, str) else str(raw_name)
+            raw_arguments = (
+                raw_call.get("arguments", {})
+                if isinstance(raw_call, dict)
+                else raw_call
+            )
+            trace_context = self._tool_trace_context()
+            state_before = self._tool_state_summary()
+            try:
+                call_id, started_at = self.tool_trace_recorder.record_start(
+                    context=trace_context,
+                    tool_name=tool_name,
+                    tool_index=tool_index,
+                    arguments=raw_arguments,
+                    state_before=state_before,
+                )
+            except Exception as trace_error:
+                call_id = str(uuid.uuid4())
+                started_at = time.perf_counter()
+                try:
+                    self.logger.warning(
+                        "Unable to start tool trace call %s: %s",
+                        call_id,
+                        trace_error,
+                    )
+                except Exception:
+                    pass
+
+            normalized_call, validation_error = validate_tool_call(raw_call)
+            if validation_error:
+                normalized_name = (
+                    normalized_call.get("name")
+                    if isinstance(normalized_call, dict)
+                    else tool_name
+                )
+                status = (
+                    "unknown_tool"
+                    if isinstance(normalized_call, dict)
+                    and normalized_name not in TOOL_NAMES
+                    else "validation_error"
+                )
+                self._finish_tool_trace(
+                    call_id=call_id,
+                    started_at=started_at,
+                    trace_context=trace_context,
+                    tool_name=tool_name,
+                    tool_index=tool_index,
+                    arguments=raw_arguments,
+                    status=status,
+                    result={
+                        "effect_applied": False,
+                        "validation_error": validation_error,
+                    },
+                    experiences=experiences,
+                )
+                continue
+
+            arguments = normalized_call["arguments"]
+            try:
+                call_reply_note = self._execute_tool_calls([normalized_call])
+                if call_reply_note is not None:
+                    reply_note = call_reply_note
+                result = dict(self._last_tool_result)
+                status = (
+                    "cancelled"
+                    if tool_name == "Delete_memory"
+                    and arguments.get("confirmation") is not True
+                    else "success"
+                )
+                finish_event = self._finish_tool_trace(
+                    call_id=call_id,
+                    started_at=started_at,
+                    trace_context=trace_context,
+                    tool_name=tool_name,
+                    tool_index=tool_index,
+                    arguments=raw_arguments,
+                    status=status,
+                    result=result,
+                    experiences=experiences,
+                )
+                if (
+                    tool_name == "Retrieve_memory"
+                    and result.get("effect_applied") is True
+                    and self.context_messages
+                    and self.context_messages[-1].get("role") == "tool"
+                ):
+                    # Keep only an in-memory object reference. It lets the
+                    # reward path tell whether this exact retrieval result was
+                    # still present in the next model input, even if a later
+                    # stage clears the STM.
+                    finish_event["_retrieval_context_message"] = self.context_messages[
+                        -1
+                    ]
+            except Exception as exc:
+                self._finish_tool_trace(
+                    call_id=call_id,
+                    started_at=started_at,
+                    trace_context=trace_context,
+                    tool_name=tool_name,
+                    tool_index=tool_index,
+                    arguments=raw_arguments,
+                    status="error",
+                    result={"effect_applied": False},
+                    experiences=experiences,
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+                raise
 
         return reply_note
 
@@ -315,6 +718,14 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.memory_manager.clear()
         self.final_reward = -0.1
         self.current_stage = 0
+        self.current_round = 0
+        self.current_step = 0
+        self.current_turn_index = None
+        self.current_execution_id = ""
+        self._model_round_count = 0
+        self._stage3_round_count = 0
+        self._tool_trace_events.clear()
+        self._last_tool_result = {}
 
     async def run_async(self) -> List[Experience]:
         """Initialize the workflow and start the multi-turn, multi-step process."""
@@ -324,22 +735,26 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
 
             # Extract question and expected answer
             self.question = self.task.raw_task.get(self.task.format_args.prompt_key)
-            self.expected_answer = self.task.raw_task.get(self.task.format_args.response_key)
+            self.expected_answer = self.task.raw_task.get(
+                self.task.format_args.response_key
+            )
 
             self.context_info = self.task.raw_task.get("context")
             self.supporting_facts = self.task.raw_task.get("supporting_facts")
-            
+
             # Verify required fields exist.
             if not self.question:
                 self.logger.error("Question is missing from task data")
                 return []
-            
+
             if not self.context_info:
                 self.logger.error("Context info is missing from task data")
                 return []
-            
+
             if not isinstance(self.context_info, dict):
-                self.logger.error(f"Context info should be a dict, got {type(self.context_info)}")
+                self.logger.error(
+                    f"Context info should be a dict, got {type(self.context_info)}"
+                )
                 return []
 
             return await self.inference_samples(rollout_n)
@@ -348,115 +763,284 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             self.logger.error(f"Error in run: {e}", exc_info=True)
             raise
 
+    def _mark_retrievals_used_by_next_response(self, messages) -> None:
+        """Mark retrieval results that are present in the next model input."""
+        for event in self._tool_trace_events:
+            if event.get("tool_name") != "Retrieve_memory":
+                continue
+            result = event.get("result")
+            if (
+                not isinstance(result, dict)
+                or result.get("used_by_following_response") is True
+            ):
+                continue
+            retrieved_message = event.get("_retrieval_context_message")
+            if retrieved_message is not None and any(
+                message is retrieved_message for message in messages
+            ):
+                result["used_by_following_response"] = True
+                source_context = {
+                    key: event.get(key)
+                    for key in (
+                        "batch_id",
+                        "task_id",
+                        "run_id",
+                        "rollout_id",
+                        "execution_id",
+                        "stage",
+                        "round",
+                        "step",
+                        "turn",
+                    )
+                }
+                try:
+                    usage_event = self.tool_trace_recorder.record_usage(
+                        call_id=event["call_id"],
+                        context=source_context,
+                        tool_name="Retrieve_memory",
+                        tool_index=event["tool_index"],
+                        usage={
+                            "used_by_following_response": True,
+                            "following_response_context": (self._tool_trace_context()),
+                        },
+                    )
+                    event["usage_record_id"] = usage_event["record_id"]
+                except Exception as trace_error:
+                    event["trace_usage_error"] = (
+                        f"{type(trace_error).__name__}: {trace_error}"
+                    )
+                    try:
+                        self.logger.warning(
+                            "Unable to record retrieval usage for call %s: %s",
+                            event["call_id"],
+                            trace_error,
+                        )
+                    except Exception:
+                        pass
+
     async def get_model_response_text(self, messages):
         """Get model response text."""
+        self._mark_retrievals_used_by_next_response(messages)
         responses = await self.model.chat_async(messages, n=1)
+        self._model_round_count += 1
         return responses[0].response_text
 
     async def inference_samples(self, rollout_num: int) -> List[Experience]:
         """对同一道题采样多条三阶段轨迹，并为每条轨迹计算终局奖励。"""
-        
+
         reward_calculator = ThreeStageRewardCalculator(
             task_completion_weight=0.5,
-            tool_efficiency_weight=0.2, # can set to 0.0 if you want to disable tool efficiency reward
+            tool_efficiency_weight=0.2,  # can set to 0.0 if you want to disable tool efficiency reward
             context_management_weight=0.15,
             memory_management_weight=0.15,
             chat_client=self.chat_client,
         )
 
         experience_list = []
-        
+
         for i in range(rollout_num):
             self.reset_per_run()
+            self.current_run_id = i + self.run_id_base
+            self.current_execution_id = str(uuid.uuid4())
             self._append_context("system", self.sys_prompt)
 
             all_stage_experiences: List[Experience] = []
-            
+
             # Stage 1（LTM 构建）：从 HotpotQA context 中识别并保存未来有用的事实。
             self.current_stage = 1
             if self.verbose:
                 self.logger.info(f"Rollout {i} - Stage 1: Casual chat based on context")
-            
+
             stage1_exps = await self._run_stage1_casual_chat()
-            self.logger.info(f"Rollout {i} - Stage 1 returned {len(stage1_exps)} experiences")
+            self.logger.info(
+                f"Rollout {i} - Stage 1 returned {len(stage1_exps)} experiences"
+            )
             all_stage_experiences.extend(stage1_exps)
-            
+
             # Stage 2（STM 控制）：故意清空 STM，但保留 Stage 1 建立的 LTM。
             self.current_stage = 2
             if self.verbose:
-                self.logger.info(f"Rollout {i} - Stage 2: Distractor messages injection")
-            
+                self.logger.info(
+                    f"Rollout {i} - Stage 2: Distractor messages injection"
+                )
+
             self.context_messages.clear()
             self._append_context("system", self.sys_prompt)
 
             stage2_exps = await self._run_stage2_distractor_injection()
-            self.logger.info(f"Rollout {i} - Stage 2 returned {len(stage2_exps)} experiences")
+            self.logger.info(
+                f"Rollout {i} - Stage 2 returned {len(stage2_exps)} experiences"
+            )
             all_stage_experiences.extend(stage2_exps)
-            
+
             # Stage 3（联合使用）：正式提问，模型需要主动 Retrieve 才能拿回 Stage 1 信息。
             self.current_stage = 3
             if self.verbose:
                 self.logger.info(f"Rollout {i} - Stage 3: Formal Q&A")
-            
+
             stage3_exps, task_score, found_answer = await self._run_stage3_formal_qa()
-            self.logger.info(f"Rollout {i} - Stage 3 returned {len(stage3_exps)} experiences")
+            self.logger.info(
+                f"Rollout {i} - Stage 3 returned {len(stage3_exps)} experiences"
+            )
             all_stage_experiences.extend(stage3_exps)
-            
+
             # Ensure at least some experiences were collected.
             if not all_stage_experiences:
-                self.logger.error(f"Rollout {i} - No experiences collected from any stage! This will cause timeout.")
+                self.logger.error(
+                    f"Rollout {i} - No experiences collected from any stage! This will cause timeout."
+                )
                 # Add a dummy experience to avoid total failure.
                 # Better would be to check why no experiences were collected.
-            
+
             # 从最终上下文中统计工具、STM、LTM 行为，再与答案得分合成轨迹奖励。
-            tool_usage_stats = extract_tool_usage_stats(self.context_messages)
-            context_stats = extract_context_stats(self.context_messages, self.max_context_tokens)
-            memory_stats = extract_memory_stats(self.context_messages, self.memory_manager)
-            
+            legacy_tool_usage_stats = extract_tool_usage_stats(self.context_messages)
+            trace_tool_usage_stats = extract_tool_usage_stats(
+                self.context_messages,
+                self._tool_trace_events,
+            )
+            tool_attempt_stats = extract_tool_attempt_stats(self._tool_trace_events)
+            tool_attempt_summary = {
+                "total_attempted": tool_attempt_stats["total_attempted"],
+                "total_errored": sum(
+                    stats["errored"] for stats in tool_attempt_stats["by_tool"].values()
+                ),
+                "total_cancelled": sum(
+                    stats["cancelled"]
+                    for stats in tool_attempt_stats["by_tool"].values()
+                ),
+                "total_validation_error": sum(
+                    stats["validation_error"]
+                    for stats in tool_attempt_stats["by_tool"].values()
+                ),
+                "unknown_tool_calls": tool_attempt_stats["unknown_tool_calls"],
+            }
+            context_stats = extract_context_stats(
+                self.context_messages, self.max_context_tokens
+            )
+            if self.tool_reward_stats_source == "trace":
+                context_stats["effective_context_management_call"] = (
+                    trace_tool_usage_stats["Summary_context"] > 0
+                    or trace_tool_usage_stats["Clear_context"] > 0
+                )
+            legacy_memory_stats = extract_memory_stats(
+                self.context_messages,
+                self.memory_manager,
+            )
+            trace_memory_stats = extract_memory_stats(
+                self.context_messages,
+                self.memory_manager,
+                self._tool_trace_events,
+            )
+            if self.tool_reward_stats_source == "trace":
+                reward_tool_usage_stats = trace_tool_usage_stats
+                reward_memory_stats = trace_memory_stats
+                reward_finished_at_round = max(1, self._model_round_count)
+                reward_max_rounds = max(
+                    1,
+                    self.stage1_max_rounds
+                    + (self.stage2_distractor_messages * self.stage2_max_rounds)
+                    + self.stage3_max_rounds,
+                )
+            else:
+                reward_tool_usage_stats = legacy_tool_usage_stats
+                reward_memory_stats = legacy_memory_stats
+                reward_finished_at_round = len(stage3_exps)
+                reward_max_rounds = self.stage3_max_rounds
+            termination_finished_at_round = (
+                self._stage3_round_count
+                if self.tool_reward_stats_source == "trace"
+                else len(stage3_exps)
+            )
+            termination_max_rounds = self.stage3_max_rounds
+
+            public_memory_stats = {
+                key: value
+                for key, value in reward_memory_stats.items()
+                if not key.startswith("_")
+            }
+            public_trace_memory_stats = {
+                key: value
+                for key, value in trace_memory_stats.items()
+                if not key.startswith("_")
+            }
+
             total_reward, reward_breakdown = reward_calculator.calculate_total_reward(
                 task_score=task_score,
-                tool_usage_stats=tool_usage_stats,
+                tool_usage_stats=reward_tool_usage_stats,
                 context_stats=context_stats,
-                memory_stats=memory_stats,
-                finished_at_round=len(stage3_exps),
-                max_rounds=self.stage3_max_rounds,
+                memory_stats=reward_memory_stats,
+                finished_at_round=reward_finished_at_round,
+                max_rounds=reward_max_rounds,
                 found_answer=found_answer,
                 question=self.question,
                 supporting_facts=self.supporting_facts,
                 context_messages=self.context_messages,
+                termination_finished_at_round=termination_finished_at_round,
+                termination_max_rounds=termination_max_rounds,
+                tool_attempt_stats=(
+                    tool_attempt_stats
+                    if self.tool_reward_stats_source == "trace"
+                    else None
+                ),
             )
-            
+
             detailed_info = {
                 "task_score": task_score,
                 "found_answer": found_answer,
                 "reward_breakdown": reward_breakdown,
-                "tool_usage_stats": tool_usage_stats,
+                "tool_usage_stats": reward_tool_usage_stats,
+                "legacy_tool_usage_stats": legacy_tool_usage_stats,
+                "trace_tool_usage_stats": trace_tool_usage_stats,
+                "tool_attempt_summary": tool_attempt_summary,
                 "context_stats": context_stats,
-                "memory_stats": memory_stats,
-                "num_stages": 3
+                "memory_stats": public_memory_stats,
+                "trace_memory_stats": public_trace_memory_stats,
+                "tool_reward_stats_source": self.tool_reward_stats_source,
+                "reward_finished_at_round": reward_finished_at_round,
+                "reward_max_rounds": reward_max_rounds,
+                "termination_finished_at_round": termination_finished_at_round,
+                "termination_max_rounds": termination_max_rounds,
+                "tool_trace_path": (
+                    self.tool_trace_recorder.path
+                    if self.tool_trace_recorder.enabled
+                    else None
+                ),
+                "tool_trace_fallback_path": (self.tool_trace_recorder.fallback_path),
+                "tool_trace_call_count": len(self._tool_trace_events),
+                "tool_trace_dropped_record_count": (
+                    self.tool_trace_recorder.dropped_record_count
+                ),
+                "tool_trace_last_write_error": (
+                    self.tool_trace_recorder.last_write_error
+                ),
+                "trace_execution_id": self.current_execution_id,
+                "num_stages": 3,
             }
-            
+
             if self.verbose:
                 self.logger.info(f"Rollout {i} - Total Reward: {total_reward:.3f}")
                 self.logger.info(f"  Task Score (LLM-as-a-Judge): {task_score:.3f}")
                 self.logger.info(f"  Reward Breakdown: {reward_breakdown}")
-            
+
             # 三个阶段共享同一个终局奖励。之后 Step-wise GRPO 会做组内标准化，
             # 并把 advantage 按 action_mask 广播到此前每个记忆决策 token。
             for exp in all_stage_experiences:
                 exp.reward = total_reward
-                exp.info = detailed_info
-                exp.eid.run = i + self.run_id_base
+                merged_info = dict(exp.info or {})
+                merged_info.update(detailed_info)
+                exp.info = merged_info
+                exp.eid.run = self.current_run_id
                 if exp.metrics is None:
                     exp.metrics = {}
                 exp.metrics["task_score"] = task_score
 
-            
             experience_list.extend(all_stage_experiences)
-        
+
         if not experience_list:
-            self.logger.error(f"No experiences collected after {rollout_num} rollouts! This will cause timeout.")
-        
+            self.logger.error(
+                f"No experiences collected after {rollout_num} rollouts! This will cause timeout."
+            )
+
         self.logger.info(f"Total experiences collected: {len(experience_list)}")
         return experience_list
 
@@ -480,13 +1064,17 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
 
         titles = self.context_info.get("title", [])
         sentences_list = self.context_info.get("sentences", [])
-        
+
         if not titles or not sentences_list:
-            self.logger.warning(f"Empty titles or sentences_list. titles: {len(titles) if titles else 0}, sentences: {len(sentences_list) if sentences_list else 0}")
+            self.logger.warning(
+                f"Empty titles or sentences_list. titles: {len(titles) if titles else 0}, sentences: {len(sentences_list) if sentences_list else 0}"
+            )
             return stage_experiences
-        
+
         if len(titles) != len(sentences_list):
-            self.logger.warning(f"titles and sentences_list length mismatch: {len(titles)} vs {len(sentences_list)}")
+            self.logger.warning(
+                f"titles and sentences_list length mismatch: {len(titles)} vs {len(sentences_list)}"
+            )
             # Use the shorter length.
             min_len = min(len(titles), len(sentences_list))
             titles = titles[:min_len]
@@ -496,7 +1084,9 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         merged_context_lines = []
         for title, sents in zip(titles, sentences_list):
             # Truncate to avoid being overly long.
-            sents_short = sents[: min(10, len(sents))]  # Take up to 10 sentences per entry.
+            sents_short = sents[
+                : min(10, len(sents))
+            ]  # Take up to 10 sentences per entry.
             merged_context_lines.append(f"{title}: {' '.join(sents_short)}")
         merged_context_text = "\n".join(merged_context_lines)
 
@@ -511,57 +1101,71 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         found_answer = False
         exps = []  # Initialize; avoid using an undefined variable outside loops.
         context_autosummarized = False
-        
+
         # Multi-turn interaction until an answer is found or max rounds reached.
         for r in range(self.stage1_max_rounds):
             collected_exp_in_advance = False
-            
+            self.current_round = r
+            self.current_step = r
+            self.current_turn_index = 0
+
             if self.verbose:
-                self.logger.info(f"Stage 1, round {r} - Before Context messages: {self.context_messages}")
+                self.logger.info(
+                    f"Stage 1, round {r} - Before Context messages: {self.context_messages}"
+                )
             response_text = await self.get_model_response_text(self.context_messages)
             if self.verbose:
                 self.logger.info(f"Stage 1, round {r} - Response text: {response_text}")
             exps = self.model.extract_experience_from_history(clear_history=True)
-            
+            for exp in exps:
+                exp.eid.step = r
+            self._annotate_experiences(
+                exps,
+                stage=1,
+                round_index=r,
+                step_index=r,
+            )
+
             if not exps:
-                self.logger.warning(f"Stage 1, round {r}: extract_experience_from_history returned empty list")
+                self.logger.warning(
+                    f"Stage 1, round {r}: extract_experience_from_history returned empty list"
+                )
                 # Even without experiences, continue to record at least one response.
                 self._append_context("assistant", response_text)
                 # Handle tool calls (if any) first.
                 tool_calls = parse_tool_calls(response_text)
                 if tool_calls:
-                    self._apply_tools(tool_calls)
+                    self._apply_tools(tool_calls, exps)
                 # Then check whether an answer is present.
                 final_answer = parse_answer(response_text)
                 if final_answer:
                     found_answer = True
                     break
                 continue
-            
-            for exp in exps:
-                exp.eid.step = r
-                # exp.eid.stage = 1
-            
+
             self._append_context("assistant", response_text)
             if self.verbose:
-                self.logger.info(f"Stage 1, round {r} - After Context messages: {self.context_messages}")
-            
+                self.logger.info(
+                    f"Stage 1, round {r} - After Context messages: {self.context_messages}"
+                )
+
             # Handle tool calls (if any) first.
             tool_calls = parse_tool_calls(response_text)
-            
+
             # Mark experiences that used memory-management tools.
-            memory_related_tool = any(
-                tool_call.get("name") in ["Add_memory", "Retrieve_memory", "Update_memory"]
-                for tool_call in tool_calls
+            memory_related_tool = should_collect_intermediate_experience(
+                1,
+                tool_calls,
+                is_last_round=r >= self.stage1_max_rounds - 1,
             )
-            
-            if memory_related_tool and r < self.stage1_max_rounds - 1:
+
+            if memory_related_tool:
                 collected_exp_in_advance = True
                 stage_experiences.extend(exps)
-            
+
             if tool_calls:
-                self._apply_tools(tool_calls)
-            
+                self._apply_tools(tool_calls, exps)
+
             # Then check for an answer (apply tools before returning if both exist).
             final_answer = parse_answer(response_text)
             if final_answer:
@@ -582,7 +1186,9 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             if exps:
                 stage_experiences.extend(exps)
             else:
-                self.logger.warning("Stage 1: No experiences collected and no final answer found")
+                self.logger.warning(
+                    "Stage 1: No experiences collected and no final answer found"
+                )
 
         return stage_experiences
 
@@ -591,73 +1197,93 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         Stage 2：逐条加入无关对话，训练模型主动 Summary/Clear 以控制 STM。
         """
         stage_experiences = []
-        
+
         # Generate distractor messages.
         distractor_messages = self.distractor_generator.generate_distractor_messages(
-            self.question,
-            num_messages=self.stage2_distractor_messages
+            self.question, num_messages=self.stage2_distractor_messages
         )
-        
-        for idx, distractor_msg in enumerate(distractor_messages):       
+
+        for idx, distractor_msg in enumerate(distractor_messages):
             # Send the distractor message as a user input.
             self._append_context("user", distractor_msg)
-            
+
             if self.verbose:
-                self.logger.info(f"Stage 2, distractor {idx} - User message: {distractor_msg}")
-            
+                self.logger.info(
+                    f"Stage 2, distractor {idx} - User message: {distractor_msg}"
+                )
+
             found_answer = False
             exps = []  # Initialize; avoid using before assignment outside loops.
             context_autosummarized = False
-            
+
             # Multi-turn interaction until an answer is found or max rounds reached.
             for r in range(self.stage2_max_rounds):
                 collected_exp_in_advance = False
+                step_index = idx * self.stage2_max_rounds + r
+                self.current_round = r
+                self.current_step = step_index
+                self.current_turn_index = idx
                 if self.verbose:
-                    self.logger.info(f"Stage 2, distractor {idx}, round {r} - Before Context messages: {self.context_messages}")
-                response_text = await self.get_model_response_text(self.context_messages)
+                    self.logger.info(
+                        f"Stage 2, distractor {idx}, round {r} - Before Context messages: {self.context_messages}"
+                    )
+                response_text = await self.get_model_response_text(
+                    self.context_messages
+                )
                 if self.verbose:
-                    self.logger.info(f"Stage 2, distractor {idx}, round {r} - Response text: {response_text}")
+                    self.logger.info(
+                        f"Stage 2, distractor {idx}, round {r} - Response text: {response_text}"
+                    )
                 exps = self.model.extract_experience_from_history(clear_history=True)
-                
+                for exp in exps:
+                    exp.eid.step = step_index
+                self._annotate_experiences(
+                    exps,
+                    stage=2,
+                    round_index=r,
+                    step_index=step_index,
+                )
+
                 if not exps:
-                    self.logger.warning(f"Stage 2, distractor {idx}, round {r}: extract_experience_from_history returned empty list")
+                    self.logger.warning(
+                        f"Stage 2, distractor {idx}, round {r}: extract_experience_from_history returned empty list"
+                    )
                     # Even without experiences, continue to record at least one response.
                     self._append_context("assistant", response_text)
                     # Handle tool calls (if any) first.
                     tool_calls = parse_tool_calls(response_text)
                     if tool_calls:
-                        self._apply_tools(tool_calls)
+                        self._apply_tools(tool_calls, exps)
                     # Then check whether an answer is present.
                     final_answer = parse_answer(response_text)
                     if final_answer:
                         found_answer = True
                         break
                     continue
-                
-                for exp in exps:
-                    exp.eid.step = idx * self.stage2_max_rounds + r
-                    # exp.eid.stage = 2
-                
+
                 self._append_context("assistant", response_text)
                 if self.verbose:
-                    self.logger.info(f"Stage 2, distractor {idx}, round {r} - After Context messages: {self.context_messages}")
-                
+                    self.logger.info(
+                        f"Stage 2, distractor {idx}, round {r} - After Context messages: {self.context_messages}"
+                    )
+
                 # Handle tool calls (if any) first.
                 tool_calls = parse_tool_calls(response_text)
-                
+
                 # Mark experiences that used context-management tools.
-                context_related_tool = any(
-                    tool_call.get("name") in ["Clear_context", "Summary_context"]
-                    for tool_call in tool_calls
+                context_related_tool = should_collect_intermediate_experience(
+                    2,
+                    tool_calls,
+                    is_last_round=r >= self.stage2_max_rounds - 1,
                 )
-                
-                if context_related_tool and r < self.stage2_max_rounds - 1:
+
+                if context_related_tool:
                     collected_exp_in_advance = True
                     stage_experiences.extend(exps)
-                
+
                 if tool_calls:
-                    self._apply_tools(tool_calls)
-                
+                    self._apply_tools(tool_calls, exps)
+
                 # Then check whether an answer is found (apply tools before returning if both exist).
                 final_answer = parse_answer(response_text)
                 if final_answer:
@@ -665,66 +1291,84 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     if not collected_exp_in_advance:
                         stage_experiences.extend(exps)
                     break
-                
+
                 # Check context overflow.
                 if self._should_autosummarize():
                     if not collected_exp_in_advance:
                         stage_experiences.extend(exps)
                     context_autosummarized = True
                     break
-            
+
             # If no answer is found, add the last experience.
             if not found_answer and not context_autosummarized:
                 if exps:
                     stage_experiences.extend(exps)
                 else:
-                    self.logger.warning(f"Stage 2, distractor {idx}: No experiences collected and no final answer found")
-        
+                    self.logger.warning(
+                        f"Stage 2, distractor {idx}: No experiences collected and no final answer found"
+                    )
+
         return stage_experiences
 
     async def _run_stage3_formal_qa(self) -> Tuple[List[Experience], float, bool]:
         """
         Stage 3：正式问答。模型要自行检索 LTM，并在有限 STM 中完成推理。
-        
+
         Returns:
             (experiences, task_score, found_answer)
         """
         stage_experiences = []
-        
+
         # User asks the formal question.
         self._append_context("user", self.question)
-        
+
         # Hint: the model can retrieve previously stored memories.
         # items = self.memory_manager.retrieve(query=self.question, top_k=3)
         # retrieved_block = "\n".join(f"- {it.content} (Memory ID: {it.memory_id})" for it in items)
         # if retrieved_block:
         #     self._append_context("user", f"[related memories about the query]\n{retrieved_block}")
-        
+
         found_final_answer = False
         final_answer = None
         task_score = 0.0
 
         context_autosummarized = False
         exps = []  # Initialize; avoid using before assignment outside loops.
-        
+
         # Multi-turn interaction to find an answer.
         for r in range(self.stage3_max_rounds):
             collected_exp_in_advance = False
+            self.current_round = r
+            self.current_step = r
+            self.current_turn_index = 0
             if self.verbose:
-                self.logger.info(f"Id {r} - Before Context messages: {self.context_messages}")
+                self.logger.info(
+                    f"Id {r} - Before Context messages: {self.context_messages}"
+                )
             response_text = await self.get_model_response_text(self.context_messages)
+            self._stage3_round_count = r + 1
             if self.verbose:
                 self.logger.info(f"Id {r} - Response text: {response_text}")
             exps = self.model.extract_experience_from_history(clear_history=True)
-            
+            for exp in exps:
+                exp.eid.step = r
+            self._annotate_experiences(
+                exps,
+                stage=3,
+                round_index=r,
+                step_index=r,
+            )
+
             if not exps:
-                self.logger.warning(f"Stage 3, round {r}: extract_experience_from_history returned empty list")
+                self.logger.warning(
+                    f"Stage 3, round {r}: extract_experience_from_history returned empty list"
+                )
                 # Even without experiences, continue to record at least one response.
                 self._append_context("assistant", response_text)
                 # Handle tool calls (if any) first.
                 tool_calls = parse_tool_calls(response_text)
                 if tool_calls:
-                    self._apply_tools(tool_calls)
+                    self._apply_tools(tool_calls, exps)
                 # Then check whether an answer is present.
                 final_answer = parse_answer(response_text)
                 if final_answer:
@@ -733,30 +1377,29 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     break
                 continue
 
-            for exp in exps:
-                exp.eid.step = r
-                # exp.eid.stage = 3
-            
             self._append_context("assistant", response_text)
             if self.verbose:
-                self.logger.info(f"Id {r} - After Context messages: {self.context_messages}")
-            
+                self.logger.info(
+                    f"Id {r} - After Context messages: {self.context_messages}"
+                )
+
             # Handle tool calls (if any) first.
             tool_calls = parse_tool_calls(response_text)
-            
+
             # Mark experiences that used context-management tools.
-            context_related_tool = any(
-                tool_call.get("name") in ["Summary_context", "Clear_context", "Retrieve_memory"]
-                for tool_call in tool_calls
+            context_related_tool = should_collect_intermediate_experience(
+                3,
+                tool_calls,
+                is_last_round=r >= self.stage3_max_rounds - 1,
             )
-            
-            if context_related_tool and r < self.stage3_max_rounds - 1:
+
+            if context_related_tool:
                 collected_exp_in_advance = True
                 stage_experiences.extend(exps)
-            
+
             if tool_calls:
-                self._apply_tools(tool_calls)
-            
+                self._apply_tools(tool_calls, exps)
+
             # Then check for the final answer (apply tools before returning if both exist).
             final_answer = parse_answer(response_text)
             if final_answer:
@@ -765,20 +1408,22 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 if not collected_exp_in_advance:
                     stage_experiences.extend(exps)
                 break
-            
+
             # Check context overflow.
             if self._should_autosummarize():
                 context_autosummarized = True
                 if not collected_exp_in_advance:
                     stage_experiences.extend(exps)
                 break
-        
+
         # If no answer is found, add the last experience.
         if not found_final_answer and not context_autosummarized:
             # Ensure at least one experience exists.
             if exps:
                 stage_experiences.append(exps[-1])
             else:
-                self.logger.warning("Stage 3: No experiences collected and no final answer found")
-        
+                self.logger.warning(
+                    "Stage 3: No experiences collected and no final answer found"
+                )
+
         return stage_experiences, task_score, found_final_answer

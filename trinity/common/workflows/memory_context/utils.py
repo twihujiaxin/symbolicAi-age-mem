@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 TOOL_SCHEMA = [
     {
@@ -12,7 +12,7 @@ TOOL_SCHEMA = [
             "type": "dict",
             "properties": {
                 "span": {
-                    "description": "The range of conversation rounds to summarize. Can be 'all' for entire context, or a number (e.g., '5') for the last N rounds. A system, user, assistant and 'tool' message are considered as one round.\n\nExamples:\n- \"all\": summarize the whole context\n- \"5\": summarize the last 5 rounds",
+                    "description": "The messages to summarize. Use 'all' for all non-system messages, or a positive number (e.g., '5') for the last N non-system messages.\n\nExamples:\n- \"all\": summarize all non-system messages\n- \"5\": summarize the last 5 non-system messages",
                     "type": "string",
                 }
             },
@@ -137,6 +137,22 @@ DEFAULT_TOOL_COUNTER = {
     "short_term_memory": 0,
 }
 LONG_TERM_TOOL_NAMES = {"Add_memory", "Delete_memory", "Update_memory"}
+TOOL_NAMES = {
+    "Summary_context",
+    "Clear_context",
+    "Retrieve_memory",
+    "Add_memory",
+    "Update_memory",
+    "Delete_memory",
+}
+
+# 这些集合只决定“中间轮是否单独保留 Experience”，不决定工具是否执行。
+# 不在集合中的工具仍会按顺序执行并进入 tool trace。
+INTERMEDIATE_EXPERIENCE_TOOL_NAMES = {
+    1: frozenset({"Add_memory", "Retrieve_memory", "Update_memory"}),
+    2: frozenset({"Summary_context", "Clear_context"}),
+    3: frozenset({"Summary_context", "Clear_context", "Retrieve_memory"}),
+}
 
 DEFAULT_DISTRACTOR_MESSAGES = [
     "What's the weather like today?",
@@ -152,6 +168,161 @@ def build_tool_schema(use_context_tools: bool) -> List[Dict]:
     if use_context_tools:
         return TOOL_SCHEMA
     return [tool for tool in TOOL_SCHEMA if tool.get("name") not in CONTEXT_TOOL_NAMES]
+
+
+def should_collect_intermediate_experience(
+    stage: int,
+    tool_calls: List[Dict],
+    *,
+    is_last_round: bool,
+) -> bool:
+    """Return whether this intermediate round belongs in the training sample.
+
+    This helper centralizes the original three-stage filtering rules. It must
+    not be used to filter execution: every parsed tool call is still applied.
+    """
+    if is_last_round:
+        return False
+
+    selected_names = INTERMEDIATE_EXPERIENCE_TOOL_NAMES.get(stage, frozenset())
+    return any(
+        isinstance(call, dict) and call.get("name") in selected_names
+        for call in tool_calls
+    )
+
+
+def validate_tool_call(
+    call: Any,
+) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Validate and normalize one parsed call without mutating model output."""
+    if not isinstance(call, dict):
+        return None, "tool call must be an object"
+
+    name = call.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return None, "tool name must be a non-empty string"
+    if name != name.strip():
+        return None, "tool name must not contain leading or trailing whitespace"
+
+    raw_arguments = call.get("arguments", {})
+    if "arguments" in call and raw_arguments is None:
+        return {"name": name, "arguments": None}, "arguments must be an object"
+    if not isinstance(raw_arguments, dict):
+        return {"name": name, "arguments": raw_arguments}, "arguments must be an object"
+
+    arguments = dict(raw_arguments)
+    normalized = {"name": name, "arguments": arguments}
+    if name not in TOOL_NAMES:
+        return normalized, f"unknown tool: {name}"
+
+    if name == "Summary_context":
+        if "span" not in arguments:
+            return normalized, "span is required"
+        span = arguments.get("span", "all")
+        if not isinstance(span, str) or not span.strip():
+            return normalized, "span must be a non-empty string"
+        span = span.strip()
+        if span != "all":
+            if not re.fullmatch(r"\d+", span):
+                return normalized, "span must be 'all' or a positive integer"
+            try:
+                span_count = int(span)
+            except (ValueError, OverflowError):
+                return normalized, "span must be 'all' or a positive integer"
+            if span_count <= 0:
+                return normalized, "span must be 'all' or a positive integer"
+        preserve_user_query = arguments.get("preserve_user_query", False)
+        if not isinstance(preserve_user_query, bool):
+            return normalized, "preserve_user_query must be a boolean"
+        arguments["span"] = span
+        arguments["preserve_user_query"] = preserve_user_query
+
+    elif name == "Clear_context":
+        criteria = arguments.get("criteria", "")
+        if not isinstance(criteria, str) or not criteria.strip():
+            return normalized, "criteria must be a non-empty string"
+        arguments["criteria"] = criteria.strip()
+
+    elif name == "Retrieve_memory":
+        query = arguments.get("query", "")
+        if not isinstance(query, str) or not query.strip():
+            return normalized, "query must be a non-empty string"
+
+        raw_top_k = arguments.get("top_k", 3)
+        if isinstance(raw_top_k, bool):
+            return normalized, "top_k must be a positive integer"
+        try:
+            top_k = int(raw_top_k)
+        except (TypeError, ValueError, OverflowError):
+            return normalized, "top_k must be a positive integer"
+        if top_k <= 0 or (isinstance(raw_top_k, float) and not raw_top_k.is_integer()):
+            return normalized, "top_k must be a positive integer"
+
+        metadata_filter = arguments.get("metadata_filter", {})
+        if metadata_filter is None:
+            metadata_filter = {}
+        if not isinstance(metadata_filter, dict):
+            return normalized, "metadata_filter must be an object"
+
+        arguments["query"] = query.strip()
+        arguments["top_k"] = top_k
+        arguments["metadata_filter"] = dict(metadata_filter)
+
+    elif name == "Add_memory":
+        content = arguments.get("content", "")
+        if not isinstance(content, str) or not content.strip():
+            return normalized, "content must be a non-empty string"
+
+        metadata = arguments.get("metadata", {})
+        if metadata is None:
+            metadata = {}
+        if not isinstance(metadata, dict):
+            return normalized, "metadata must be an object"
+
+        memory_type = arguments.get("memory_type", "general")
+        if not isinstance(memory_type, str):
+            return normalized, "memory_type must be a string"
+
+        arguments["content"] = content
+        arguments["metadata"] = dict(metadata)
+        arguments["memory_type"] = memory_type
+
+    elif name == "Update_memory":
+        memory_id = arguments.get("memory_id", "")
+        if not isinstance(memory_id, str) or not memory_id.strip():
+            return normalized, "memory_id must be a non-empty string"
+
+        content = arguments.get("content")
+        if content is not None and (
+            not isinstance(content, str) or not content.strip()
+        ):
+            return normalized, "content must be a non-empty string when provided"
+
+        metadata = arguments.get("metadata", {})
+        if metadata is None:
+            metadata = {}
+        if not isinstance(metadata, dict):
+            return normalized, "metadata must be an object"
+        if content is None and not metadata:
+            return normalized, "content or metadata must be provided"
+
+        arguments["memory_id"] = memory_id.strip()
+        arguments["content"] = content
+        arguments["metadata"] = dict(metadata)
+
+    elif name == "Delete_memory":
+        memory_id = arguments.get("memory_id", "")
+        if not isinstance(memory_id, str) or not memory_id.strip():
+            return normalized, "memory_id must be a non-empty string"
+
+        confirmation = arguments.get("confirmation", False)
+        if not isinstance(confirmation, bool):
+            return normalized, "confirmation must be a boolean"
+
+        arguments["memory_id"] = memory_id.strip()
+        arguments["confirmation"] = confirmation
+
+    return normalized, None
 
 
 def parse_tool_calls(text: str) -> List[Dict]:
@@ -175,18 +346,23 @@ def parse_tool_calls(text: str) -> List[Dict]:
         if result:
             all_tool_calls.extend(result)
 
-    return _deduplicate_tool_calls(all_tool_calls)
+    # Preserve each call exactly as emitted. Repeated calls in one JSON array
+    # are separate attempts and must each execute and receive their own trace ID.
+    return all_tool_calls
 
 
 def _parse_all_standard_format(text: str) -> List[Dict]:
     """Parse all standard <tool_call>[...]</tool_call> blocks."""
-    pattern = r"<tool_call>\s*(\[.*?\])\s*</tool_call>"
+    pattern = r"<tool_call>\s*(.*?)\s*</tool_call>"
     matches = re.finditer(pattern, text, re.DOTALL)
 
     all_calls: List[Dict] = []
     for match in matches:
         try:
-            calls = json.loads(match.group(1))
+            json_text = _extract_complete_json_array(match.group(1))
+            if not json_text:
+                continue
+            calls = json.loads(json_text)
             if isinstance(calls, list):
                 all_calls.extend(calls)
             elif isinstance(calls, dict):
@@ -232,19 +408,21 @@ def _parse_all_open_tag_only(text: str) -> List[Dict]:
 
 
 def _parse_close_tag_only(text: str) -> List[Dict]:
-    """Parse close-tag-only block: [{...}]</tool_call>."""
-    pattern = r"(\[.*?\])\s*</tool_call>"
-    match = re.search(pattern, text, re.DOTALL)
-    if match:
+    """Parse one or more close-tag-only blocks: [{...}]</tool_call>."""
+    all_calls: List[Dict] = []
+    for segment in text.split("</tool_call>")[:-1]:
         try:
-            calls = json.loads(match.group(1))
+            json_text = _extract_complete_json_array(segment)
+            if not json_text:
+                continue
+            calls = json.loads(json_text)
             if isinstance(calls, list):
-                return calls
-            if isinstance(calls, dict):
-                return [calls]
+                all_calls.extend(calls)
+            elif isinstance(calls, dict):
+                all_calls.append(calls)
         except json.JSONDecodeError:
-            pass
-    return []
+            continue
+    return all_calls
 
 
 def _extract_complete_json_array(text: str) -> str:
@@ -291,25 +469,6 @@ def _extract_complete_json_array(text: str) -> str:
     return chunk
 
 
-def _deduplicate_tool_calls(tool_calls: List[Dict]) -> List[Dict]:
-    """Deduplicate tool calls by serialized signature."""
-    if not tool_calls:
-        return []
-
-    seen = set()
-    deduped = []
-    for call in tool_calls:
-        try:
-            key = json.dumps(call, sort_keys=True, ensure_ascii=False)
-        except (TypeError, ValueError):
-            key = repr(call)
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(call)
-    return deduped
-
-
 def parse_answer(text: str) -> Optional[str]:
     """Extract final answer from <answer>...</answer> tag."""
     if not text:
@@ -338,7 +497,9 @@ def create_tool_counter() -> Dict[str, int]:
     return dict(DEFAULT_TOOL_COUNTER)
 
 
-def record_tool_usage(counter: Dict[str, int], tool_calls: List[Dict[str, Any]]) -> None:
+def record_tool_usage(
+    counter: Dict[str, int], tool_calls: List[Dict[str, Any]]
+) -> None:
     """Update tool usage counters from parsed tool call list."""
     for tool_call in tool_calls:
         try:
@@ -400,11 +561,17 @@ Format: One message per line, no numbering."""
                     if line:
                         messages.append(line)
 
-            return messages[:num_messages] if messages else DEFAULT_DISTRACTOR_MESSAGES[:num_messages]
+            return (
+                messages[:num_messages]
+                if messages
+                else DEFAULT_DISTRACTOR_MESSAGES[:num_messages]
+            )
         except Exception:
             return DEFAULT_DISTRACTOR_MESSAGES[:num_messages]
 
-    def generate_distractor_messages(self, question: str, num_messages: int = 5) -> List[str]:
+    def generate_distractor_messages(
+        self, question: str, num_messages: int = 5
+    ) -> List[str]:
         """Generate messages unrelated to the target question."""
         prompt = f"""Given the question: "{question}"
 
@@ -427,6 +594,10 @@ Format: One message per line, no numbering."""
                     if line:
                         messages.append(line)
 
-            return messages[:num_messages] if messages else DEFAULT_DISTRACTOR_MESSAGES[:num_messages]
+            return (
+                messages[:num_messages]
+                if messages
+                else DEFAULT_DISTRACTOR_MESSAGES[:num_messages]
+            )
         except Exception:
             return DEFAULT_DISTRACTOR_MESSAGES[:num_messages]

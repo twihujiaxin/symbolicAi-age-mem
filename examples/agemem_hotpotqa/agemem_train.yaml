@@ -39,6 +39,11 @@ buffer:
         stage1_max_rounds: 5
         stage2_max_rounds: 5
         stage3_max_rounds: 5
+        tool_trace_enabled: true
+        tool_trace_console: false
+        tool_trace_max_string_chars: 8192
+        tool_trace_ray_timeout_seconds: 5.0
+        tool_reward_stats_source: trace
     default_workflow_type: 'AgeMem_hotpot_workflow_training'
   trainer_input:
     experience_buffer:
