@@ -18,6 +18,7 @@ except Exception:
     DashScopeChatModel = OllamaChatModel = None
 
 from .agent import AgeMem
+from .trajectory import TrajectoryRecorder
 
 
 async def close_runtime_resources(model, agent) -> None:
@@ -100,6 +101,12 @@ async def main() -> None:
     agent = None
     try:
         model, formatter, provider, model_name = build_model()
+        trajectory_path = os.getenv("AGEMEM_TRAJECTORY_PATH", "").strip()
+        trajectory_recorder = (
+            TrajectoryRecorder(trajectory_path) if trajectory_path else None
+        )
+        task_id = os.getenv("AGEMEM_TASK_ID", "standalone-demo").strip()
+        rollout_id = os.getenv("AGEMEM_ROLLOUT_ID", "").strip() or None
         sys_prompt = (
             "You are an intelligent assistant that solves complex problems by managing context and long-term memory with tools. "
             "Your job is to capture and organize any information that is helpful, relevant, or useful for the user or for solving their problems—facts, preferences, intermediate results, key decisions, and follow-up needs. "
@@ -116,6 +123,9 @@ async def main() -> None:
                 os.getenv("AGEMEM_SHOW_TOOL_TRACE", "0").strip().lower()
                 in {"1", "true", "yes", "on"}
             ),
+            trajectory_recorder=trajectory_recorder,
+            task_id=task_id,
+            rollout_id=rollout_id,
         )
 
         print("=== AgeMem (AgentScope) ===\n")
@@ -125,6 +135,18 @@ async def main() -> None:
             f"{'on' if agent.show_tool_trace else 'off'} "
             "(set AGEMEM_SHOW_TOOL_TRACE=1 to enable)\n"
         )
+        if trajectory_recorder is not None:
+            print(
+                "Trajectory recording: on\n"
+                f"Path: {trajectory_recorder.path}\n"
+                f"Task ID: {agent.task_id}\n"
+                f"Rollout ID: {agent.rollout_id}\n"
+            )
+        else:
+            print(
+                "Trajectory recording: off "
+                "(set AGEMEM_TRAJECTORY_PATH to enable)\n"
+            )
         print("Type your message and press Enter. 'exit' or 'quit' to stop.\n")
 
         while True:

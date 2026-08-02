@@ -2,6 +2,7 @@
 """ReAct-style agent with 6 memory/context management tools (AgeMem)."""
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any, AsyncGenerator, Dict, List, Optional, Type
 
@@ -18,6 +19,15 @@ from agentscope.tool import Toolkit, ToolResponse, execute_python_code
 
 from .memory import AgentScopeLongtermMemory
 from .prompts import SUMMARY_CONTEXT_SYS_PROMPT, TEXT_SIMILARITY_SYS_PROMPT
+from .trajectory import (
+    ToolCallSnapshot,
+    ToolResultSnapshot,
+    TrajectoryRecorder,
+    TrajectoryStep,
+    TrajectoryValidationError,
+    snapshot_memory,
+    to_jsonable,
+)
 from .src import (
     GenerateResponseSchema,
     chat_client,
@@ -45,6 +55,9 @@ class AgeMem(AgentBase):
         max_context_tokens: int = 32768,
         auto_summary_token_threshold: float = 0.8,
         show_tool_trace: bool = False,
+        trajectory_recorder: Optional[TrajectoryRecorder] = None,
+        task_id: str = "standalone-demo",
+        rollout_id: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__()
@@ -60,7 +73,12 @@ class AgeMem(AgentBase):
         # 是否把每次工具调用及其返回值实时打印到终端。
         self.show_tool_trace = show_tool_trace
 
-        self.chat_client = kwargs.get("chat_client", chat_client())
+        # Avoid constructing the default API client when a deterministic test
+        # client (or another explicit implementation) was supplied.
+        provided_chat_client = kwargs.get("chat_client")
+        self.chat_client = (
+            provided_chat_client if provided_chat_client is not None else chat_client()
+        )
 
         # -------------- Memory management --------------
         # LTM：独立于对话上下文的向量记忆库，可跨多轮检索。
@@ -71,6 +89,13 @@ class AgeMem(AgentBase):
 
         # STM：当前 ReAct 循环能直接看到的消息列表。
         self.context_messages: List[Msg] = []
+
+        # M1 trajectory recording is opt-in.  Existing callers that do not pass
+        # a recorder retain the original standalone behavior.
+        self.trajectory_recorder = trajectory_recorder
+        self.task_id = task_id
+        self.rollout_id = rollout_id or str(uuid.uuid4())
+        self._trajectory_timestep = 0
 
         # Stage tracking for multi-stage training
         self.current_stage: int = 0
@@ -106,6 +131,40 @@ class AgeMem(AgentBase):
     def _append_context(self, name: str, content: str, role: str) -> None:
         self.context_messages.append(
             Msg(name=name or role, content=content, role=role)
+        )
+
+    def _observation_for_tool_call(self, tool_call: ToolUseBlock) -> str:
+        """Return the latest observation before this model action."""
+
+        action_index = len(self.context_messages)
+        for index in range(len(self.context_messages) - 1, -1, -1):
+            message = self.context_messages[index]
+            try:
+                calls = message.get_content_blocks("tool_use")
+            except Exception:
+                calls = []
+            if any(call.get("id") == tool_call.get("id") for call in calls):
+                action_index = index
+                break
+
+        for message in reversed(self.context_messages[:action_index]):
+            text = message.get_text_content()
+            if text:
+                return text
+        return ""
+
+    @staticmethod
+    def _trajectory_tool_call(tool_call: ToolUseBlock) -> ToolCallSnapshot:
+        return ToolCallSnapshot.model_validate(
+            {
+                "type": "tool_use",
+                "id": str(tool_call.get("id", "")),
+                "name": str(tool_call.get("name", "")),
+                "input": to_jsonable(
+                    tool_call.get("input", {}) or {},
+                    field_name="tool_call.input",
+                ),
+            }
         )
 
     async def reply(
@@ -218,11 +277,57 @@ class AgeMem(AgentBase):
             ],
             "system",
         )
+
+        observation = ""
+        memory_before = []
+        normalized_call = None
+        if self.trajectory_recorder is not None:
+            observation = self._observation_for_tool_call(tool_call)
+            memory_before = snapshot_memory(self.memory_manager)
+            normalized_call = self._trajectory_tool_call(tool_call)
+
+        trajectory_results: List[ToolResultSnapshot] = []
+        env_reward = 0.0
+        response_msg = None
+        caught_error: Optional[Exception] = None
         try:
             tool_res = await self.toolkit.call_tool_function(tool_call)
-            response_msg = None
             async for chunk in tool_res:
                 tool_res_msg.content[0]["output"] = chunk.content
+                if self.trajectory_recorder is not None:
+                    content = to_jsonable(
+                        chunk.content,
+                        field_name="tool_result.content",
+                    )
+                    metadata = (
+                        to_jsonable(
+                            chunk.metadata,
+                            field_name="tool_result.metadata",
+                        )
+                        if chunk.metadata is not None
+                        else None
+                    )
+                    trajectory_results.append(
+                        ToolResultSnapshot.model_validate(
+                            {
+                                "tool_call_id": str(tool_call.get("id", "")),
+                                "name": str(tool_call.get("name", "")),
+                                "content": content,
+                                "metadata": metadata,
+                                "is_last": bool(chunk.is_last),
+                                "is_interrupted": bool(chunk.is_interrupted),
+                            }
+                        )
+                    )
+                    if metadata is not None and "env_reward" in metadata:
+                        reward_value = metadata["env_reward"]
+                        if isinstance(reward_value, bool) or not isinstance(
+                            reward_value, (int, float)
+                        ):
+                            raise TrajectoryValidationError(
+                                "ToolResponse.metadata['env_reward'] must be numeric"
+                            )
+                        env_reward = float(reward_value)
                 if should_trace:
                     # AgentScope 会把 ToolResultBlock 以 JSON 形式打印；
                     # 流式工具只在最后一个分块完整展示结果。
@@ -231,8 +336,56 @@ class AgeMem(AgentBase):
                     if tool_call["name"] == self.finish_function_name:
                         response_msg = chunk.metadata.get("response_msg")
             return response_msg
+        except Exception as exc:
+            caught_error = exc
+            raise
         finally:
             self.context_messages.append(tool_res_msg)
+            if self.trajectory_recorder is not None:
+                if not trajectory_results:
+                    error_text = (
+                        f"{type(caught_error).__name__}: {caught_error}"
+                        if caught_error is not None
+                        else "Tool returned no response chunks."
+                    )
+                    trajectory_results.append(
+                        ToolResultSnapshot(
+                            tool_call_id=str(tool_call.get("id", "")),
+                            name=str(tool_call.get("name", "")),
+                            content=[{"type": "text", "text": error_text}],
+                            metadata={"success": False},
+                            is_last=True,
+                            is_interrupted=False,
+                        )
+                    )
+
+                memory_after = snapshot_memory(self.memory_manager)
+                assert normalized_call is not None
+                step = TrajectoryStep(
+                    task_id=self.task_id,
+                    rollout_id=self.rollout_id,
+                    stage=max(0, int(self.current_stage)),
+                    timestep=self._trajectory_timestep,
+                    observation=observation,
+                    action_text=json.dumps(
+                        normalized_call.model_dump(mode="json"),
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                    tool_calls=[normalized_call],
+                    tool_results=trajectory_results,
+                    memory_before=memory_before,
+                    memory_after=memory_after,
+                    env_reward=env_reward,
+                    done=(
+                        tool_call.get("name") == self.finish_function_name
+                        and response_msg is not None
+                    ),
+                    old_logprob=None,
+                )
+                self.trajectory_recorder.record(step)
+                self._trajectory_timestep += 1
 
     def generate_response(self, response: str, **kwargs: Any) -> ToolResponse:
         """Final response to the user."""
@@ -349,10 +502,10 @@ class AgeMem(AgentBase):
         )
 
     async def filter_context(
-        self, 
+        self,
         criteria: str
         ) -> ToolResponse:
-        """Filters out irrelevant or outdated content from the conversation context to improve task-solving efficiency. 
+        """Filters out irrelevant or outdated content from the conversation context to improve task-solving efficiency.
 
         Args:
             criteria (`str`):
@@ -598,7 +751,7 @@ class AgeMem(AgentBase):
                 res_msg.content = chunk.content
         else:
             res_msg.content = res.content
-        
+
         logger.info(f"res_msg: {res_msg}")
         has_answer = TextBlock(type="text", text="has_answer:No")
         res_msg.content.append(has_answer)
