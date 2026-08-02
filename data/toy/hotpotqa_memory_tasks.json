@@ -1,0 +1,294 @@
+[
+  {
+    "task_id": "toy-train-001", "split": "train",
+    "question": "Which country contains the city where the Eiffel Tower is located?", "answer": "France",
+    "facts": [
+      {"fact_id": "t001-a", "title": "Eiffel Tower", "sentence": "The Eiffel Tower is located in Paris.", "subject": "Eiffel Tower", "relation": "located_in", "object": "Paris", "stage": 1},
+      {"fact_id": "t001-b", "title": "Paris", "sentence": "Paris is a city in France.", "subject": "Paris", "relation": "country", "object": "France", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t001-a", "t001-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["clean"]
+  },
+  {
+    "task_id": "toy-train-002", "split": "train",
+    "question": "Which country contains the city where the Colosseum is located?", "answer": "Italy",
+    "facts": [
+      {"fact_id": "t002-a", "title": "Colosseum", "sentence": "The Colosseum is located in Rome.", "subject": "Colosseum", "relation": "located_in", "object": "Rome", "stage": 1},
+      {"fact_id": "t002-b", "title": "Rome", "sentence": "Rome is a city in Italy.", "subject": "Rome", "relation": "country", "object": "Italy", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t002-a", "t002-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["clean"]
+  },
+  {
+    "task_id": "toy-train-003", "split": "train",
+    "question": "Which country contains the city where the Sagrada Familia is located?", "answer": "Spain",
+    "facts": [
+      {"fact_id": "t003-a", "title": "Sagrada Familia", "sentence": "The Sagrada Familia is located in Barcelona.", "subject": "Sagrada Familia", "relation": "located_in", "object": "Barcelona", "stage": 1},
+      {"fact_id": "t003-b", "title": "Barcelona", "sentence": "Barcelona is a city in Spain.", "subject": "Barcelona", "relation": "country", "object": "Spain", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t003-a", "t003-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["clean"]
+  },
+  {
+    "task_id": "toy-train-004", "split": "train",
+    "question": "Which country contains the city where the Acropolis is located?", "answer": "Greece",
+    "facts": [
+      {"fact_id": "t004-a", "title": "Acropolis", "sentence": "The Acropolis is located in Athens.", "subject": "Acropolis", "relation": "located_in", "object": "Athens", "stage": 1},
+      {"fact_id": "t004-b", "title": "Athens", "sentence": "Athens is a city in Greece.", "subject": "Athens", "relation": "country", "object": "Greece", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t004-a", "t004-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["clean"]
+  },
+  {
+    "task_id": "toy-train-005", "split": "train",
+    "question": "Which country contains the city where the CN Tower is located?", "answer": "Canada",
+    "facts": [
+      {"fact_id": "t005-a", "title": "CN Tower", "sentence": "The CN Tower is located in Toronto.", "subject": "CN Tower", "relation": "located_in", "object": "Toronto", "stage": 1},
+      {"fact_id": "t005-b", "title": "Toronto", "sentence": "Toronto is a city in Canada.", "subject": "Toronto", "relation": "country", "object": "Canada", "stage": 1},
+      {"fact_id": "t005-d1", "title": "Violin", "sentence": "A violin is a string instrument.", "subject": "violin", "relation": "type", "object": "string instrument", "stage": 1},
+      {"fact_id": "t005-d2", "title": "Gardening", "sentence": "Tomatoes grow well in sunny gardens.", "subject": "tomatoes", "relation": "grow_in", "object": "sunny gardens", "stage": 2}
+    ],
+    "supporting_fact_ids": ["t005-a", "t005-b"], "distractor_fact_ids": ["t005-d1", "t005-d2"], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["distractor"]
+  },
+  {
+    "task_id": "toy-train-006", "split": "train",
+    "question": "Which country contains the city where the Sydney Opera House is located?", "answer": "Australia",
+    "facts": [
+      {"fact_id": "t006-a", "title": "Sydney Opera House", "sentence": "The Sydney Opera House is located in Sydney.", "subject": "Sydney Opera House", "relation": "located_in", "object": "Sydney", "stage": 1},
+      {"fact_id": "t006-b", "title": "Sydney", "sentence": "Sydney is a city in Australia.", "subject": "Sydney", "relation": "country", "object": "Australia", "stage": 1},
+      {"fact_id": "t006-d1", "title": "Chess", "sentence": "Chess is played on a board with sixty-four squares.", "subject": "chess", "relation": "board_squares", "object": "sixty-four", "stage": 1},
+      {"fact_id": "t006-d2", "title": "Baking", "sentence": "Bread dough often contains yeast.", "subject": "bread dough", "relation": "contains", "object": "yeast", "stage": 2}
+    ],
+    "supporting_fact_ids": ["t006-a", "t006-b"], "distractor_fact_ids": ["t006-d1", "t006-d2"], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["distractor"]
+  },
+  {
+    "task_id": "toy-train-007", "split": "train",
+    "question": "Which country contains the city where Christ the Redeemer is located?", "answer": "Brazil",
+    "facts": [
+      {"fact_id": "t007-a", "title": "Christ the Redeemer", "sentence": "Christ the Redeemer is located in Rio de Janeiro.", "subject": "Christ the Redeemer", "relation": "located_in", "object": "Rio de Janeiro", "stage": 1},
+      {"fact_id": "t007-b", "title": "Rio de Janeiro", "sentence": "Rio de Janeiro is a city in Brazil.", "subject": "Rio de Janeiro", "relation": "country", "object": "Brazil", "stage": 1},
+      {"fact_id": "t007-d1", "title": "Piano", "sentence": "A piano has black and white keys.", "subject": "piano", "relation": "has", "object": "keys", "stage": 1},
+      {"fact_id": "t007-d2", "title": "Weather", "sentence": "Snow can form below freezing temperatures.", "subject": "snow", "relation": "forms_below", "object": "freezing", "stage": 2}
+    ],
+    "supporting_fact_ids": ["t007-a", "t007-b"], "distractor_fact_ids": ["t007-d1", "t007-d2"], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["distractor"]
+  },
+  {
+    "task_id": "toy-train-008", "split": "train",
+    "question": "Which country contains the city where Table Mountain is located?", "answer": "South Africa",
+    "facts": [
+      {"fact_id": "t008-a", "title": "Table Mountain", "sentence": "Table Mountain is located in Cape Town.", "subject": "Table Mountain", "relation": "located_in", "object": "Cape Town", "stage": 1},
+      {"fact_id": "t008-b", "title": "Cape Town", "sentence": "Cape Town is a city in South Africa.", "subject": "Cape Town", "relation": "country", "object": "South Africa", "stage": 1},
+      {"fact_id": "t008-d1", "title": "Astronomy", "sentence": "Jupiter is larger than Earth.", "subject": "Jupiter", "relation": "larger_than", "object": "Earth", "stage": 1},
+      {"fact_id": "t008-d2", "title": "Tea", "sentence": "Green tea is made from tea leaves.", "subject": "green tea", "relation": "made_from", "object": "tea leaves", "stage": 2}
+    ],
+    "supporting_fact_ids": ["t008-a", "t008-b"], "distractor_fact_ids": ["t008-d1", "t008-d2"], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["distractor"]
+  },
+  {
+    "task_id": "toy-train-009", "split": "train",
+    "question": "Which country contains the city where Big Ben is located?", "answer": "United Kingdom",
+    "facts": [
+      {"fact_id": "t009-a", "title": "Big Ben", "sentence": "Big Ben is located in London.", "subject": "Big Ben", "relation": "located_in", "object": "London", "stage": 1},
+      {"fact_id": "t009-dup", "title": "Big Ben copy", "sentence": "Big Ben is located in London.", "subject": "Big Ben", "relation": "located_in", "object": "London", "stage": 1, "duplicate_of_fact_id": "t009-a"},
+      {"fact_id": "t009-b", "title": "London", "sentence": "London is a city in the United Kingdom.", "subject": "London", "relation": "country", "object": "United Kingdom", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t009-a", "t009-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": ["t009-dup"], "difficulty": ["duplicate"]
+  },
+  {
+    "task_id": "toy-train-010", "split": "train",
+    "question": "Which country contains the city where the Brandenburg Gate is located?", "answer": "Germany",
+    "facts": [
+      {"fact_id": "t010-a", "title": "Brandenburg Gate", "sentence": "The Brandenburg Gate is located in Berlin.", "subject": "Brandenburg Gate", "relation": "located_in", "object": "Berlin", "stage": 1},
+      {"fact_id": "t010-dup", "title": "Brandenburg Gate duplicate", "sentence": "The Brandenburg Gate is located in Berlin.", "subject": "Brandenburg Gate", "relation": "located_in", "object": "Berlin", "stage": 1, "duplicate_of_fact_id": "t010-a"},
+      {"fact_id": "t010-b", "title": "Berlin", "sentence": "Berlin is a city in Germany.", "subject": "Berlin", "relation": "country", "object": "Germany", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t010-a", "t010-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": ["t010-dup"], "difficulty": ["duplicate"]
+  },
+  {
+    "task_id": "toy-train-011", "split": "train",
+    "question": "Which country contains the city where Gyeongbokgung Palace is located?", "answer": "South Korea",
+    "facts": [
+      {"fact_id": "t011-a", "title": "Gyeongbokgung Palace", "sentence": "Gyeongbokgung Palace is located in Seoul.", "subject": "Gyeongbokgung Palace", "relation": "located_in", "object": "Seoul", "stage": 1},
+      {"fact_id": "t011-dup", "title": "Palace note", "sentence": "Gyeongbokgung Palace is located in Seoul.", "subject": "Gyeongbokgung Palace", "relation": "located_in", "object": "Seoul", "stage": 1, "duplicate_of_fact_id": "t011-a"},
+      {"fact_id": "t011-b", "title": "Seoul", "sentence": "Seoul is a city in South Korea.", "subject": "Seoul", "relation": "country", "object": "South Korea", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t011-a", "t011-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": ["t011-dup"], "difficulty": ["duplicate"]
+  },
+  {
+    "task_id": "toy-train-012", "split": "train",
+    "question": "Which country contains the city where the Petronas Towers are located?", "answer": "Malaysia",
+    "facts": [
+      {"fact_id": "t012-a", "title": "Petronas Towers", "sentence": "The Petronas Towers are located in Kuala Lumpur.", "subject": "Petronas Towers", "relation": "located_in", "object": "Kuala Lumpur", "stage": 1},
+      {"fact_id": "t012-dup", "title": "Petronas note", "sentence": "The Petronas Towers are located in Kuala Lumpur.", "subject": "Petronas Towers", "relation": "located_in", "object": "Kuala Lumpur", "stage": 1, "duplicate_of_fact_id": "t012-a"},
+      {"fact_id": "t012-b", "title": "Kuala Lumpur", "sentence": "Kuala Lumpur is a city in Malaysia.", "subject": "Kuala Lumpur", "relation": "country", "object": "Malaysia", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t012-a", "t012-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": ["t012-dup"], "difficulty": ["duplicate"]
+  },
+  {
+    "task_id": "toy-train-013", "split": "train",
+    "question": "Which country contains the city where Burj Khalifa is located?", "answer": "United Arab Emirates",
+    "facts": [
+      {"fact_id": "t013-a", "title": "Burj Khalifa", "sentence": "Burj Khalifa is located in Dubai.", "subject": "Burj Khalifa", "relation": "located_in", "object": "Dubai", "stage": 1},
+      {"fact_id": "t013-old", "title": "Dubai old note", "sentence": "Dubai is a city in Qatar.", "subject": "Dubai", "relation": "country", "object": "Qatar", "stage": 1},
+      {"fact_id": "t013-b", "title": "Dubai correction", "sentence": "Dubai is a city in the United Arab Emirates.", "subject": "Dubai", "relation": "country", "object": "United Arab Emirates", "stage": 1, "replaces_fact_id": "t013-old"}
+    ],
+    "supporting_fact_ids": ["t013-a", "t013-b"], "distractor_fact_ids": [], "stale_fact_ids": ["t013-old"], "duplicate_fact_ids": [], "difficulty": ["fact_update", "stale_fact"]
+  },
+  {
+    "task_id": "toy-train-014", "split": "train",
+    "question": "Which country contains the city where the Space Needle is located?", "answer": "United States",
+    "facts": [
+      {"fact_id": "t014-a", "title": "Space Needle", "sentence": "The Space Needle is located in Seattle.", "subject": "Space Needle", "relation": "located_in", "object": "Seattle", "stage": 1},
+      {"fact_id": "t014-old", "title": "Seattle old note", "sentence": "Seattle is a city in Canada.", "subject": "Seattle", "relation": "country", "object": "Canada", "stage": 1},
+      {"fact_id": "t014-b", "title": "Seattle correction", "sentence": "Seattle is a city in the United States.", "subject": "Seattle", "relation": "country", "object": "United States", "stage": 1, "replaces_fact_id": "t014-old"}
+    ],
+    "supporting_fact_ids": ["t014-a", "t014-b"], "distractor_fact_ids": [], "stale_fact_ids": ["t014-old"], "duplicate_fact_ids": [], "difficulty": ["fact_update", "stale_fact"]
+  },
+  {
+    "task_id": "toy-train-015", "split": "train",
+    "question": "Which country contains the city where Angkor Wat is located?", "answer": "Cambodia",
+    "facts": [
+      {"fact_id": "t015-a", "title": "Angkor Wat", "sentence": "Angkor Wat is located in Siem Reap.", "subject": "Angkor Wat", "relation": "located_in", "object": "Siem Reap", "stage": 1},
+      {"fact_id": "t015-old", "title": "Siem Reap old note", "sentence": "Siem Reap is a city in Thailand.", "subject": "Siem Reap", "relation": "country", "object": "Thailand", "stage": 1},
+      {"fact_id": "t015-b", "title": "Siem Reap correction", "sentence": "Siem Reap is a city in Cambodia.", "subject": "Siem Reap", "relation": "country", "object": "Cambodia", "stage": 1, "replaces_fact_id": "t015-old"}
+    ],
+    "supporting_fact_ids": ["t015-a", "t015-b"], "distractor_fact_ids": [], "stale_fact_ids": ["t015-old"], "duplicate_fact_ids": [], "difficulty": ["fact_update", "stale_fact"]
+  },
+  {
+    "task_id": "toy-train-016", "split": "train",
+    "question": "Which country contains the city where the Taj Mahal is located?", "answer": "India",
+    "facts": [
+      {"fact_id": "t016-a", "title": "Taj Mahal", "sentence": "The Taj Mahal is located in Agra.", "subject": "Taj Mahal", "relation": "located_in", "object": "Agra", "stage": 1},
+      {"fact_id": "t016-old", "title": "Agra old note", "sentence": "Agra is a city in Nepal.", "subject": "Agra", "relation": "country", "object": "Nepal", "stage": 1},
+      {"fact_id": "t016-b", "title": "Agra correction", "sentence": "Agra is a city in India.", "subject": "Agra", "relation": "country", "object": "India", "stage": 1, "replaces_fact_id": "t016-old"}
+    ],
+    "supporting_fact_ids": ["t016-a", "t016-b"], "distractor_fact_ids": [], "stale_fact_ids": ["t016-old"], "duplicate_fact_ids": [], "difficulty": ["fact_update", "stale_fact"]
+  },
+  {
+    "task_id": "toy-train-017", "split": "train",
+    "question": "Which country contains the city where Machu Picchu is located?", "answer": "Peru",
+    "facts": [
+      {"fact_id": "t017-a", "title": "Machu Picchu", "sentence": "Machu Picchu is located near Cusco.", "subject": "Machu Picchu", "relation": "located_in", "object": "Cusco", "stage": 1},
+      {"fact_id": "t017-b", "title": "Cusco", "sentence": "Cusco is a city in Peru.", "subject": "Cusco", "relation": "country", "object": "Peru", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t017-a", "t017-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["critical_delete"]
+  },
+  {
+    "task_id": "toy-train-018", "split": "train",
+    "question": "Which country contains the city where the Alhambra is located?", "answer": "Spain",
+    "facts": [
+      {"fact_id": "t018-a", "title": "Alhambra", "sentence": "The Alhambra is located in Granada.", "subject": "Alhambra", "relation": "located_in", "object": "Granada", "stage": 1},
+      {"fact_id": "t018-b", "title": "Granada", "sentence": "Granada is a city in Spain.", "subject": "Granada", "relation": "country", "object": "Spain", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t018-a", "t018-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["critical_delete"]
+  },
+  {
+    "task_id": "toy-train-019", "split": "train",
+    "question": "Which country contains the city where the Golden Gate Bridge is located?", "answer": "United States",
+    "facts": [
+      {"fact_id": "t019-a", "title": "Golden Gate Bridge", "sentence": "The Golden Gate Bridge is located in San Francisco.", "subject": "Golden Gate Bridge", "relation": "located_in", "object": "San Francisco", "stage": 1},
+      {"fact_id": "t019-b", "title": "San Francisco", "sentence": "San Francisco is a city in the United States.", "subject": "San Francisco", "relation": "country", "object": "United States", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t019-a", "t019-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["critical_delete"]
+  },
+  {
+    "task_id": "toy-train-020", "split": "train",
+    "question": "Which country contains the city where Hagia Sophia is located?", "answer": "Turkey",
+    "facts": [
+      {"fact_id": "t020-a", "title": "Hagia Sophia", "sentence": "Hagia Sophia is located in Istanbul.", "subject": "Hagia Sophia", "relation": "located_in", "object": "Istanbul", "stage": 1},
+      {"fact_id": "t020-b", "title": "Istanbul", "sentence": "Istanbul is a city in Turkey.", "subject": "Istanbul", "relation": "country", "object": "Turkey", "stage": 1}
+    ],
+    "supporting_fact_ids": ["t020-a", "t020-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["critical_delete"]
+  },
+  {
+    "task_id": "toy-dev-001", "split": "dev",
+    "question": "Which country contains the city where the Louvre Museum is located?", "answer": "France",
+    "facts": [
+      {"fact_id": "d001-a", "title": "Louvre Museum", "sentence": "The Louvre Museum is located in Paris.", "subject": "Louvre Museum", "relation": "located_in", "object": "Paris", "stage": 1},
+      {"fact_id": "d001-b", "title": "Paris", "sentence": "Paris is a city in France.", "subject": "Paris", "relation": "country", "object": "France", "stage": 1}
+    ],
+    "supporting_fact_ids": ["d001-a", "d001-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["clean"]
+  },
+  {
+    "task_id": "toy-dev-002", "split": "dev",
+    "question": "Which country contains the city where the Atomium is located?", "answer": "Belgium",
+    "facts": [
+      {"fact_id": "d002-a", "title": "Atomium", "sentence": "The Atomium is located in Brussels.", "subject": "Atomium", "relation": "located_in", "object": "Brussels", "stage": 1},
+      {"fact_id": "d002-b", "title": "Brussels", "sentence": "Brussels is a city in Belgium.", "subject": "Brussels", "relation": "country", "object": "Belgium", "stage": 1},
+      {"fact_id": "d002-d1", "title": "Ocean", "sentence": "Coral reefs support many marine species.", "subject": "coral reefs", "relation": "support", "object": "marine species", "stage": 2}
+    ],
+    "supporting_fact_ids": ["d002-a", "d002-b"], "distractor_fact_ids": ["d002-d1"], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["distractor"]
+  },
+  {
+    "task_id": "toy-dev-003", "split": "dev",
+    "question": "Which country contains the city where Shwedagon Pagoda is located?", "answer": "Myanmar",
+    "facts": [
+      {"fact_id": "d003-a", "title": "Shwedagon Pagoda", "sentence": "Shwedagon Pagoda is located in Yangon.", "subject": "Shwedagon Pagoda", "relation": "located_in", "object": "Yangon", "stage": 1},
+      {"fact_id": "d003-dup", "title": "Pagoda copy", "sentence": "Shwedagon Pagoda is located in Yangon.", "subject": "Shwedagon Pagoda", "relation": "located_in", "object": "Yangon", "stage": 1, "duplicate_of_fact_id": "d003-a"},
+      {"fact_id": "d003-b", "title": "Yangon", "sentence": "Yangon is a city in Myanmar.", "subject": "Yangon", "relation": "country", "object": "Myanmar", "stage": 1}
+    ],
+    "supporting_fact_ids": ["d003-a", "d003-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": ["d003-dup"], "difficulty": ["duplicate"]
+  },
+  {
+    "task_id": "toy-dev-004", "split": "dev",
+    "question": "Which country contains the city where Neuschwanstein Castle is located?", "answer": "Germany",
+    "facts": [
+      {"fact_id": "d004-a", "title": "Neuschwanstein Castle", "sentence": "Neuschwanstein Castle is located near Fussen.", "subject": "Neuschwanstein Castle", "relation": "located_in", "object": "Fussen", "stage": 1},
+      {"fact_id": "d004-old", "title": "Fussen old note", "sentence": "Fussen is a city in Austria.", "subject": "Fussen", "relation": "country", "object": "Austria", "stage": 1},
+      {"fact_id": "d004-b", "title": "Fussen correction", "sentence": "Fussen is a city in Germany.", "subject": "Fussen", "relation": "country", "object": "Germany", "stage": 1, "replaces_fact_id": "d004-old"}
+    ],
+    "supporting_fact_ids": ["d004-a", "d004-b"], "distractor_fact_ids": [], "stale_fact_ids": ["d004-old"], "duplicate_fact_ids": [], "difficulty": ["fact_update", "stale_fact"]
+  },
+  {
+    "task_id": "toy-dev-005", "split": "dev",
+    "question": "Which country contains the city where the Moai statues near Hanga Roa are located?", "answer": "Chile",
+    "facts": [
+      {"fact_id": "d005-a", "title": "Moai", "sentence": "The Moai statues are located near Hanga Roa.", "subject": "Moai statues", "relation": "located_in", "object": "Hanga Roa", "stage": 1},
+      {"fact_id": "d005-b", "title": "Hanga Roa", "sentence": "Hanga Roa is a town in Chile.", "subject": "Hanga Roa", "relation": "country", "object": "Chile", "stage": 1}
+    ],
+    "supporting_fact_ids": ["d005-a", "d005-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["critical_delete"]
+  },
+  {
+    "task_id": "toy-test-001", "split": "test",
+    "question": "Which country contains the city where the Sheikh Zayed Grand Mosque is located?", "answer": "United Arab Emirates",
+    "facts": [
+      {"fact_id": "x001-a", "title": "Sheikh Zayed Grand Mosque", "sentence": "The Sheikh Zayed Grand Mosque is located in Abu Dhabi.", "subject": "Sheikh Zayed Grand Mosque", "relation": "located_in", "object": "Abu Dhabi", "stage": 1},
+      {"fact_id": "x001-b", "title": "Abu Dhabi", "sentence": "Abu Dhabi is a city in the United Arab Emirates.", "subject": "Abu Dhabi", "relation": "country", "object": "United Arab Emirates", "stage": 1}
+    ],
+    "supporting_fact_ids": ["x001-a", "x001-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["clean"]
+  },
+  {
+    "task_id": "toy-test-002", "split": "test",
+    "question": "Which country contains the city where Marina Bay Sands is located?", "answer": "Singapore",
+    "facts": [
+      {"fact_id": "x002-a", "title": "Marina Bay Sands", "sentence": "Marina Bay Sands is located in Singapore City.", "subject": "Marina Bay Sands", "relation": "located_in", "object": "Singapore City", "stage": 1},
+      {"fact_id": "x002-b", "title": "Singapore City", "sentence": "Singapore City is in Singapore.", "subject": "Singapore City", "relation": "country", "object": "Singapore", "stage": 1},
+      {"fact_id": "x002-d1", "title": "Running", "sentence": "Marathons are long-distance running events.", "subject": "marathons", "relation": "type", "object": "running events", "stage": 2}
+    ],
+    "supporting_fact_ids": ["x002-a", "x002-b"], "distractor_fact_ids": ["x002-d1"], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["distractor"]
+  },
+  {
+    "task_id": "toy-test-003", "split": "test",
+    "question": "Which country contains the city where Fushimi Inari Shrine is located?", "answer": "Japan",
+    "facts": [
+      {"fact_id": "x003-a", "title": "Fushimi Inari Shrine", "sentence": "Fushimi Inari Shrine is located in Kyoto.", "subject": "Fushimi Inari Shrine", "relation": "located_in", "object": "Kyoto", "stage": 1},
+      {"fact_id": "x003-dup", "title": "Shrine duplicate", "sentence": "Fushimi Inari Shrine is located in Kyoto.", "subject": "Fushimi Inari Shrine", "relation": "located_in", "object": "Kyoto", "stage": 1, "duplicate_of_fact_id": "x003-a"},
+      {"fact_id": "x003-b", "title": "Kyoto", "sentence": "Kyoto is a city in Japan.", "subject": "Kyoto", "relation": "country", "object": "Japan", "stage": 1}
+    ],
+    "supporting_fact_ids": ["x003-a", "x003-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": ["x003-dup"], "difficulty": ["duplicate"]
+  },
+  {
+    "task_id": "toy-test-004", "split": "test",
+    "question": "Which country contains the city where Chichen Itza is located?", "answer": "Mexico",
+    "facts": [
+      {"fact_id": "x004-a", "title": "Chichen Itza", "sentence": "Chichen Itza is located near Valladolid.", "subject": "Chichen Itza", "relation": "located_in", "object": "Valladolid", "stage": 1},
+      {"fact_id": "x004-old", "title": "Valladolid old note", "sentence": "Valladolid is a city in Cuba.", "subject": "Valladolid", "relation": "country", "object": "Cuba", "stage": 1},
+      {"fact_id": "x004-b", "title": "Valladolid correction", "sentence": "Valladolid is a city in Mexico.", "subject": "Valladolid", "relation": "country", "object": "Mexico", "stage": 1, "replaces_fact_id": "x004-old"}
+    ],
+    "supporting_fact_ids": ["x004-a", "x004-b"], "distractor_fact_ids": [], "stale_fact_ids": ["x004-old"], "duplicate_fact_ids": [], "difficulty": ["fact_update", "stale_fact"]
+  },
+  {
+    "task_id": "toy-test-005", "split": "test",
+    "question": "Which country contains the city where the Bagan Temples are located?", "answer": "Myanmar",
+    "facts": [
+      {"fact_id": "x005-a", "title": "Bagan Temples", "sentence": "The Bagan Temples are located in Bagan.", "subject": "Bagan Temples", "relation": "located_in", "object": "Bagan", "stage": 1},
+      {"fact_id": "x005-b", "title": "Bagan", "sentence": "Bagan is a city in Myanmar.", "subject": "Bagan", "relation": "country", "object": "Myanmar", "stage": 1}
+    ],
+    "supporting_fact_ids": ["x005-a", "x005-b"], "distractor_fact_ids": [], "stale_fact_ids": [], "duplicate_fact_ids": [], "difficulty": ["critical_delete"]
+  }
+]

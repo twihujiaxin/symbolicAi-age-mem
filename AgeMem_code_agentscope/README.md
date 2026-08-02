@@ -9,6 +9,7 @@ Standalone release of the **AgeMem** agent: a ReAct-style agent with **6 tools**
 - **Rollout isolation**: one store per `rollout_id`, with cross-rollout restore protection
 - **Auditable mutations**: versioned updates and research-mode soft deletes
 - **Replayable trajectories**: optional strict JSONL recording with complete memory snapshots
+- **Offline M3 environment**: 30 deterministic HotpotQA-style two-hop memory tasks
 
 ### The 6 Memory Tools
 
@@ -37,6 +38,55 @@ Updates append a new version and mark the previous active version as
 `superseded`. In research mode, deletes append a `discarded` tombstone. Normal
 retrieval returns only active versions, while `snapshot()` and
 `get_memory_history()` retain the complete audit trail.
+
+### HotpotQA-style M3 toy environment
+
+The M3 fixture contains 30 artificial two-hop tasks split into 20 train, 5 dev,
+and 5 test examples. It does not download HotpotQA and does not call an LLM or
+online embedding service. It follows the existing AgeMem stage protocol:
+
+```text
+Stage 1: observe facts and build/update LTM
+Stage 2: clear Stage 1 STM and inject deterministic distractors
+Stage 3: retain Stage 2 context, retrieve supporting facts, and answer
+```
+
+The public `StageInput` excludes answers, supporting-fact IDs, and Oracle
+labels. Gold and explicit error policies are offline test fixtures. Semantic
+Oracle labels are saved in `ToolResultSnapshot.metadata["oracle_labels"]` for a
+future M4 mapper; M3 does not define APs, a DFA, or logic rewards.
+
+Generate a complete replayable gold trajectory without any model call:
+
+```python
+import asyncio
+
+from AgeMem_code_agentscope import (
+    GoldMemoryPolicy,
+    ToyEpisodeRunner,
+    ToyTaskDataset,
+    TrajectoryRecorder,
+)
+
+
+async def run():
+    task = ToyTaskDataset.from_json().get("toy-train-001")
+    result = await ToyEpisodeRunner().run(
+        task,
+        GoldMemoryPolicy(),
+        rollout_id="example-rollout",
+        seed=7,
+        recorder=TrajectoryRecorder("runs/trajectories/toy-m3.jsonl"),
+    )
+    assert result.episode.success
+
+
+asyncio.run(run())
+```
+
+The task fixture is stored at `data/toy/hotpotqa_memory_tasks.json`. M2
+`MemoryStoreSnapshot` is used for episode checkpoint/restore, and a shared
+`ToyEnvironmentPool` provides one isolated store per rollout.
 
 ## Install
 
@@ -152,6 +202,7 @@ AgeMem_code_agentscope/
   prompts.py     # SUMMARY_CONTEXT_SYS_PROMPT, TEXT_SIMILARITY_SYS_PROMPT
   trajectory.py  # Strict TrajectoryStep, JSONL recorder, query and replay
   replay.py      # Offline trajectory query/replay CLI
+  toy_hotpotqa/  # M3 task models, environment, policies and JSONL runner
   src/           # Helpers: utils, llm_client, schemas, hooks
   requirements.txt
   README.md

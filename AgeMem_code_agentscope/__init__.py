@@ -17,10 +17,21 @@ from .trajectory import (
     TrajectoryStep,
     TrajectoryValidationError,
 )
+from .toy_hotpotqa import (
+    ErrorMemoryPolicy,
+    GoldMemoryPolicy,
+    HotpotQAToyEnvironment,
+    ToyEnvironmentPool,
+    ToyEpisodeRunner,
+    ToyTaskDataset,
+)
 
 __all__ = [
     "AgeMem",
     "AgentScopeLongtermMemory",
+    "ErrorMemoryPolicy",
+    "GoldMemoryPolicy",
+    "HotpotQAToyEnvironment",
     "InMemoryStore",
     "MemoryRecord",
     "MemoryStore",
@@ -33,4 +44,7 @@ __all__ = [
     "TrajectoryReplay",
     "TrajectoryStep",
     "TrajectoryValidationError",
+    "ToyEnvironmentPool",
+    "ToyEpisodeRunner",
+    "ToyTaskDataset",
 ]
