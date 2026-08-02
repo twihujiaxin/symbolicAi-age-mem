@@ -5,7 +5,9 @@ Standalone release of the **AgeMem** agent: a ReAct-style agent with **6 tools**
 ## Features
 
 - **6 tools**: `summary_context`, `clear_context`(`filter_context`), `retrieve_memory`, `add_memory`, `update_memory`, `delete_memory`
-- **Long-term memory**: in-memory vector store with embedding-based retrieval (DashScope text-embedding by default)
+- **Backend-independent long-term memory**: `MemoryStore` protocol with an in-memory implementation and embedding-based retrieval
+- **Rollout isolation**: one store per `rollout_id`, with cross-rollout restore protection
+- **Auditable mutations**: versioned updates and research-mode soft deletes
 - **Replayable trajectories**: optional strict JSONL recording with complete memory snapshots
 
 ### The 6 Memory Tools
@@ -16,8 +18,25 @@ Standalone release of the **AgeMem** agent: a ReAct-style agent with **6 tools**
 | `clear_context` / `filter_context` | Short-term | Remove irrelevant messages by similarity |
 | `retrieve_memory` | Short-term | Pull relevant entries from long-term memory into context |
 | `add_memory` | Long-term | Store new information in the external vector store |
-| `update_memory` | Long-term | Update an existing memory entry |
-| `delete_memory` | Long-term | Delete an obsolete memory entry |
+| `update_memory` | Long-term | Create a new active version and supersede the old version |
+| `delete_memory` | Long-term | Soft-delete an entry while retaining auditable history |
+
+### MemoryStore and rollout isolation
+
+`AgentScopeLongtermMemory` is an adapter between the asynchronous AgentScope
+memory API and the synchronous `MemoryStore` protocol. The memory tools call the
+adapter and do not import or inspect a concrete backend. The default backend is
+`InMemoryStore`.
+
+Each store is bound to exactly one `rollout_id`. Use
+`RolloutMemoryStoreRegistry.get_or_create(rollout_id)` when several rollouts are
+collected concurrently. A snapshot from one rollout cannot be restored into a
+different rollout.
+
+Updates append a new version and mark the previous active version as
+`superseded`. In research mode, deletes append a `discarded` tombstone. Normal
+retrieval returns only active versions, while `snapshot()` and
+`get_memory_history()` retain the complete audit trail.
 
 ## Install
 
@@ -128,7 +147,8 @@ AgeMem_code_agentscope/
   __init__.py    # Package exports (AgeMem, memory, prompts)
   main.py        # Entry point (CLI), model building (DashScope / OpenAI only)
   agent.py       # AgeMem (ReAct agent + 6 tools)
-  memory.py      # AgentScopeLongtermMemory, InMemoryVectorStore
+  memory.py      # AgentScope adapter and embedding integration
+  memory_store.py # MemoryStore protocol, versioned InMemoryStore, rollout registry
   prompts.py     # SUMMARY_CONTEXT_SYS_PROMPT, TEXT_SIMILARITY_SYS_PROMPT
   trajectory.py  # Strict TrajectoryStep, JSONL recorder, query and replay
   replay.py      # Offline trajectory query/replay CLI

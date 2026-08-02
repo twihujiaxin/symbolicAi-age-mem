@@ -1,130 +1,37 @@
 # -*- coding: utf-8 -*-
-"""
-AgentScope-compatible long-term memory with embedding-based retrieval.
-"""
+"""AgentScope adapter for backend-independent, rollout-scoped memory stores."""
+
 from __future__ import annotations
 
 import json
-import math
 import os
-import threading
 import uuid
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from copy import deepcopy
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from agentscope.memory import MemoryBase
 from openai import OpenAI
 
-
-def _cosine_similarity(a: List[float], b: List[float]) -> float:
-    if not a or not b or len(a) != len(b):
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(y * y for y in b))
-    if na == 0.0 or nb == 0.0:
-        return 0.0
-    return dot / (na * nb)
+from .memory_store import (
+    MEMORY_STORE_SCHEMA_VERSION,
+    InMemoryStore,
+    MemoryRecord,
+    MemoryStore,
+    MemoryStoreSnapshot,
+)
 
 
-@dataclass
-class MemoryItem:
-    memory_id: str
-    content: str
-    metadata: Dict[str, str] = field(default_factory=dict)
-    embedding: Optional[List[float]] = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "memory_id": self.memory_id,
-            "content": self.content,
-            "metadata": self.metadata,
-            "embedding": self.embedding,
-        }
-
-    @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "MemoryItem":
-        if "memory_id" not in data:
-            data["memory_id"] = str(uuid.uuid4())
-        return MemoryItem(
-            memory_id=data["memory_id"],
-            content=data["content"],
-            metadata=data.get("metadata", {}),
-            embedding=data.get("embedding"),
-        )
-
-
-class InMemoryVectorStore:
-    """Thread-safe in-memory vector store for agent memories."""
-
-    def __init__(self) -> None:
-        self._lock = threading.RLock()
-        self._items: Dict[str, MemoryItem] = {}
-
-    def add(self, item: MemoryItem) -> None:
-        with self._lock:
-            self._items[item.memory_id] = item
-
-    def get(self, memory_id: str) -> Optional[MemoryItem]:
-        with self._lock:
-            return self._items.get(memory_id)
-
-    def update(
-        self,
-        memory_id: str,
-        new_content: Optional[str] = None,
-        new_metadata: Optional[Dict[str, str]] = None,
-    ) -> bool:
-        with self._lock:
-            item = self._items.get(memory_id)
-            if item is None:
-                return False
-            if new_content is not None:
-                item.content = new_content
-            if new_metadata is not None:
-                item.metadata.update(new_metadata)
-            return True
-
-    def delete(self, memory_id: str) -> bool:
-        with self._lock:
-            return self._items.pop(memory_id, None) is not None
-
-    def search(
-        self,
-        query_embedding: List[float],
-        top_k: int = 5,
-        metadata_filter: Optional[Dict[str, str]] = None,
-    ) -> List[Tuple[MemoryItem, float]]:
-        with self._lock:
-            scored: List[Tuple[MemoryItem, float]] = []
-            for item in self._items.values():
-                if metadata_filter and not all(
-                    item.metadata.get(k) == v for k, v in metadata_filter.items()
-                ):
-                    continue
-                if item.embedding is None:
-                    continue
-                score = _cosine_similarity(query_embedding, item.embedding)
-                if score > 0.0:
-                    scored.append((item, score))
-            scored.sort(key=lambda x: x[1], reverse=True)
-            return scored[: max(1, top_k)]
-
-    def get_all_memory(self) -> List[MemoryItem]:
-        with self._lock:
-            return list(self._items.values())
-
-    def clear(self) -> None:
-        with self._lock:
-            self._items.clear()
-
-    def get_size(self) -> int:
-        with self._lock:
-            return len(self._items)
+# Backward-compatible public name used by the standalone agent and earlier code.
+MemoryItem = MemoryRecord
 
 
 class AgentScopeLongtermMemory(MemoryBase):
-    """Long-term memory with embedding-based retrieval, compatible with AgentScope."""
+    """Wrap a ``MemoryStore`` with AgentScope's asynchronous memory API.
+
+    Embedding remains a manager concern. The injected store only owns state,
+    versioning, rollout isolation, and vector lookup, so tools never depend on a
+    concrete database implementation.
+    """
 
     def __init__(
         self,
@@ -132,17 +39,56 @@ class AgentScopeLongtermMemory(MemoryBase):
         embedding_dim: int = 256,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        *,
+        rollout_id: Optional[str] = None,
+        store: Optional[MemoryStore] = None,
+        embedding_function: Optional[Callable[[str], Sequence[float]]] = None,
+        research_mode: bool = True,
     ) -> None:
         super().__init__()
-        self._store = InMemoryVectorStore()
-        self.client = OpenAI(
-            api_key=api_key or os.getenv("DASHSCOPE_API_KEY"),
-            base_url=base_url or "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        if store is not None and not isinstance(store, MemoryStore):
+            raise TypeError("store must implement the MemoryStore protocol")
+        if store is not None and rollout_id is not None and store.rollout_id != rollout_id:
+            raise ValueError(
+                "store rollout_id does not match requested rollout_id: "
+                f"{store.rollout_id!r} != {rollout_id!r}"
+            )
+
+        resolved_rollout_id = (
+            store.rollout_id if store is not None else rollout_id or str(uuid.uuid4())
+        )
+        self._store: MemoryStore = store or InMemoryStore(
+            resolved_rollout_id,
+            research_mode=research_mode,
         )
         self.embedding_model = embedding_model
         self.embedding_dim = embedding_dim
+        self._embedding_function = embedding_function
+        self.client: Optional[OpenAI] = None
+        if embedding_function is None:
+            self.client = OpenAI(
+                api_key=api_key or os.getenv("DASHSCOPE_API_KEY"),
+                base_url=(
+                    base_url
+                    or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+                ),
+            )
+
+    @property
+    def rollout_id(self) -> str:
+        return self._store.rollout_id
+
+    @property
+    def store(self) -> MemoryStore:
+        """Expose the abstract store for orchestration and audit code."""
+
+        return self._store
 
     def embed(self, content: str) -> List[float]:
+        if self._embedding_function is not None:
+            return list(self._embedding_function(content))
+        if self.client is None:
+            raise RuntimeError("no embedding client or embedding function is configured")
         completion = self.client.embeddings.create(
             model=self.embedding_model,
             input=content,
@@ -152,54 +98,113 @@ class AgentScopeLongtermMemory(MemoryBase):
         data = json.loads(completion.model_dump_json())
         return data["data"][0]["embedding"]
 
+    def snapshot(self) -> MemoryStoreSnapshot:
+        return self._store.snapshot()
+
+    def restore(self, snapshot: MemoryStoreSnapshot) -> None:
+        self._store.restore(snapshot)
+
+    def reset(self) -> None:
+        self._store.reset()
+
     def state_dict(self) -> dict:
-        return {"content": [_.to_dict() for _ in self._store.get_all_memory()]}
+        """Return complete version history in the M1-compatible shape."""
+
+        snapshot = self.snapshot()
+        return {
+            "memory_store_schema_version": snapshot.schema_version,
+            "rollout_id": snapshot.rollout_id,
+            "research_mode": snapshot.research_mode,
+            "content": [record.to_dict() for record in snapshot.records],
+        }
 
     def load_state_dict(self, state_dict: dict, strict: bool = True) -> None:
-        self._store.clear()
-        for data in state_dict.get("content", []):
-            if "embedding" not in data:
+        if not isinstance(state_dict, dict):
+            raise TypeError("memory state_dict must be a dictionary")
+        content = state_dict.get("content", [])
+        if not isinstance(content, list):
+            raise ValueError("memory state_dict content must be a list")
+        snapshot_rollout_id = state_dict.get("rollout_id", self.rollout_id)
+        if strict and snapshot_rollout_id != self.rollout_id:
+            raise ValueError(
+                "cannot load memory state from another rollout: "
+                f"{snapshot_rollout_id!r} != {self.rollout_id!r}"
+            )
+
+        records = []
+        for raw_record in content:
+            if not isinstance(raw_record, Mapping):
+                raise ValueError("each memory state entry must be a dictionary")
+            data = deepcopy(dict(raw_record))
+            data.setdefault("memory_id", str(uuid.uuid4()))
+            data.setdefault("metadata", {})
+            data.setdefault("source_rollout_id", self.rollout_id)
+            if data.get("embedding") is None:
                 data["embedding"] = self.embed(data["content"])
-            if "metadata" not in data:
-                data["metadata"] = {}
-            self._store.add(MemoryItem.from_dict(data))
+            records.append(MemoryRecord.from_dict(data))
+
+        snapshot = MemoryStoreSnapshot(
+            schema_version=int(
+                state_dict.get(
+                    "memory_store_schema_version",
+                    MEMORY_STORE_SCHEMA_VERSION,
+                )
+            ),
+            rollout_id=self.rollout_id,
+            research_mode=bool(
+                state_dict.get("research_mode", self._store.research_mode)
+            ),
+            records=tuple(records),
+        )
+        self.restore(snapshot)
 
     async def size(self) -> int:
-        return self._store.get_size()
+        return self._store.size()
 
     async def retrieve(
         self,
         query: str | None = None,
         top_k: int | None = 5,
-        metadata_filter: Optional[Dict[str, str]] = None,
+        metadata_filter: Optional[Dict[str, Any]] = None,
         **_: Any,
-    ) -> List[MemoryItem]:
+    ) -> List[MemoryRecord]:
         if not query:
             return []
-        q_emb = self.embed(query)
+        query_embedding = self.embed(query)
         return [
-            it
-            for it, _ in self._store.search(
-                q_emb, top_k=top_k or 5, metadata_filter=metadata_filter
+            record
+            for record, _score in self._store.retrieve(
+                query_embedding,
+                top_k=top_k or 5,
+                metadata_filter=metadata_filter,
             )
         ]
 
-    async def delete(self, memory_id: str) -> bool:
-        return self._store.delete(memory_id)
+    async def delete(
+        self,
+        memory_id: str,
+        *,
+        source_step: Optional[int] = None,
+    ) -> bool:
+        return self._store.delete(memory_id, source_step=source_step) is not None
 
     async def add(
         self,
         memory_id: str,
         content: str,
-        metadata: Optional[Dict[str, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        *,
+        source_step: Optional[int] = None,
     ) -> None:
         embedding = self.embed(content)
         self._store.add(
-            MemoryItem(
+            MemoryRecord(
                 memory_id=memory_id,
                 content=content,
                 metadata=metadata or {},
                 embedding=embedding,
+                source_rollout_id=self.rollout_id,
+                source_step=source_step,
             )
         )
 
@@ -207,18 +212,39 @@ class AgentScopeLongtermMemory(MemoryBase):
         self,
         memory_id: str,
         content: Optional[str] = None,
-        metadata: Optional[Dict[str, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        *,
+        source_step: Optional[int] = None,
     ) -> bool:
-        if content is not None:
-            embedding = self.embed(content)
-            item = self._store.get(memory_id)
-            if item is None:
-                return False
-            item.embedding = embedding
-        return self._store.update(memory_id, content, metadata)
+        if self._store.get(memory_id) is None:
+            return False
+        embedding = self.embed(content) if content is not None else None
+        return (
+            self._store.update(
+                memory_id,
+                content=content,
+                metadata=metadata,
+                embedding=embedding,
+                source_step=source_step,
+            )
+            is not None
+        )
 
-    async def get_memory(self) -> List[MemoryItem]:
-        return self._store.get_all_memory()
+    async def get_memory(self) -> List[MemoryRecord]:
+        """Return only current active records."""
+
+        return self._store.get_all()
+
+    async def get_memory_history(
+        self,
+        memory_id: Optional[str] = None,
+    ) -> List[MemoryRecord]:
+        """Return all versions, including discarded tombstones."""
+
+        return self._store.history(memory_id)
 
     async def clear(self) -> None:
-        self._store.clear()
+        self.reset()
+
+
+__all__ = ["AgentScopeLongtermMemory", "MemoryItem"]

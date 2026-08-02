@@ -81,10 +81,28 @@ class AgeMem(AgentBase):
         )
 
         # -------------- Memory management --------------
-        # LTM：独立于对话上下文的向量记忆库，可跨多轮检索。
+        # Resolve rollout identity before constructing the default store. This
+        # prevents an agent from accidentally reusing state owned by another
+        # rollout.
+        memory_rollout_id = getattr(memory, "rollout_id", None)
+        if (
+            memory is not None
+            and rollout_id is not None
+            and memory_rollout_id is not None
+            and memory_rollout_id != rollout_id
+        ):
+            raise ValueError(
+                "injected memory belongs to another rollout: "
+                f"{memory_rollout_id!r} != {rollout_id!r}"
+            )
+        self.rollout_id = rollout_id or memory_rollout_id or str(uuid.uuid4())
+
+        # LTM remains AgentScope-compatible while its state is owned by an
+        # injected MemoryStore implementation.
         self.memory_manager = memory or AgentScopeLongtermMemory(
             embedding_model="text-embedding-v4",
             embedding_dim=256,
+            rollout_id=self.rollout_id,
         )
 
         # STM：当前 ReAct 循环能直接看到的消息列表。
@@ -94,7 +112,6 @@ class AgeMem(AgentBase):
         # a recorder retain the original standalone behavior.
         self.trajectory_recorder = trajectory_recorder
         self.task_id = task_id
-        self.rollout_id = rollout_id or str(uuid.uuid4())
         self._trajectory_timestep = 0
 
         # Stage tracking for multi-stage training
@@ -662,7 +679,10 @@ class AgeMem(AgentBase):
             )
 
     async def delete_memory(self, memory_id: str, confirmation: bool = False) -> ToolResponse:
-        """Delete a memory permanently from the long term memory store  when confirmation is True.
+        """Logically delete a memory when confirmation is True.
+
+        The default research store uses a versioned soft delete, so the entry
+        disappears from retrieval while its history remains auditable.
 
         Args:
             memory_id (`str`):

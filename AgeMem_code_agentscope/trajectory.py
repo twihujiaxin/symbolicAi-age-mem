@@ -72,6 +72,12 @@ class MemorySnapshotItem(BaseModel):
     content: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
     embedding: Optional[List[float]] = None
+    version: int = Field(default=1, ge=1)
+    status: Literal["active", "superseded", "discarded"] = "active"
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    source_rollout_id: Optional[str] = None
+    source_step: Optional[int] = Field(default=None, ge=0)
 
     @field_validator("embedding")
     @classmethod

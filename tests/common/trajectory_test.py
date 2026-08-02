@@ -131,6 +131,24 @@ class TrajectorySchemaTest(unittest.TestCase):
         self.assertEqual(decoded.env_reward, 1.25)
         self.assertTrue(decoded.done)
 
+    def test_legacy_memory_snapshot_defaults_remain_replayable(self):
+        step = build_step(0, after=[memory_item()], done=True).model_dump(mode="json")
+        legacy_item = step["memory_after"][0]
+        for field_name in (
+            "version",
+            "status",
+            "created_at",
+            "updated_at",
+            "source_rollout_id",
+            "source_step",
+        ):
+            legacy_item.pop(field_name)
+
+        decoded = TrajectoryStep.model_validate(step)
+
+        self.assertEqual(decoded.memory_after[0].version, 1)
+        self.assertEqual(decoded.memory_after[0].status, "active")
+
     def test_rejects_non_finite_numeric_fields(self):
         with self.assertRaisesRegex(ValueError, "env_reward must be finite"):
             build_step(0, env_reward=float("nan"))
@@ -336,7 +354,10 @@ class AgentTrajectoryHookTest(unittest.IsolatedAsyncioTestCase):
         self.temp_context = workspace_temp_directory()
         self.directory = self.temp_context.__enter__()
         self.path = self.directory / "agent.jsonl"
-        self.memory = AgentScopeLongtermMemory(api_key="test")
+        self.memory = AgentScopeLongtermMemory(
+            api_key="test",
+            rollout_id="agent-rollout",
+        )
         self.memory.embed = deterministic_embed
         self.chat_client = OfflineChatClient()
         self.recorder = TrajectoryRecorder(self.path)
@@ -434,10 +455,20 @@ class AgentTrajectoryHookTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(steps[0].memory_before, [])
         self.assertEqual(len(steps[0].memory_after), 1)
         self.assertEqual(steps[1].memory_before[0].content, "Project codename is Atlas.")
-        self.assertEqual(steps[1].memory_after[0].content, "Project codename is Borealis.")
+        self.assertEqual(len(steps[1].memory_after), 2)
+        self.assertEqual(
+            [item.status for item in steps[1].memory_after],
+            ["superseded", "active"],
+        )
+        self.assertEqual(steps[1].memory_after[0].content, "Project codename is Atlas.")
+        self.assertEqual(steps[1].memory_after[1].content, "Project codename is Borealis.")
         self.assertEqual(steps[2].memory_before, steps[2].memory_after)
-        self.assertEqual(len(steps[3].memory_before), 1)
-        self.assertEqual(steps[3].memory_after, [])
+        self.assertEqual(len(steps[3].memory_before), 2)
+        self.assertEqual(len(steps[3].memory_after), 3)
+        self.assertEqual(
+            [item.status for item in steps[3].memory_after],
+            ["superseded", "superseded", "discarded"],
+        )
         self.assertEqual(steps[4].env_reward, 1.5)
         self.assertFalse(steps[4].done)
         self.assertTrue(steps[5].done)
@@ -455,7 +486,8 @@ class AgentTrajectoryHookTest(unittest.IsolatedAsyncioTestCase):
             require_complete=True,
         )
         self.assertEqual(result, repeated)
-        self.assertEqual(result.final_memory, [])
+        self.assertEqual(len(result.final_memory), 3)
+        self.assertEqual(result.final_memory[-1].status, "discarded")
 
     async def test_injected_chat_client_is_lazy_and_recorder_is_optional(self):
         memory = AgentScopeLongtermMemory(api_key="test")
@@ -494,7 +526,10 @@ class AgentTrajectoryHookTest(unittest.IsolatedAsyncioTestCase):
             input={"response": "Demo complete."},
         )
         model = ScriptedModel([[add_call], [finish_call]])
-        demo_memory = AgentScopeLongtermMemory(api_key="test")
+        demo_memory = AgentScopeLongtermMemory(
+            api_key="test",
+            rollout_id="demo-rollout",
+        )
         demo_memory.embed = deterministic_embed
         try:
             agent = AgeMem(
