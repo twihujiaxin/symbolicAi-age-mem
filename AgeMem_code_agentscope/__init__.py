@@ -9,6 +9,17 @@ from .memory_store import (
     MemoryStoreSnapshot,
     RolloutMemoryStoreRegistry,
 )
+from .memory_oracle import (
+    AutomatonSpec,
+    DFARunner,
+    MemoryOracleGrounder,
+    OfflineRewardReplay,
+    OracleAPEvent,
+    RewardBreakdown,
+    RewardConfig,
+    RewardReplayResult,
+    hand_authored_memory_dfa,
+)
 from .prompts import SUMMARY_CONTEXT_SYS_PROMPT, TEXT_SIMILARITY_SYS_PROMPT
 from .trajectory import (
     ReplayResult,
@@ -29,14 +40,22 @@ from .toy_hotpotqa import (
 __all__ = [
     "AgeMem",
     "AgentScopeLongtermMemory",
+    "AutomatonSpec",
+    "DFARunner",
     "ErrorMemoryPolicy",
     "GoldMemoryPolicy",
     "HotpotQAToyEnvironment",
     "InMemoryStore",
     "MemoryRecord",
+    "MemoryOracleGrounder",
     "MemoryStore",
     "MemoryStoreSnapshot",
+    "OfflineRewardReplay",
+    "OracleAPEvent",
     "ReplayResult",
+    "RewardBreakdown",
+    "RewardConfig",
+    "RewardReplayResult",
     "RolloutMemoryStoreRegistry",
     "SUMMARY_CONTEXT_SYS_PROMPT",
     "TEXT_SIMILARITY_SYS_PROMPT",
@@ -47,4 +66,5 @@ __all__ = [
     "ToyEnvironmentPool",
     "ToyEpisodeRunner",
     "ToyTaskDataset",
+    "hand_authored_memory_dfa",
 ]

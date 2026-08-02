@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "profiles": {
+    "terminal_only": {
+      "name": "terminal_only",
+      "env_weight": 1.0,
+      "logic_beta": 0.0,
+      "milestone_weight": 0.25,
+      "violation_weight": 0.0,
+      "trend_weight": 0.0,
+      "format_weight": 1.0,
+      "max_steps": 12
+    },
+    "terminal_dfa": {
+      "name": "terminal_dfa",
+      "env_weight": 1.0,
+      "logic_beta": 1.0,
+      "milestone_weight": 0.25,
+      "violation_weight": 0.0,
+      "trend_weight": 0.0,
+      "format_weight": 1.0,
+      "max_steps": 12
+    }
+  }
+}

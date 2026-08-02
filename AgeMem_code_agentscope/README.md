@@ -10,6 +10,7 @@ Standalone release of the **AgeMem** agent: a ReAct-style agent with **6 tools**
 - **Auditable mutations**: versioned updates and research-mode soft deletes
 - **Replayable trajectories**: optional strict JSONL recording with complete memory snapshots
 - **Offline M3 environment**: 30 deterministic HotpotQA-style two-hop memory tasks
+- **Offline M4 rewards**: Oracle AP grounding, a hand-authored DFA, and once-only milestone rewards
 
 ### The 6 Memory Tools
 
@@ -87,6 +88,48 @@ asyncio.run(run())
 The task fixture is stored at `data/toy/hotpotqa_memory_tasks.json`. M2
 `MemoryStoreSnapshot` is used for episode checkpoint/restore, and a shared
 `ToyEnvironmentPool` provides one isolated store per rollout.
+
+### M4 Oracle AP and offline DFA reward
+
+M4 consumes the strict `oracle_labels` already stored in each M3 tool result.
+It does not infer propositions from tool names: a raw or failed `Add_memory` or
+`Retrieve_memory` call produces no progress AP and therefore no milestone
+reward. The hand-authored positive DFA follows this sequence:
+
+```text
+q0 --stored_supporting_fact--------> q1
+q1 --supporting_coverage_complete--> q2
+q2 --retrieved_supporting_fact-----> q3
+q3 --answered_correctly------------> q4 (accept)
+```
+
+`updated_stale_fact` is a parallel progress edge. Each progress edge is
+rewarded at most once per rollout. Irrelevant stores/retrievals are recorded as
+violations, and deleting a supporting fact enters the rejecting state. An
+unfinished trace that reaches the configured step bound enters the timeout
+state. This is a finite-trace, hand-authored DFA; M4 does not add a Critic,
+natural-language extraction, LTL compilation, or a negative automaton.
+
+Replay an M3 JSONL trajectory without a model call:
+
+```python
+from AgeMem_code_agentscope import OfflineRewardReplay, ToyTaskDataset
+
+task = ToyTaskDataset.from_json().get("toy-train-001")
+result = OfflineRewardReplay.from_config("terminal_dfa").replay_jsonl(
+    "runs/trajectories/toy-m3.jsonl",
+    task=task,
+    rollout_id="example-rollout",
+    output_path="runs/rewards/toy-m4.jsonl",
+)
+assert result.accepted
+```
+
+Reward coefficients and the 12-step timeout are externalized in
+`configs/m4_reward.json`. The `terminal_only` and `terminal_dfa` profiles both
+save environment, milestone, violation, trend, and format components. Trend
+shaping is fixed to zero in M4; violations are audited with zero penalty until
+a later experiment explicitly enables a non-positive weight.
 
 ## Install
 
@@ -203,6 +246,7 @@ AgeMem_code_agentscope/
   trajectory.py  # Strict TrajectoryStep, JSONL recorder, query and replay
   replay.py      # Offline trajectory query/replay CLI
   toy_hotpotqa/  # M3 task models, environment, policies and JSONL runner
+  memory_oracle/ # M4 Oracle AP grounding, DFA runner and reward replay
   src/           # Helpers: utils, llm_client, schemas, hooks
   requirements.txt
   README.md
