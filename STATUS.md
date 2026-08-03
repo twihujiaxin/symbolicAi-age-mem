@@ -2,7 +2,7 @@
 
 ## Current milestone
 
-M5：真实 HotpotQA 数据适配与 Oracle Benchmark
+M6：Extracted Triple/AP、显式状态与 Oracle 对照
 
 状态：完成
 
@@ -91,6 +91,30 @@ M5：真实 HotpotQA 数据适配与 Oracle Benchmark
 - [x] 同一真实 smoke benchmark 重跑后 report、trajectory 和 reward 文件 SHA-256 完全一致
 - [x] 全链路真实 LLM 调用数为 0；未开始自然语言 AP 抽取、Critic、GRPO 或模型训练
 
+### M6
+
+- [x] 先完成 M5 历史轨迹 schema 审计：30 条规范 rollout、224 个 action 与 224 条 reward 记录完整连接
+- [x] 使用 namespaced v2 `ActionEvent`、`TrajectoryStepV2`、`RewardBreakdownV2` 和 `ActionCreditRecord`，不覆盖 M5 原文件
+- [x] `action_id` 沿用原 tool-call ID；M5 规则/oracle/error-injector 轨迹的 token span、token IDs、old logprobs 和 policy version 保持 `None`，未伪造训练元数据
+- [x] 20 个同一步双 edge 动作使用有序 `transition_ids` 保真；迁移 manifest digest 为 `3615ce1041b47ea30513e81f5ef812da4060df9fb854b843162c171443ac5452`
+- [x] 实现严格 Triple/AP schema、精确 evidence span/digest、有限 confidence、unknown subject/category 与坏 evidence quarantine
+- [x] 实现确定性 mock extractor 和 injected-client LLM adapter；LLM adapter 只使用 fake client 测试，M6 benchmark 真实 LLM 调用数为 0
+- [x] Group cache 只缓存 action-independent candidates，并按 task/split/group/stage、observation、约束及 extractor/model/prompt 版本隔离；materialize 时重新绑定原始 `action_id`
+- [x] 实现 rollout-scoped `StateTracker`：single-valued category 使用半开区间版本覆盖，multi-valued category 保留多值，并支持 reinforcement、quarantine、snapshot/restore/reset
+- [x] 从公共 tool result、memory before/after delta、validated Triple 和 StateFact 生成 AP；不读取 `oracle_labels` 或 private role metadata，也不奖励裸 ADD/RETRIEVE
+- [x] 每个派生 AP 经 `action_id` 和 Triple/State/Memory evidence ID 追溯到原始动作；离线奖励复用 M4 手工 DFA 与 once-only milestone 规则
+- [x] 建立 10 个任务、34 个句子记录、37 个三元组的人工标注集，其中 24 条为 official supporting relevant facts、10 条为 irrelevant sample
+- [x] 本地校验 exact source pointer、Hotpot ID、正文 SHA-256 与 stable fact ID；annotation corpus digest 为 `fa74d5098e8dd4040d66ca99ecd76346d4cc799a59ec3f3a4133ba9bab98edd0`
+- [x] 在 M5 的 30 条规范 rollout / 224 个 action 上完成 human-backed mock 与 controlled-error 对照，两个 profile 均为 cache hit/miss 94/130、extractor calls 164、AP provenance 100%
+- [x] human-backed mock：Triple F1 `1.0000000000`；AP F1 `0.9760765550`（FP=0、FN=10）；FA `0/20`、FR `0/10`
+- [x] human-backed mock：action reward total MAE/RMSE/bias/max_abs 均为 `0`，trajectory signed/absolute error 均为 `0`；10 accepted / 20 rejected；10 条 first-divergence audit
+- [x] human mock 是 Triple-extraction 上界，不是完整模型上界；10 个 AP FN 来自 fail-closed answer correctness，未造成 action 或 trajectory reward 误差
+- [x] controlled error：Triple F1 `0.8695652174`（TP=30、FP=2、FN=7）；AP F1 `0.8369565217`（TP=154、FP=0、FN=60）
+- [x] controlled error：FA `0/20`、FR `5/10 = 0.5`；action reward MAE/RMSE/bias/max_abs 为 `0.056919642857 / 0.140748953307 / -0.032366071429 / 0.5`
+- [x] controlled error：trajectory signed error `-7.25`、absolute error `7.25`；5 accepted / 25 rejected；20 条 first-divergence audit
+- [x] M6 紧凑报告不保存原始句子；最终 report digest 为 `e803f7752dc9e7357284887cf7716273bbd5396f62db1fc438d7cad95a2f9f92`
+- [x] 未实现 Group Critic、GRPO 或模型训练
+
 ## Environment
 
 - OS: Windows NT 10.0.26200.0
@@ -100,27 +124,33 @@ M5：真实 HotpotQA 数据适配与 Oracle Benchmark
 - Pydantic: 2.13.4
 - Datasets: 4.8.5
 - PyArrow: 25.0.0
-- PyTorch: 未安装（M5 不需要）
-- pytest/Ruff/Flake8: 当前环境未安装；使用标准库 `unittest`
+- PyTorch: 未安装（M6 离线 benchmark 不需要）
+- Ruff: 0.15.9；pytest/Flake8 未安装；测试使用标准库 `unittest`
 
 ## Git state
 
-- Current branch: `feat/m5-hotpotqa-oracle-benchmark`
-- Base: `6878498 feat(agemem): add offline Oracle DFA rewards`
+- Current branch: `feat/m6-extracted-ap-state-tracker`
+- M5 base: `6367569 feat(agemem): add HotpotQA Oracle benchmark`
+- M6 schema audit commit: `d1d45ab feat(agemem): audit and migrate M5 action schema`
 - `PROJECT_HANDOFF.md` 是用户维护的未提交文件，Codex 未修改、未暂存
-- M5 未推送远程
+- M6 未推送远程
 
-## Files changed in M5
+## Files changed in M6
 
-- `AgeMem_code_agentscope/hotpotqa_benchmark/`（新增）
-- `AgeMem_code_agentscope/requirements-hotpotqa.txt`（新增）
-- `configs/m5_hotpotqa_smoke.json`（新增）
-- `data/splits/hotpotqa_smoke_manifest.json`（新增）
-- `artifacts/m5_hotpotqa_smoke/`（新增）
-- `docs/m5_hotpotqa_oracle_benchmark.md`（新增）
-- `tests/common/hotpotqa_oracle_benchmark_test.py`（新增）
-- `AgeMem_code_agentscope/toy_hotpotqa/environment.py`
-- `AgeMem_code_agentscope/__init__.py`
+- `AgeMem_code_agentscope/action_schema/`（新增）
+- `AgeMem_code_agentscope/memory_extraction/`（新增）
+- `configs/m6_extraction_benchmark.json`（新增）
+- `data/annotations/m6_hotpotqa_manual_triples.json`（新增）
+- `data/annotations/m6_hotpotqa_semantic_targets.json`（新增）
+- `artifacts/m6_extraction_benchmark/`（新增）
+- `docs/schema_audit_m6.md`（新增）
+- `docs/m6_extraction_benchmark.md`（新增）
+- `tests/common/m6_schema_migration_test.py`（新增）
+- `tests/common/m6_extractor_test.py`（新增）
+- `tests/common/m6_state_tracker_test.py`（新增）
+- `tests/common/m6_grounding_reward_test.py`（新增）
+- `tests/common/m6_extraction_metrics_test.py`（新增）
+- `tests/common/m6_extraction_benchmark_test.py`（新增）
 - `AgeMem_code_agentscope/README.md`
 - `STATUS.md`
 
@@ -138,6 +168,15 @@ M5：真实 HotpotQA 数据适配与 Oracle Benchmark
 - Python compile/import smoke：PASS
 - M5 scoped `git diff --check`：PASS
 - Oracle report digest：`c18b21b59506733b133ac3510b9c9136c780b79e14af2c96d74b81b6b8d8eef0`
+- M6 schema/extractor/state/grounding/reward/metrics/benchmark tests：43/43 PASS
+- M1～M6 加 existing tool-trace scoped regression：131/131 PASS
+- M6 schema migration source preservation与重复运行确定性：PASS
+- M6 annotation exact-pointer/hash/stable-ID validation：34/34 PASS
+- M6 canonical ActionEvent↔ActionCredit join：224/224 PASS
+- M6 benchmark canonical rollout/action coverage：30/224
+- M6 real LLM calls：0
+- M6 report schema/digest validation：PASS
+- M6 report digest：`e803f7752dc9e7357284887cf7716273bbd5396f62db1fc438d7cad95a2f9f92`
 
 ## Known constraints
 
@@ -155,13 +194,19 @@ M5：真实 HotpotQA 数据适配与 Oracle Benchmark
 - M5 retrieval 使用 fact-ID metadata 精确过滤；报告的 Recall@k 是 Oracle-directed 多次 top-1 检索的累计诊断，不是标准单查询模型 Recall@k
 - context tokens 是对每个 timestep observation 的 tokenizer-independent 累计估算，会包含重复上下文
 - M5 完整 trajectory/reward JSONL 含原始事实正文与 embedding，只保存在 gitignored `runs/` 并按敏感数据处理
-- 全局 `git diff --check` 仍只报告用户更新的 `PROJECT_HANDOFF.md` 两处 Markdown 行尾空格；M5 范围文件检查通过
+- M6 human-backed mock 是人工标注驱动的 Triple-extraction 上界，不是真实 LLM 或完整 AP pipeline 的模型表现
+- M6 relevance 和 required coverage slots 使用独立的人工 Oracle semantic target；它们不进入 candidate cache，但该 benchmark 不是端到端 label-free AP 系统
+- Triple F1 只在 34 个完整人工标注句子、37 个 gold triples 上计算；controlled drop/corrupt 是合成错误，不代表真实 LLM 错误分布
+- FA/FR 是 30 个 rollout 的终局指标；reward error 则在 224 个 `action_id` 精确连接上计算，并汇总到 30 条 trajectory
+- M6 规则/oracle/error-injector 轨迹没有 token IDs、token logprobs 或 policy version；迁移器保持 `None`
+- M6 没有运行真实 LLM，没有实现 Group Critic、GRPO 或训练接入
+- 全局 `git diff --check` 仍只报告用户更新的 `PROJECT_HANDOFF.md` 两处 Markdown 行尾空格；M6 范围文件检查通过
 
 ## Failures and blockers
 
-- 无未解决的 M5 测试失败
+- 无未解决的 M6 测试或 benchmark 失败
 - 本地 HotpotQA fullwiki 已可用；无需模型、GPU、API 或网络
 
 ## Next recommended action
 
-用户验收 M5 后再执行 M6：自然语言 AP 抽取与 Oracle 对照。不要提前进入 Critic、GRPO 或模型训练。
+等待用户验收 M6；未经明确授权，不进入 Group Critic、GRPO 或模型训练。

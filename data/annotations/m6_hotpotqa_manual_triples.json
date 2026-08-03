@@ -1,0 +1,487 @@
+{
+  "schema_version": "agemem.hotpotqa_manual_triples.v1",
+  "annotation_method": "human_manual",
+  "guidelines_version": "agemem.m6.triple_guidelines.v1",
+  "normalization": "NFKC + casefold + collapsed whitespace for exact-set scoring",
+  "records": [
+    {
+      "annotation_id": "m6-hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 60480,
+      "fact_id": "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+      "title": "Junko Noda",
+      "sent_id": 1,
+      "text_sha256": "db3d163aef99052e86be5e507d8da8f33517c50550886d69d6c78434d0218fe4",
+      "triples": [
+        {"subject": "Junko Noda", "category": "known_for", "value": "Love Hina"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc",
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 60480,
+      "fact_id": "hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc",
+      "title": "Love Hina",
+      "sent_id": 0,
+      "text_sha256": "9210579d75f4527551389fcde222d289d138ee77eeebe64925f8f29b671c9cc0",
+      "triples": [
+        {"subject": "Love Hina", "category": "creator", "value": "Ken Akamatsu"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 60480,
+      "fact_id": "hp-5a85aaee5542991dd0999e84-269502059920a0b2",
+      "title": "Love Hina",
+      "sent_id": 1,
+      "text_sha256": "df0c96cce75b32546cfbf485e6014876f4fb5d8c8dabc24eb8cfcb36990b8883",
+      "triples": [
+        {"subject": "Love Hina", "category": "serialized_in", "value": "Weekly Shōnen Magazine"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a85aaee5542991dd0999e84-1c95025627b93c43",
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 60480,
+      "fact_id": "hp-5a85aaee5542991dd0999e84-1c95025627b93c43",
+      "title": "List of Love Hina episodes",
+      "sent_id": 6,
+      "text_sha256": "726d68e1cb5cb7843905966e3ec63d68e84e13a5f9222461d7e22382d3891fb0",
+      "triples": [
+        {"subject": "Love Hina series and bonus episode", "category": "director", "value": "Yoshiaki Iwasaki"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 64387,
+      "fact_id": "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+      "title": "Sunye",
+      "sent_id": 0,
+      "text_sha256": "859faaa99174bd283f515e659b3291a74ff94b5d444332b0cbff4c4e6b36f512",
+      "triples": [
+        {"subject": "Sunye", "category": "birth_date", "value": "1989-08-12"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a74b19355429916b01641dd-30ef399c6dc7becf",
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 64387,
+      "fact_id": "hp-5a74b19355429916b01641dd-30ef399c6dc7becf",
+      "title": "Mike Ness",
+      "sent_id": 0,
+      "text_sha256": "b73cd0b5b99a772f990420c7fc605beeba87d4d840ad27d66c0ebbfe2e17fe8b",
+      "triples": [
+        {"subject": "Mike Ness", "category": "birth_date", "value": "1962-04-03"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a74b19355429916b01641dd-55f43280a3a7e516",
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 64387,
+      "fact_id": "hp-5a74b19355429916b01641dd-55f43280a3a7e516",
+      "title": "Social Distortion 2001 Tour",
+      "sent_id": 5,
+      "text_sha256": "083bfb93425bcd17d2477afe0ed220463242c248bf4c39fd244c1beb9d3c350f",
+      "triples": [
+        {"subject": "Social Distortion", "category": "premiered_song", "value": "Footprints On My Ceiling"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 29294,
+      "fact_id": "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+      "title": "Coming of Age (2008 TV series)",
+      "sent_id": 4,
+      "text_sha256": "e99ca3ba36bd8398fbcbb831285b421c493de18c58175bdc383ffda33eb042da",
+      "triples": [
+        {"subject": "Coming of Age", "category": "cancelled_with", "value": "Ideal"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7",
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 29294,
+      "fact_id": "hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7",
+      "title": "Ideal (TV series)",
+      "sent_id": 0,
+      "text_sha256": "8e6f3310200743042db2c731f0646fe2afd94c68054b3d087edf5153233da167",
+      "triples": [
+        {"subject": "Ideal", "category": "broadcast_channel", "value": "BBC Three"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5abecbed5542997719eab5c5-5b96d10283f41290",
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 29294,
+      "fact_id": "hp-5abecbed5542997719eab5c5-5b96d10283f41290",
+      "title": "Metropolitan Indianapolis Public Broadcasting",
+      "sent_id": 0,
+      "text_sha256": "f6dd2fa8dddb2f9d369746b81813cabba073d6524acfc9e66a675758132cf1ea",
+      "triples": [
+        {"subject": "Metropolitan Indianapolis Public Broadcasting", "category": "operates", "value": "WFYI Public Television"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 14935,
+      "fact_id": "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+      "title": "Veitchia",
+      "sent_id": 0,
+      "text_sha256": "a28a4b4ca5195e16fd2a55c109084518bcc17ca3fc0926207faf35fe6b8a2b59",
+      "triples": [
+        {"subject": "Veitchia", "category": "plant_family", "value": "Arecaceae"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460",
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 14935,
+      "fact_id": "hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460",
+      "title": "Lamium",
+      "sent_id": 0,
+      "text_sha256": "12cf7b83c83b0a0e7bb537e0d88669bb23fd2d42915d2c78460441c3d318acde",
+      "triples": [
+        {"subject": "Lamium", "category": "plant_family", "value": "Lamiaceae"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a8ac7d055429950cd6afb8f-39c6591ab2b3325d",
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 14935,
+      "fact_id": "hp-5a8ac7d055429950cd6afb8f-39c6591ab2b3325d",
+      "title": "Veitchia arecina",
+      "sent_id": 0,
+      "text_sha256": "befee05fd0770c87cd44266338830121e55a37020689ad94ae3bd1a8ca73aac1",
+      "triples": [
+        {"subject": "Veitchia arecina", "category": "plant_family", "value": "Arecaceae"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a83df2655429933447460a1-8260aac478284146",
+      "hotpot_id": "5a83df2655429933447460a1",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 86169,
+      "fact_id": "hp-5a83df2655429933447460a1-8260aac478284146",
+      "title": "Grant O'Riley",
+      "sent_id": 0,
+      "text_sha256": "7579438933bbc6a815196ccf8d3dc80f306628eec865c83b7baba0c4748a9313",
+      "triples": [
+        {"subject": "Grant O'Riley", "category": "played_for", "value": "Fitzroy Football Club"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a83df2655429933447460a1-ecc145a5e394a3e0",
+      "hotpot_id": "5a83df2655429933447460a1",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 86169,
+      "fact_id": "hp-5a83df2655429933447460a1-ecc145a5e394a3e0",
+      "title": "Fitzroy Football Club",
+      "sent_id": 0,
+      "text_sha256": "a5bafb458158c586c06308c88c023302f0b4f62b517936cd5327267b5e040217",
+      "triples": [
+        {"subject": "Fitzroy Football Club", "category": "nickname", "value": "Lions"},
+        {"subject": "Fitzroy Football Club", "category": "nickname", "value": "Roys"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a83df2655429933447460a1-647d9727570cb59b",
+      "hotpot_id": "5a83df2655429933447460a1",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 86169,
+      "fact_id": "hp-5a83df2655429933447460a1-647d9727570cb59b",
+      "title": "Fitzroy Football Club",
+      "sent_id": 1,
+      "text_sha256": "f9a874de43c88d67f50c3f3a39119e792c58ebcdaf3f7a0a6b15492b11a24a7f",
+      "triples": [
+        {"subject": "Fitzroy Football Club", "category": "first_league_final_win", "value": "VFL Grand Final"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 71348,
+      "fact_id": "hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+      "title": "Jim Diamond (singer)",
+      "sent_id": 0,
+      "text_sha256": "dc87d937e51ca63eeedb746383a026216738157b4298b178b00eb6d7559c13e2",
+      "triples": [
+        {"subject": "Jim Diamond", "category": "birth_date", "value": "1951-09-28"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a76f83e55429972597f1405-f6866e4ee5bef906",
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 71348,
+      "fact_id": "hp-5a76f83e55429972597f1405-f6866e4ee5bef906",
+      "title": "Marie Currie",
+      "sent_id": 0,
+      "text_sha256": "33743c0e08e0c2ba028be723549ee4aaa41e56320d4a66040d1f535d0851f000",
+      "triples": [
+        {"subject": "Marie Currie", "category": "birth_date", "value": "1959-11-30"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5a76f83e55429972597f1405-761d8bac474fd871",
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "benchmark_split": "train",
+      "source_split": "train",
+      "source_index": 71348,
+      "fact_id": "hp-5a76f83e55429972597f1405-761d8bac474fd871",
+      "title": "Jim Diamond (1988 album)",
+      "sent_id": 1,
+      "text_sha256": "06405702aebe30f06eb0d9882bcda774c0d3ffae79b4d90d816e37f7df5c94c6",
+      "triples": [
+        {"subject": "Jim Diamond", "category": "album_collaborator", "value": "Graham Lyle"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "benchmark_split": "dev",
+      "source_split": "validation",
+      "source_index": 1880,
+      "fact_id": "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+      "title": "Viscount Barnewall",
+      "sent_id": 1,
+      "text_sha256": "4b35ba24ca319853b8c8f7a73fa8103f0f8573f9e06b9a1a7ac1eb4f216d0520",
+      "triples": [
+        {"subject": "Viscount Barnewall", "category": "created_for", "value": "Nicholas Barnewall"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0",
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "benchmark_split": "dev",
+      "source_split": "validation",
+      "source_index": 1880,
+      "fact_id": "hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0",
+      "title": "Viscount Barnewall",
+      "sent_id": 4,
+      "text_sha256": "b1cc90c25eb5ca3e7cdc6ff7a10be941b0de55ad8bc1a2b119603fd96f3ca27c",
+      "triples": [
+        {"subject": "Third Viscount Barnewall", "category": "supported", "value": "James II"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "benchmark_split": "dev",
+      "source_split": "validation",
+      "source_index": 1880,
+      "fact_id": "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7",
+      "title": "James II of England",
+      "sent_id": 0,
+      "text_sha256": "499d12a8d8ed1eb200c565e2b2af9af32dc3ae12dfe6a2d39032f44152c7f253",
+      "triples": [
+        {"subject": "James II", "category": "deposed_in", "value": "Glorious Revolution of 1688"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab3d2b7554299233954ffb8-8f3a8fe5df49d16c",
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "benchmark_split": "dev",
+      "source_split": "validation",
+      "source_index": 1880,
+      "fact_id": "hp-5ab3d2b7554299233954ffb8-8f3a8fe5df49d16c",
+      "title": "Glorious Revolution in Scotland",
+      "sent_id": 1,
+      "text_sha256": "493278757031571fd80dba8621cc066e7481990e0be49afed9df4f6c9a65b989",
+      "triples": [
+        {"subject": "Glorious Revolution", "category": "removed_monarch", "value": "James VII and II"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+      "hotpot_id": "5ab299d6554299449642c926",
+      "benchmark_split": "dev",
+      "source_split": "validation",
+      "source_index": 4920,
+      "fact_id": "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+      "title": "One Manhattan Square",
+      "sent_id": 0,
+      "text_sha256": "5b5d45f1fbd25bca82d96653b1a631d82e5cafa5f6f00a37c16c692cbd4bdbf8",
+      "triples": [
+        {"subject": "One Manhattan Square", "category": "building_type", "value": "residential skyscraper"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+      "hotpot_id": "5ab299d6554299449642c926",
+      "benchmark_split": "dev",
+      "source_split": "validation",
+      "source_index": 4920,
+      "fact_id": "hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+      "title": "One Manhattan Square",
+      "sent_id": 2,
+      "text_sha256": "f74c081191593c4850b62b7b13e5323b7de06f874fe54225741246c0bec5a204",
+      "triples": [
+        {"subject": "One Manhattan Square", "category": "height_feet", "value": "850"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab299d6554299449642c926-f57eb15513a4c227",
+      "hotpot_id": "5ab299d6554299449642c926",
+      "benchmark_split": "dev",
+      "source_split": "validation",
+      "source_index": 4920,
+      "fact_id": "hp-5ab299d6554299449642c926-f57eb15513a4c227",
+      "title": "Time Warner Center",
+      "sent_id": 1,
+      "text_sha256": "b0b53cb8e9c4f321dd66e3ac3b51e8127623603e373501b75e504ad7444cfdeb",
+      "triples": [
+        {"subject": "Time Warner Center", "category": "height_feet", "value": "750"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab299d6554299449642c926-31463179ef6bb92c",
+      "hotpot_id": "5ab299d6554299449642c926",
+      "benchmark_split": "dev",
+      "source_split": "validation",
+      "source_index": 4920,
+      "fact_id": "hp-5ab299d6554299449642c926-31463179ef6bb92c",
+      "title": "Time Warner Cable",
+      "sent_id": 2,
+      "text_sha256": "b87c402681cc69e0b3a60cec6ba30783afd7a809c122255a4b9d76a1e6b9dca6",
+      "triples": [
+        {"subject": "Time Warner Cable", "category": "headquarters", "value": "Time Warner Center"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab7c6995542993667794005-ff05d2680daa579c",
+      "hotpot_id": "5ab7c6995542993667794005",
+      "benchmark_split": "test",
+      "source_split": "validation",
+      "source_index": 4073,
+      "fact_id": "hp-5ab7c6995542993667794005-ff05d2680daa579c",
+      "title": "Masaharu Iwata",
+      "sent_id": 0,
+      "text_sha256": "36d8594fd8154f40d02685c71c008ac7a819bf1477efabc142f3d6906a76b150",
+      "triples": [
+        {"subject": "Masaharu Iwata", "category": "occupation", "value": "video game composer"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab7c6995542993667794005-0a1c17bda8245219",
+      "hotpot_id": "5ab7c6995542993667794005",
+      "benchmark_split": "test",
+      "source_split": "validation",
+      "source_index": 4073,
+      "fact_id": "hp-5ab7c6995542993667794005-0a1c17bda8245219",
+      "title": "Masaharu Iwata",
+      "sent_id": 1,
+      "text_sha256": "368cc03166c22508cf859092fceb308b4c67994769e6e4d5e9375d53d61ec733",
+      "triples": [
+        {"subject": "Masaharu Iwata", "category": "high_school_music_activity", "value": "playing in a cover band"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+      "hotpot_id": "5ab7c6995542993667794005",
+      "benchmark_split": "test",
+      "source_split": "validation",
+      "source_index": 4073,
+      "fact_id": "hp-5ab7c6995542993667794005-f5db14439bbf73c4",
+      "title": "Final Fantasy XII",
+      "sent_id": 3,
+      "text_sha256": "a2efbf666af908853d121fbeeccacb1aa16618fa5e1b06c0b224d1db14faaa7b",
+      "triples": [
+        {"subject": "Final Fantasy XII", "category": "contains_element", "value": "Chocobos"},
+        {"subject": "Final Fantasy XII", "category": "contains_element", "value": "Moogles"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5ab7c6995542993667794005-4cce8721309b8155",
+      "hotpot_id": "5ab7c6995542993667794005",
+      "benchmark_split": "test",
+      "source_split": "validation",
+      "source_index": 4073,
+      "fact_id": "hp-5ab7c6995542993667794005-4cce8721309b8155",
+      "title": "Rahul Ranade",
+      "sent_id": 1,
+      "text_sha256": "cfeb0dc8f46d84ddb01ce9697249a037d69651fc7e525bf4f88f29b2a68f9b22",
+      "triples": [
+        {"subject": "Rahul Ranade", "category": "music_work_domain", "value": "films"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5adc8c545542994734353734-536720a4fee8534c",
+      "hotpot_id": "5adc8c545542994734353734",
+      "benchmark_split": "test",
+      "source_split": "validation",
+      "source_index": 5204,
+      "fact_id": "hp-5adc8c545542994734353734-536720a4fee8534c",
+      "title": "Wilco Melissant",
+      "sent_id": 0,
+      "text_sha256": "53d899da9c4c1814854b6cef01da4671e34467a2ab6f65a8e51824d9b613216c",
+      "triples": [
+        {"subject": "Wilco Melissant", "category": "occupation", "value": "director"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5adc8c545542994734353734-a241c4cf8071f78e",
+      "hotpot_id": "5adc8c545542994734353734",
+      "benchmark_split": "test",
+      "source_split": "validation",
+      "source_index": 5204,
+      "fact_id": "hp-5adc8c545542994734353734-a241c4cf8071f78e",
+      "title": "Todd Field",
+      "sent_id": 0,
+      "text_sha256": "fc94c71127bd356dc5b1fd8f66c0e42226586dcfbf488e57ce05cc1b73849e0b",
+      "triples": [
+        {"subject": "Todd Field", "category": "occupation", "value": "actor"},
+        {"subject": "Todd Field", "category": "occupation", "value": "filmmaker"}
+      ]
+    },
+    {
+      "annotation_id": "m6-hp-5adc8c545542994734353734-3a008fa513ea441d",
+      "hotpot_id": "5adc8c545542994734353734",
+      "benchmark_split": "test",
+      "source_split": "validation",
+      "source_index": 5204,
+      "fact_id": "hp-5adc8c545542994734353734-3a008fa513ea441d",
+      "title": "Sunil Rawal",
+      "sent_id": 7,
+      "text_sha256": "889fb99986bbf99d0bd63ccdce1487079c95f87b9ccd1bfea2414ed8413bd61d",
+      "triples": [
+        {"subject": "Sunil Rawal", "category": "award", "value": "best product, Saayad"}
+      ]
+    }
+  ]
+}

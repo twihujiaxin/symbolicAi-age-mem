@@ -1,0 +1,61 @@
+{
+  "schema_version": "agemem.m6_extraction_benchmark.v1",
+  "seed": 20260803,
+  "m5_report_path": "artifacts/m5_hotpotqa_smoke/oracle_benchmark.json",
+  "m5_runtime_root": "runs/m5_hotpotqa_smoke",
+  "m6_migration_root": "runs/m6_schema_v2",
+  "manual_triples_path": "data/annotations/m6_hotpotqa_manual_triples.json",
+  "semantic_targets_path": "data/annotations/m6_hotpotqa_semantic_targets.json",
+  "reward_profile": "terminal_dfa",
+  "allow_human_oracle_semantic_target": true,
+  "llm_evaluation": "not_run",
+  "category_registry": {
+    "album_collaborator": "multi",
+    "award": "multi",
+    "birth_date": "single",
+    "broadcast_channel": "multi",
+    "building_type": "single",
+    "cancelled_with": "multi",
+    "contains_element": "multi",
+    "created_for": "single",
+    "creator": "multi",
+    "deposed_in": "single",
+    "director": "multi",
+    "first_league_final_win": "single",
+    "headquarters": "single",
+    "height_feet": "single",
+    "high_school_music_activity": "multi",
+    "known_for": "multi",
+    "music_work_domain": "multi",
+    "nickname": "multi",
+    "occupation": "multi",
+    "operates": "multi",
+    "plant_family": "single",
+    "played_for": "multi",
+    "premiered_song": "multi",
+    "removed_monarch": "multi",
+    "serialized_in": "single",
+    "supported": "multi"
+  },
+  "profiles": [
+    {
+      "name": "human_backed_mock",
+      "drop_fact_ids": [],
+      "corrupt_values": {}
+    },
+    {
+      "name": "controlled_error",
+      "drop_fact_ids": [
+        "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+        "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+        "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+        "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+        "hp-5a83df2655429933447460a1-8260aac478284146"
+      ],
+      "corrupt_values": {
+        "hp-5a85aaee5542991dd0999e84-1c95025627b93c43": "Unknown Director",
+        "hp-5a74b19355429916b01641dd-55f43280a3a7e516": "Unknown Song"
+      }
+    }
+  ]
+}

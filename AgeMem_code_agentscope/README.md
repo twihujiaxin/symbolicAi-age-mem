@@ -12,6 +12,7 @@ Standalone release of the **AgeMem** agent: a ReAct-style agent with **6 tools**
 - **Offline M3 environment**: 30 deterministic HotpotQA-style two-hop memory tasks
 - **Offline M4 rewards**: Oracle AP grounding, a hand-authored DFA, and once-only milestone rewards
 - **Offline M5 benchmark**: real local HotpotQA adaptation, fixed smoke splits, and auditable Oracle reports
+- **Offline M6 extraction benchmark**: strict Triple/AP provenance, explicit versioned state, and Oracle error-propagation analysis
 
 ### The 6 Memory Tools
 
@@ -185,6 +186,127 @@ Memory precision is computed over final active memory records. Failure audits
 retain exact source pointers, memory version history, and every grounded AP/DFA
 transition without copying full context or answer text.
 
+### M6 extracted Triple/AP and explicit semantic state
+
+M6 first audits the canonical M5 artifacts, then derives namespaced v2 action
+and credit records without modifying the source JSONL. The canonical migration
+covers 30 rollouts and 224 actions with an exact 224/224
+`ActionEvent`-to-`ActionCreditRecord` join. Existing tool-call IDs remain the
+`action_id`; the 20 actions that fire two DFA edges retain both in ordered
+`transition_ids`. M5 rule, Oracle, and error-injector traces have no recoverable
+token spans, token IDs, token logprobs, or policy version, so these fields stay
+`None` rather than being synthesized.
+
+Run or reproduce the non-destructive migration:
+
+```powershell
+@'
+from AgeMem_code_agentscope.action_schema import migrate_m5_canonical_report
+
+result = migrate_m5_canonical_report(
+    "artifacts/m5_hotpotqa_smoke/oracle_benchmark.json",
+    runtime_root="runs/m5_hotpotqa_smoke",
+    output_root="runs/m6_schema_v2",
+)
+print(result.manifest.digest)
+'@ | .\.venv\python.exe -
+```
+
+The audited manifest digest is
+`3615ce1041b47ea30513e81f5ef812da4060df9fb854b843162c171443ac5452`.
+The schema audit is documented in `docs/schema_audit_m6.md` and its dedicated
+commit is `d1d45ab feat(agemem): audit and migrate M5 action schema`.
+
+The extraction layer validates exact evidence spans and source digests,
+finite confidence, known subjects, and a versioned category registry. Invalid
+or unknown candidates are quarantined. The deterministic mock extractor and
+the injected-client LLM adapter share the same strict contract; the LLM adapter
+is tested with a fake client only. The reported M6 benchmark made zero real LLM
+calls.
+
+The group cache stores only action-independent candidates. Its key includes
+task, split, group, stage, observation and constraint digests, plus extractor,
+model, and prompt versions. Candidates are revalidated and rebound to the
+original `action_id` during materialization. Relevance labels and AP records
+never enter this cache.
+
+`StateTracker` maintains a separate semantic history for every rollout.
+Single-valued categories use versioned, half-open validity intervals when a
+new value overwrites an old one; multi-valued categories may retain several
+active values. Unknown subjects/categories, unresolved pronouns, and
+same-action single-value conflicts fail closed into quarantine. Snapshot,
+restore, reset, action ordering, and rollout isolation are deterministic.
+
+AP grounding consumes only public tool results, memory before/after deltas,
+validated triples, and explicit state deltas. It does not read M3/M4
+`oracle_labels` or private memory-role metadata, and a bare ADD or RETRIEVE call
+does not earn a semantic AP. Every derived AP contains its source `action_id`
+and, where applicable, Triple/State/Memory evidence IDs. Offline reward replay
+then reuses the unchanged M4 hand-authored positive DFA and once-only milestone
+semantics.
+
+The evaluation corpus contains 10 HotpotQA smoke tasks, 34 annotated sentences,
+and 37 manual triples: 24 official supporting relevant facts and 10 irrelevant
+samples. The loader validates each exact source split/index/title/sentence
+pointer, Hotpot ID, text SHA-256, and stable fact ID without committing the
+source sentence. Its corpus digest is
+`fa74d5098e8dd4040d66ca99ecd76346d4cc799a59ec3f3a4133ba9bab98edd0`.
+
+Run the fixed benchmark against the local fullwiki data:
+
+```powershell
+@'
+from AgeMem_code_agentscope.memory_extraction.benchmark import (
+    run_default_m6_benchmark,
+)
+
+artifacts = run_default_m6_benchmark(
+    data_path=r"D:\Project\Age-Mem\data\hotpot_qa\fullwiki",
+)
+print(artifacts.report.digest)
+'@ | .\.venv\python.exe -
+```
+
+Both profiles cover the same 30 rollouts and 224 actions. Each records 94 cache
+hits, 130 misses, 164 extractor calls, and 100% AP provenance integrity.
+
+| Profile | Triple F1 | AP F1 | False Accept | False Reject | Action reward MAE / RMSE / bias / max | Trajectory signed / abs error | Accepted / rejected |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `human_backed_mock` | 1.0000000000 | 0.9760765550 (FP 0, FN 10) | 0/20 | 0/10 | 0 / 0 / 0 / 0 | 0 / 0 | 10 / 20 |
+| `controlled_error` | 0.8695652174 (TP 30, FP 2, FN 7) | 0.8369565217 (TP 154, FP 0, FN 60) | 0/20 | 5/10 = 0.5 | 0.056919642857 / 0.140748953307 / -0.032366071429 / 0.5 | -7.25 / 7.25 | 5 / 25 |
+
+The human-backed mock is a Triple-extraction upper bound, not a real model or
+an upper bound on the complete AP pipeline. Its ten AP false negatives are
+fail-closed answer-correctness decisions; they cause no action-level or
+trajectory-level reward error. The controlled profile uses synthetic
+drop/corrupt errors and is not an empirical LLM error distribution. Relevance
+and required coverage are supplied by a separate human Oracle semantic target
+for evaluation, so this is not an end-to-end label-free AP system.
+
+Outputs:
+
+- Compact JSON report and action-linked error audit:
+  `artifacts/m6_extraction_benchmark/`.
+- Human-readable report: `docs/m6_extraction_benchmark.md`.
+- Derived v2 migration plus extracted `ActionCreditRecord` and AP-record JSONL:
+  `runs/m6_schema_v2/` and `runs/m6_extraction_benchmark/` (gitignored).
+
+The final report digest is
+`e803f7752dc9e7357284887cf7716273bbd5396f62db1fc438d7cad95a2f9f92`.
+Run the 43 M6 tests with:
+
+```powershell
+.\.venv\python.exe -m unittest `
+  tests.common.m6_schema_migration_test `
+  tests.common.m6_extractor_test `
+  tests.common.m6_state_tracker_test `
+  tests.common.m6_grounding_reward_test `
+  tests.common.m6_extraction_metrics_test `
+  tests.common.m6_extraction_benchmark_test -v
+```
+
+M6 does not implement a Group Critic, GRPO, or model training.
+
 ## Install
 
 From the folder containing `AgeMem_code_agentscope` (e.g. project root):
@@ -220,7 +342,7 @@ python -m AgeMem_code_agentscope.main
 | `AGEMEM_TRAJECTORY_PATH` | Optional JSONL path; enables complete replayable trajectory recording |
 | `AGEMEM_TASK_ID` | Task identifier written to trajectory records; defaults to `standalone-demo` |
 | `AGEMEM_ROLLOUT_ID` | Optional rollout identifier; a UUID is generated when omitted |
-| `HOTPOTQA_PATH` | Optional local `save_to_disk` HotpotQA fullwiki DatasetDict path used by M5 |
+| `HOTPOTQA_PATH` | Optional local `save_to_disk` HotpotQA fullwiki DatasetDict path used by M5/M6 |
 
 ### Show tool calls while the agent is answering
 
@@ -303,6 +425,8 @@ AgeMem_code_agentscope/
   toy_hotpotqa/  # M3 task models, environment, policies and JSONL runner
   memory_oracle/ # M4 Oracle AP grounding, DFA runner and reward replay
   hotpotqa_benchmark/ # M5 local-data adapter, smoke manifest, metrics and CLI
+  action_schema/ # M6 action-level v2 contracts and non-destructive migration
+  memory_extraction/ # M6 extractors, cache, state, AP grounding, reward and benchmark
   src/           # Helpers: utils, llm_client, schemas, hooks
   requirements.txt
   README.md

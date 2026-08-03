@@ -1,0 +1,91 @@
+{
+  "schema_version": "agemem.hotpotqa_semantic_targets.v1",
+  "annotation_method": "human_oracle_target",
+  "usage": "evaluation_only_not_extractor_input",
+  "tasks": [
+    {
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "relevant_fact_ids": [
+        "hp-5a85aaee5542991dd0999e84-0b13cfadf6b836ef",
+        "hp-5a85aaee5542991dd0999e84-df38ff9cdc2d92fc",
+        "hp-5a85aaee5542991dd0999e84-269502059920a0b2"
+      ],
+      "irrelevant_fact_ids": ["hp-5a85aaee5542991dd0999e84-1c95025627b93c43"]
+    },
+    {
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "relevant_fact_ids": [
+        "hp-5a74b19355429916b01641dd-2fe86f28b15b6b5b",
+        "hp-5a74b19355429916b01641dd-30ef399c6dc7becf"
+      ],
+      "irrelevant_fact_ids": ["hp-5a74b19355429916b01641dd-55f43280a3a7e516"]
+    },
+    {
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "relevant_fact_ids": [
+        "hp-5abecbed5542997719eab5c5-1f0bc4a7ff5f3cda",
+        "hp-5abecbed5542997719eab5c5-8fca9fcc2bd0bec7"
+      ],
+      "irrelevant_fact_ids": ["hp-5abecbed5542997719eab5c5-5b96d10283f41290"]
+    },
+    {
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "relevant_fact_ids": [
+        "hp-5a8ac7d055429950cd6afb8f-a72b7f3ef47c9649",
+        "hp-5a8ac7d055429950cd6afb8f-d9baf0099f676460"
+      ],
+      "irrelevant_fact_ids": ["hp-5a8ac7d055429950cd6afb8f-39c6591ab2b3325d"]
+    },
+    {
+      "hotpot_id": "5a83df2655429933447460a1",
+      "relevant_fact_ids": [
+        "hp-5a83df2655429933447460a1-8260aac478284146",
+        "hp-5a83df2655429933447460a1-ecc145a5e394a3e0"
+      ],
+      "irrelevant_fact_ids": ["hp-5a83df2655429933447460a1-647d9727570cb59b"]
+    },
+    {
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "relevant_fact_ids": [
+        "hp-5a76f83e55429972597f1405-f5253cb5324c4581",
+        "hp-5a76f83e55429972597f1405-f6866e4ee5bef906"
+      ],
+      "irrelevant_fact_ids": ["hp-5a76f83e55429972597f1405-761d8bac474fd871"]
+    },
+    {
+      "hotpot_id": "5ab3d2b7554299233954ffb8",
+      "relevant_fact_ids": [
+        "hp-5ab3d2b7554299233954ffb8-69c98b23f988bc4a",
+        "hp-5ab3d2b7554299233954ffb8-d1a185c217306cd0",
+        "hp-5ab3d2b7554299233954ffb8-756c6cfd56a894b7"
+      ],
+      "irrelevant_fact_ids": ["hp-5ab3d2b7554299233954ffb8-8f3a8fe5df49d16c"]
+    },
+    {
+      "hotpot_id": "5ab299d6554299449642c926",
+      "relevant_fact_ids": [
+        "hp-5ab299d6554299449642c926-8260f2b0e4199a8a",
+        "hp-5ab299d6554299449642c926-e851d1304bb1d05d",
+        "hp-5ab299d6554299449642c926-f57eb15513a4c227"
+      ],
+      "irrelevant_fact_ids": ["hp-5ab299d6554299449642c926-31463179ef6bb92c"]
+    },
+    {
+      "hotpot_id": "5ab7c6995542993667794005",
+      "relevant_fact_ids": [
+        "hp-5ab7c6995542993667794005-ff05d2680daa579c",
+        "hp-5ab7c6995542993667794005-0a1c17bda8245219",
+        "hp-5ab7c6995542993667794005-f5db14439bbf73c4"
+      ],
+      "irrelevant_fact_ids": ["hp-5ab7c6995542993667794005-4cce8721309b8155"]
+    },
+    {
+      "hotpot_id": "5adc8c545542994734353734",
+      "relevant_fact_ids": [
+        "hp-5adc8c545542994734353734-536720a4fee8534c",
+        "hp-5adc8c545542994734353734-a241c4cf8071f78e"
+      ],
+      "irrelevant_fact_ids": ["hp-5adc8c545542994734353734-3a008fa513ea441d"]
+    }
+  ]
+}
