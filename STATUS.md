@@ -132,6 +132,7 @@ M6：Extracted Triple/AP、显式状态与 Oracle 对照
 - Current branch: `feat/m6-extracted-ap-state-tracker`
 - M5 base: `6367569 feat(agemem): add HotpotQA Oracle benchmark`
 - M6 schema audit commit: `d1d45ab feat(agemem): audit and migrate M5 action schema`
+- M6 implementation commit: `1c8e5c1 feat(agemem): add extracted AP state benchmark`
 - `PROJECT_HANDOFF.md` 是用户维护的未提交文件，Codex 未修改、未暂存
 - M6 未推送远程
 
