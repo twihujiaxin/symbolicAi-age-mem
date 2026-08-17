@@ -384,3 +384,13 @@ class MultiStepGRPOAlgorithm(AlgorithmType):
             "kl_loss_fn": "k2",
             "entropy_loss_fn": "default",
         }
+
+    @classmethod
+    def check_config(cls, config: Config) -> None:
+        """Keep the multi-step algorithm tied to trajectory-level credit."""
+
+        advantage_fn = config.algorithm.advantage_fn
+        if advantage_fn not in {None, "step_wise_grpo"}:
+            raise ValueError(
+                "multi_step_grpo requires advantage_fn='step_wise_grpo'"
+            )

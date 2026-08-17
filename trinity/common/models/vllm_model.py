@@ -26,6 +26,7 @@ from transformers import AutoProcessor
 from vllm.lora.request import LoRARequest
 from vllm.sampling_params import RequestOutputKind
 
+from trinity.common.action_event_contract import response_metadata_for_generation
 from trinity.common.config import InferenceModelConfig
 from trinity.common.experience import Experience
 from trinity.common.models.api.vllm_patch import get_vllm_version
@@ -192,6 +193,7 @@ class vLLMRolloutModel(InferenceModel):
         Returns:
             A list of experiences.
         """
+        record_action_metadata = bool(kwargs.pop("record_action_metadata", False))
         if self.tokenizer is None:
             await self._initialize_tokenizer()
         token_ids = self.tokenizer(  # type: ignore
@@ -222,6 +224,15 @@ class vLLMRolloutModel(InferenceModel):
                 prompt_length=len(output.prompt_token_ids),
                 prompt_text=self.tokenizer.decode(output.prompt_token_ids),
                 response_text=output.outputs[i].text,
+                info=(
+                    response_metadata_for_generation(
+                        self.tokenizer,
+                        output.outputs[i].token_ids,
+                        output.outputs[i].text,
+                    )
+                    if record_action_metadata
+                    else None
+                ),
             )
             for i in range(len(output.outputs))
         ]
@@ -280,6 +291,7 @@ class vLLMRolloutModel(InferenceModel):
         Returns:
             A list of experiences.
         """
+        record_action_metadata = bool(kwargs.pop("record_action_metadata", False))
         mm_inputs = build_multi_modal_inputs(
             prompt=prompt,
             images=images,
@@ -315,6 +327,15 @@ class vLLMRolloutModel(InferenceModel):
                 prompt_length=len(output.prompt_token_ids),
                 prompt_text=mm_inputs["prompt"],
                 response_text=output.outputs[i].text,
+                info=(
+                    response_metadata_for_generation(
+                        self.tokenizer,
+                        output.outputs[i].token_ids,
+                        output.outputs[i].text,
+                    )
+                    if record_action_metadata
+                    else None
+                ),
                 multi_modal_inputs=mm_inputs["multi_modal_inputs"],
             )
             for i in range(len(output.outputs))
@@ -495,7 +516,7 @@ class vLLMRolloutModel(InferenceModel):
         self.api_server = asyncio.create_task(
             run_api_server_in_ray_actor(
                 self.async_llm,
-                "0.0.0.0", # self.api_server_host
+                "0.0.0.0",  # self.api_server_host
                 self.api_server_port,
                 self.config.model_path,
                 self.config.enable_auto_tool_choice,

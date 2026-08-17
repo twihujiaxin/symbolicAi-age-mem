@@ -118,6 +118,17 @@ class StorageConfig:
     # used for StorageType.FILE
     split: str = "train"
     subset_name: Optional[str] = None
+    # Optional deterministic subset applied before reader offset/epoch logic.
+    # This is useful for fixed smoke manifests whose source rows are not
+    # contiguous.  The listed order is preserved and duplicate indices are
+    # rejected by the file reader.
+    row_indices: Optional[List[int]] = None
+    # Optional immutable identity checks for fixed row subsets. When expected
+    # IDs are provided, the reader verifies both their order and the source
+    # Dataset fingerprint before producing any task.
+    expected_row_ids: Optional[List[str]] = None
+    row_id_key: Optional[str] = None
+    expected_dataset_fingerprint: Optional[str] = None
     format: FormatConfig = field(default_factory=FormatConfig)
 
     # used for StorageType.QUEUE
@@ -858,6 +869,36 @@ class Config:
         check_and_set("kl_penalty_fn", KL_FN, "kl_penalty_fn_args")
         check_and_set("entropy_loss_fn", ENTROPY_LOSS_FN, "entropy_loss_fn_args")
 
+    def _check_agemem_training_contract(self) -> None:
+        """Validate the named AgeMem experiment arm after defaults are resolved."""
+
+        taskset = self.buffer.explorer_input.taskset
+        if taskset.default_workflow_type != "AgeMem_hotpot_workflow_training":
+            return
+        from trinity.common.workflows.memory_reward.reward_profiles import (
+            load_workflow_reward_profile,
+            validate_e1_trajectory_credit_contract,
+        )
+
+        profile = load_workflow_reward_profile(taskset.workflow_args)
+        validate_e1_trajectory_credit_contract(
+            profile,
+            algorithm_type=self.algorithm.algorithm_type,
+            advantage_fn=self.algorithm.advantage_fn,
+            repeat_times=self.algorithm.repeat_times,
+        )
+        max_repeats = self.explorer.max_repeat_times_per_runner
+        if max_repeats is not None and (
+            isinstance(max_repeats, bool)
+            or not isinstance(max_repeats, int)
+            or max_repeats < self.algorithm.repeat_times
+        ):
+            raise ValueError(
+                "AgeMem grouped rollouts require "
+                "explorer.max_repeat_times_per_runner to be null or at least "
+                "algorithm.repeat_times"
+            )
+
     def _check_model(self) -> None:
         model = self.model
         if not model.critic_model_path:
@@ -1068,6 +1109,7 @@ class Config:
 
         # check buffer
         self._check_buffer()
+        self._check_agemem_training_contract()
         # check and update trainer
         if self.mode in ["train", "both", "bench"]:
             if self.trainer.trainer_type == "verl":

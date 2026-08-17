@@ -1,4 +1,4 @@
-"""Filed based buffer reader."""
+"""File-based buffer readers."""
 
 from typing import List, Optional
 
@@ -8,6 +8,7 @@ from datasets import Dataset, load_dataset
 from trinity.buffer.buffer_reader import BufferReader
 from trinity.buffer.schema.formatter import FORMATTER
 from trinity.common.config import BufferConfig, StorageConfig
+from trinity.common.hf_task_dataset import load_task_dataset, select_task_rows
 
 
 class DummyProgressBar:
@@ -135,8 +136,16 @@ class TaskFileReader(BaseFileReader):
         self.epoch = 0
         datasets.disable_caching()
         self.read_batch_size = config.batch_size
+        dataset = load_task_dataset(meta.path, subset_name, self.split)
+        dataset = select_task_rows(
+            dataset,
+            meta.row_indices,
+            expected_row_ids=meta.expected_row_ids,
+            row_id_key=meta.row_id_key,
+            expected_dataset_fingerprint=meta.expected_dataset_fingerprint,
+        )
         self.dataset = _HFBatchReader(
-            load_dataset(meta.path, name=subset_name, split=self.split),
+            dataset,
             name=meta.name,
             default_batch_size=self.read_batch_size,
             total_epochs=self.meta.total_epochs if not self.meta.is_eval else 1,

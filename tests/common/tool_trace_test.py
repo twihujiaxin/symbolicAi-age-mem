@@ -887,7 +887,8 @@ class TrainingToolExecutionTest(unittest.TestCase):
         def retrieve(self, _query, top_k, _metadata_filter):
             return list(self.items.values())[:top_k]
 
-        def add_memory(self, memory_id, content, metadata):
+        def add_memory(self, memory_id, content, metadata, *, source_step=None):
+            del source_step
             self.items[memory_id] = SimpleNamespace(
                 memory_id=memory_id,
                 content=content,
@@ -895,7 +896,8 @@ class TrainingToolExecutionTest(unittest.TestCase):
             )
             return True
 
-        def update_memory(self, memory_id, content, metadata):
+        def update_memory(self, memory_id, content, metadata, *, source_step=None):
+            del source_step
             item = self.items.get(memory_id)
             if item is None:
                 return False
@@ -904,7 +906,8 @@ class TrainingToolExecutionTest(unittest.TestCase):
             item.metadata.update(metadata)
             return True
 
-        def delete_memory(self, memory_id):
+        def delete_memory(self, memory_id, *, source_step=None):
+            del source_step
             self.delete_calls += 1
             return self.items.pop(memory_id, None) is not None
 

@@ -1,0 +1,132 @@
+# M8a static/dry-run contract only.  Do not use this file for a formal run
+# until the online action/logprob join and terminal-only reward gates pass.
+project: "Trinity-RFT-AgeMem-M8"
+name: "agemem-e1-terminal-only-dry-run"
+checkpoint_root_dir: ${oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}
+continue_from_checkpoint: false
+
+algorithm:
+  algorithm_type: multi_step_grpo
+  advantage_fn: step_wise_grpo
+  repeat_times: 2  # K=2: the minimum useful grouped smoke rollout.
+
+model:
+  model_path: ${oc.env:TRINITY_MODEL_PATH,/root/autodl-tmp/models/Qwen2.5-7B-Instruct}
+  max_model_len: 4608
+  max_prompt_tokens: 4096
+  max_response_tokens: 512
+  lora_configs:
+  - name: lora
+    lora_rank: 16
+    lora_alpha: 16
+    # Let Config.check_and_update create the initial adapter from model_path.
+    # Set a real path explicitly only when resuming a verified adapter.
+    path: null
+
+# Intended AutoDL topology: one node, one rollout GPU, and one trainer GPU.
+cluster:
+  node_num: 1
+  gpu_per_node: 2
+
+buffer:
+  total_epochs: 1
+  total_steps: 3  # 2 tasks/step consumes the six fixed M5 train rows once.
+  batch_size: 2
+  train_batch_size: 4
+  explorer_input:
+    taskset:
+      name: hotpotqa_m5_train_smoke
+      storage_type: file
+      path: ${oc.env:HOTPOTQA_PATH,/root/autodl-tmp/data/hotpot_qa/fullwiki}
+      split: train
+      # Manifest order from data/splits/hotpotqa_smoke_manifest.json.
+      row_indices: [60480, 64387, 29294, 14935, 86169, 71348]
+      row_id_key: id
+      expected_row_ids:
+      - 5a85aaee5542991dd0999e84
+      - 5a74b19355429916b01641dd
+      - 5abecbed5542997719eab5c5
+      - 5a8ac7d055429950cd6afb8f
+      - 5a83df2655429933447460a1
+      - 5a76f83e55429972597f1405
+      expected_dataset_fingerprint: c369f1b07b350d37
+      format:
+        prompt_key: question
+        response_key: answer
+      rollout_args:
+        temperature: 0.6
+        max_tokens: 512
+      workflow_args:
+        # These fail-closed M8 keys define E1; the workflow contract tests must
+        # pass before this config is used to launch a process.
+        reward_profile: terminal_only
+        # Official normalization; answer F1 is the scalar reward, while
+        # exact-match, precision, recall, and F1 are all logged.
+        terminal_reward_metric: hotpotqa_official
+        milestone_reward_enabled: false
+        auto_summary_threshold: 0.8
+        max_tool_rounds_per_turn: 4
+        max_context_tokens: 4096
+        stage2_distractor_messages: 1
+        stage2_distractor_source: fixed
+        stage1_max_rounds: 2
+        stage2_max_rounds: 2
+        stage3_max_rounds: 2
+        tool_trace_enabled: true
+        tool_trace_console: false
+        tool_trace_max_string_chars: 8192
+        tool_trace_ray_timeout_seconds: 5.0
+    eval_tasksets: []
+    default_workflow_type: AgeMem_hotpot_workflow_training
+  trainer_input:
+    experience_buffer:
+      name: agemem_e1_dry_run_buffer
+      storage_type: queue
+      path: sqlite:///agemem_e1_dry_run.db
+
+explorer:
+  eval_on_startup: false
+  eval_interval: 1
+  runner_per_model: 2
+  # Keep the complete K=2 group inside one WorkflowRunner policy-freeze window.
+  max_repeat_times_per_runner: 2
+  max_timeout: 900
+  rollout_model:
+    engine_num: 1
+    tensor_parallel_size: 1
+    enable_prefix_caching: true
+    enforce_eager: true
+    enable_history: true
+    dtype: bfloat16
+    seed: 20260802
+    gpu_memory_utilization: 0.7
+    enable_chunked_prefill: true
+    enable_thinking: false
+
+log:
+  level: INFO
+
+synchronizer:
+  sync_method: checkpoint
+  sync_interval: 1
+  sync_timeout: 900
+
+trainer:
+  trainer_type: verl
+  total_steps: 1
+  save_interval: 1
+  trainer_config:
+    actor_rollout_ref:
+      model:
+        use_remove_padding: true
+        enable_gradient_checkpointing: true
+      actor:
+        use_dynamic_bsz: true
+        ppo_max_token_len_per_gpu: 4608
+        ulysses_sequence_parallel_size: 1
+        optim:
+          lr: 1e-6
+      ref:
+        log_prob_use_dynamic_bsz: ${trainer.trainer_config.actor_rollout_ref.actor.use_dynamic_bsz}
+        log_prob_max_token_len_per_gpu: ${trainer.trainer_config.actor_rollout_ref.actor.ppo_max_token_len_per_gpu}
+        ulysses_sequence_parallel_size: 1

@@ -5,6 +5,10 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
+from trinity.common.action_event_contract import (
+    prepare_experience_action_drafts,
+    record_experience_action_result,
+)
 from trinity.common.experience import Experience
 from trinity.common.models.model import ModelWrapper
 from trinity.common.tool_trace import ToolTraceRecorder
@@ -12,6 +16,7 @@ from trinity.common.workflows.workflow import WORKFLOWS, MultiTurnWorkflow, Task
 from trinity.utils.log import get_logger
 
 from .memory_store import MemoryManager, chat_client
+from .distractors import DISTRACTOR_SOURCES, resolve_stage2_distractors
 from .workflow_prompt import (
     TOOL_CALL_SYS_PROMPT,
     SUMMARY_CONTEXT_SYS_PROMPT,
@@ -34,6 +39,14 @@ from ..memory_reward.my_reward import (
     extract_memory_stats,
     extract_tool_attempt_stats,
     extract_tool_usage_stats,
+)
+from ..memory_reward.reward_profiles import (
+    HotpotAnswerScore,
+    RewardProfileName,
+    calculate_terminal_reward,
+    load_workflow_reward_profile,
+    score_hotpot_answer,
+    terminal_task_score,
 )
 from .workflow_metrics import get_answer_llm_judge_score
 
@@ -77,6 +90,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.repeat_times = task.repeat_times
         self.workflow_args = task.workflow_args
         self.verbose: bool = bool(self.workflow_args.get("verbose_logging", False))
+        self.reward_profile = load_workflow_reward_profile(self.workflow_args)
 
         # STM（context_messages）的容量与自动摘要阈值。
         self.max_context_tokens = self.workflow_args.get("max_context_tokens", 32768)
@@ -91,6 +105,22 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.stage2_distractor_messages = self.workflow_args.get(
             "stage2_distractor_messages", 5
         )
+        self.stage2_distractor_source = (
+            str(self.workflow_args.get("stage2_distractor_source", "provider"))
+            .strip()
+            .lower()
+        )
+        if self.stage2_distractor_source not in DISTRACTOR_SOURCES:
+            allowed = ", ".join(sorted(DISTRACTOR_SOURCES))
+            raise ValueError(f"stage2_distractor_source must be one of: {allowed}")
+        if (
+            self.reward_profile.is_terminal_only
+            and self.stage2_distractor_source == "provider"
+        ):
+            raise ValueError(
+                "terminal_only requires a fixed or task-persisted Stage-2 "
+                "distractor source"
+            )
         self.stage3_max_rounds = self.workflow_args.get("stage3_max_rounds", 5)
         self.stage1_max_rounds = self.workflow_args.get("stage1_max_rounds", 5)
         self.stage2_max_rounds = self.workflow_args.get("stage2_max_rounds", 5)
@@ -126,6 +156,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.current_execution_id: str = ""
         self._model_round_count: int = 0
         self._stage3_round_count: int = 0
+        self._last_answer_score: Optional[HotpotAnswerScore] = None
 
         # 完整工具轨迹单独写 JSONL；Experience.info 只保存轻量关联 ID。
         self.tool_trace_recorder = ToolTraceRecorder.from_workflow_args(
@@ -391,7 +422,12 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 metadata["stage"] = str(self.current_stage)
 
                 mem_id = str(uuid.uuid4())
-                stored = self.memory_manager.add_memory(mem_id, content, metadata)
+                stored = self.memory_manager.add_memory(
+                    mem_id,
+                    content,
+                    metadata,
+                    source_step=self.current_step,
+                )
                 reply_note = f"memory_added:{mem_id}"
                 result_text = f"[memory tool result]\n{reply_note}"
                 self._append_context("tool", result_text)
@@ -407,7 +443,12 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 content = args.get("content")
                 metadata = args.get("metadata", {})
 
-                ok = self.memory_manager.update_memory(mem_id, content, metadata)
+                ok = self.memory_manager.update_memory(
+                    mem_id,
+                    content,
+                    metadata,
+                    source_step=self.current_step,
+                )
                 reply_note = f"memory_updated:{ok}"
                 result_text = f"[memory tool result]\n{reply_note}"
                 self._append_context("tool", result_text)
@@ -423,7 +464,10 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 confirmation = args.get("confirmation", False)
 
                 if confirmation:
-                    ok = self.memory_manager.delete_memory(mem_id)
+                    ok = self.memory_manager.delete_memory(
+                        mem_id,
+                        source_step=self.current_step,
+                    )
                     reply_note = f"memory_deleted:{ok}"
                     outcome = "deleted" if ok else "not_found"
                 else:
@@ -499,6 +543,12 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 }
             )
             experience.info = info
+            prepare_experience_action_drafts(
+                experience,
+                stage_id=stage,
+                timestep=step_index,
+                assistant_turn_id=max(0, self._model_round_count - 1),
+            )
 
     @staticmethod
     def _attach_tool_call_id(
@@ -569,6 +619,15 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             finish_event["trace_error"] = trace_error_message
         self._tool_trace_events.append(finish_event)
         self._attach_tool_call_id(experiences, call_id)
+        record_experience_action_result(
+            experiences,
+            action_index_in_turn=tool_index,
+            trace_call_id=call_id,
+            action_type=tool_name,
+            status=status,
+            result=result,
+            error=error,
+        )
 
         if self.tool_trace_console:
             try:
@@ -712,10 +771,13 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
 
         return reply_note
 
-    def reset_per_run(self):
+    def reset_per_run(self, *, rollout_id: Optional[str] = None):
         """开始一条独立 rollout：同时清空 STM 和 LTM，防止轨迹之间信息泄漏。"""
         self.context_messages.clear()
-        self.memory_manager.clear()
+        if rollout_id is None:
+            self.memory_manager.clear()
+        else:
+            self.memory_manager.bind_rollout(rollout_id, reset=True)
         self.final_reward = -0.1
         self.current_stage = 0
         self.current_round = 0
@@ -724,6 +786,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.current_execution_id = ""
         self._model_round_count = 0
         self._stage3_round_count = 0
+        self._last_answer_score = None
         self._tool_trace_events.clear()
         self._last_tool_result = {}
 
@@ -821,26 +884,32 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
     async def get_model_response_text(self, messages):
         """Get model response text."""
         self._mark_retrievals_used_by_next_response(messages)
-        responses = await self.model.chat_async(messages, n=1)
+        responses = await self.model.chat_async(
+            messages,
+            n=1,
+            record_action_metadata=True,
+        )
         self._model_round_count += 1
         return responses[0].response_text
 
     async def inference_samples(self, rollout_num: int) -> List[Experience]:
         """对同一道题采样多条三阶段轨迹，并为每条轨迹计算终局奖励。"""
 
-        reward_calculator = ThreeStageRewardCalculator(
-            task_completion_weight=0.5,
-            tool_efficiency_weight=0.2,  # can set to 0.0 if you want to disable tool efficiency reward
-            context_management_weight=0.15,
-            memory_management_weight=0.15,
-            chat_client=self.chat_client,
-        )
+        reward_calculator = None
+        if self.reward_profile.name is RewardProfileName.E2_AGEMEM_HEURISTIC:
+            reward_calculator = ThreeStageRewardCalculator(
+                **self.reward_profile.heuristic_calculator_kwargs(),
+                chat_client=self.chat_client,
+            )
 
         experience_list = []
 
         for i in range(rollout_num):
-            self.reset_per_run()
             self.current_run_id = i + self.run_id_base
+            batch_id = getattr(self.task, "batch_id", "")
+            task_id = getattr(self.task, "task_id", "")
+            memory_rollout_id = f"{batch_id}/{task_id}/{self.current_run_id}"
+            self.reset_per_run(rollout_id=memory_rollout_id)
             self.current_execution_id = str(uuid.uuid4())
             self._append_context("system", self.sys_prompt)
 
@@ -964,30 +1033,65 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 if not key.startswith("_")
             }
 
-            total_reward, reward_breakdown = reward_calculator.calculate_total_reward(
-                task_score=task_score,
-                tool_usage_stats=reward_tool_usage_stats,
-                context_stats=context_stats,
-                memory_stats=reward_memory_stats,
-                finished_at_round=reward_finished_at_round,
-                max_rounds=reward_max_rounds,
-                found_answer=found_answer,
-                question=self.question,
-                supporting_facts=self.supporting_facts,
-                context_messages=self.context_messages,
-                termination_finished_at_round=termination_finished_at_round,
-                termination_max_rounds=termination_max_rounds,
-                tool_attempt_stats=(
-                    tool_attempt_stats
-                    if self.tool_reward_stats_source == "trace"
-                    else None
-                ),
+            if self.reward_profile.is_terminal_only:
+                reward_outcome = calculate_terminal_reward(
+                    self.reward_profile,
+                    task_score=task_score,
+                    found_answer=found_answer,
+                )
+                total_reward = reward_outcome.total
+                reward_breakdown = reward_outcome.breakdown
+            else:
+                if reward_calculator is None:
+                    raise RuntimeError("E2 reward calculator was not initialized")
+                total_reward, reward_breakdown = (
+                    reward_calculator.calculate_total_reward(
+                        task_score=task_score,
+                        tool_usage_stats=reward_tool_usage_stats,
+                        context_stats=context_stats,
+                        memory_stats=reward_memory_stats,
+                        finished_at_round=reward_finished_at_round,
+                        max_rounds=reward_max_rounds,
+                        found_answer=found_answer,
+                        question=self.question,
+                        supporting_facts=self.supporting_facts,
+                        context_messages=self.context_messages,
+                        termination_finished_at_round=termination_finished_at_round,
+                        termination_max_rounds=termination_max_rounds,
+                        tool_attempt_stats=(
+                            tool_attempt_stats
+                            if self.tool_reward_stats_source == "trace"
+                            else None
+                        ),
+                    )
+                )
+
+            answer_metrics = (
+                {
+                    "answer_exact_match": self._last_answer_score.exact_match,
+                    "answer_f1": self._last_answer_score.f1,
+                    "answer_precision": self._last_answer_score.precision,
+                    "answer_recall": self._last_answer_score.recall,
+                }
+                if self._last_answer_score is not None
+                else {}
             )
 
             detailed_info = {
                 "task_score": task_score,
                 "found_answer": found_answer,
                 "reward_breakdown": reward_breakdown,
+                "reward_profile_schema_version": self.reward_profile.schema_version,
+                "reward_profile": self.reward_profile.name.value,
+                "terminal_reward_metric": (
+                    self.reward_profile.terminal_metric.value
+                    if self.reward_profile.terminal_metric is not None
+                    else None
+                ),
+                "milestone_reward_enabled": (
+                    self.reward_profile.milestone_reward_enabled
+                ),
+                **answer_metrics,
                 "tool_usage_stats": reward_tool_usage_stats,
                 "legacy_tool_usage_stats": legacy_tool_usage_stats,
                 "trace_tool_usage_stats": trace_tool_usage_stats,
@@ -1014,12 +1118,21 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     self.tool_trace_recorder.last_write_error
                 ),
                 "trace_execution_id": self.current_execution_id,
+                "memory_rollout_id": self.memory_manager.rollout_id,
                 "num_stages": 3,
             }
 
             if self.verbose:
                 self.logger.info(f"Rollout {i} - Total Reward: {total_reward:.3f}")
-                self.logger.info(f"  Task Score (LLM-as-a-Judge): {task_score:.3f}")
+                self.logger.info(
+                    "  Task Score (%s): %.3f",
+                    (
+                        self.reward_profile.terminal_metric.value
+                        if self.reward_profile.is_terminal_only
+                        else "legacy_llm_judge"
+                    ),
+                    task_score,
+                )
                 self.logger.info(f"  Reward Breakdown: {reward_breakdown}")
 
             # 三个阶段共享同一个终局奖励。之后 Step-wise GRPO 会做组内标准化，
@@ -1045,9 +1158,20 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         return experience_list
 
     async def _get_answer_score(self, answer: str) -> float:
-        """Delegate to the unified LLM-as-judge in workflow_metrics."""
+        """Score an answer according to the explicitly selected reward arm."""
         if not answer or not self.expected_answer:
+            self._last_answer_score = None
             return 0.0
+        if self.reward_profile.is_terminal_only:
+            self._last_answer_score = score_hotpot_answer(
+                str(answer),
+                str(self.expected_answer),
+            )
+            return terminal_task_score(
+                self.reward_profile,
+                self._last_answer_score,
+            )
+        self._last_answer_score = None
         return await get_answer_llm_judge_score(
             self.question, answer, self.expected_answer, self.chat_client
         )
@@ -1198,9 +1322,18 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         """
         stage_experiences = []
 
-        # Generate distractor messages.
-        distractor_messages = self.distractor_generator.generate_distractor_messages(
-            self.question, num_messages=self.stage2_distractor_messages
+        # E1 uses a fixed or task-persisted source so no auxiliary model call
+        # can silently change the environment between reward arms.
+        distractor_messages = resolve_stage2_distractors(
+            source=self.stage2_distractor_source,
+            count=self.stage2_distractor_messages,
+            task_messages=self.task.raw_task.get("distractor_messages"),
+            provider_generate=lambda count: (
+                self.distractor_generator.generate_distractor_messages(
+                    self.question,
+                    num_messages=count,
+                )
+            ),
         )
 
         for idx, distractor_msg in enumerate(distractor_messages):

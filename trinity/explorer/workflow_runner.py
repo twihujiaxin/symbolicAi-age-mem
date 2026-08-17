@@ -8,6 +8,10 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from trinity.buffer import get_buffer_reader
+from trinity.common.action_event_contract import (
+    finalize_experience_action_contract,
+    freeze_rollout_policy_version,
+)
 from trinity.common.config import Config
 from trinity.common.experience import Experience
 from trinity.common.models import get_debug_inference_model
@@ -115,10 +119,15 @@ class WorkflowRunner:
         # TODO: avoid sending the experiences back to the scheduler to reduce the communication overhead
         try:
             st = time.time()
+            rollout_policy_version = await self.model_wrapper.model_version_async
             exps = await self._run_task(task, repeat_times, run_id_base)
             assert exps is not None and len(exps) > 0, "An empty experience is generated"
             metrics: dict[str, List[float]] = defaultdict(list)
             model_version = await self.model_wrapper.model_version_async
+            policy_version = freeze_rollout_policy_version(
+                rollout_policy_version,
+                model_version,
+            )
             # set eid for each experience
             for i, exp in enumerate(exps):
                 exp.eid.batch = task.batch_id
@@ -129,6 +138,10 @@ class WorkflowRunner:
                     exp.info = {}
                 exp.info["model_version"] = model_version
                 exp.info["use_count"] = 0
+                finalize_experience_action_contract(
+                    exp,
+                    policy_version=policy_version,
+                )
 
                 if not hasattr(exp, "metrics") or exp.metrics is None:
                     exp.metrics = {}

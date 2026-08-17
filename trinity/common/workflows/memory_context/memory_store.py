@@ -12,10 +12,19 @@ import json
 import math
 import os
 import threading
+import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from openai import OpenAI
+
+from AgeMem_code_agentscope.memory_store import (
+    InMemoryStore,
+    MemoryRecord,
+    MemoryStore,
+    MemoryStoreSnapshot,
+    RolloutMemoryStoreRegistry,
+)
 
 
 def _cosine_similarity(a: List[float], b: List[float]) -> float:
@@ -36,8 +45,12 @@ class MemoryItem:
 
     memory_id: str
     content: str
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
     embedding: Optional[List[float]] = None
+    version: int = 1
+    status: str = "active"
+    source_rollout_id: Optional[str] = None
+    source_step: Optional[int] = None
 
 
 class InMemoryVectorStore:
@@ -63,19 +76,29 @@ class InMemoryVectorStore:
         self,
         memory_id: str,
         new_content: Optional[str] = None,
-        new_metadata: Optional[Dict[str, str]] = None,
+        new_metadata: Optional[Dict[str, Any]] = None,
+        new_embedding: Optional[Sequence[float]] = None,
+        source_step: Optional[int] = None,
     ) -> bool:
+        del source_step  # Legacy backend has no version metadata.
         with self._lock:
             item = self._items.get(memory_id)
             if item is None:
                 return False
             if new_content is not None:
                 item.content = new_content
+            if new_embedding is not None:
+                item.embedding = list(new_embedding)
             if new_metadata is not None:
                 item.metadata.update(new_metadata)
             return True
 
-    def delete(self, memory_id: str) -> bool:
+    def delete(
+        self,
+        memory_id: str,
+        source_step: Optional[int] = None,
+    ) -> bool:
+        del source_step  # Legacy backend has no version metadata.
         with self._lock:
             return self._items.pop(memory_id, None) is not None
 
@@ -112,26 +135,199 @@ class InMemoryVectorStore:
             return scored[: max(1, top_k)]
 
 
-class MemoryManager:
-    """LTM 的高层接口：封装向量库和 DashScope embedding 服务。"""
+class VersionedRolloutVectorStore:
+    """Compatibility adapter from the M2 ``MemoryStore`` to AgeMem's API.
 
-    def __init__(self, embedding_model, embedding_dim) -> None:
-        self._store = InMemoryVectorStore()
-        api_key = os.getenv("DASHSCOPE_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "DASHSCOPE_API_KEY environment variable is not set. "
-                "Please set it before running the workflow, e.g., export DASHSCOPE_API_KEY='your_key'"
-            )
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    The workflow and tools continue to consume ``MemoryItem`` objects while
+    the backend keeps version history, research-mode tombstones and strict
+    rollout ownership.  No embedding client is owned by this adapter.
+    """
+
+    def __init__(self, store: MemoryStore) -> None:
+        self._backend = store
+
+    @property
+    def rollout_id(self) -> str:
+        return self._backend.rollout_id
+
+    @property
+    def backend(self) -> MemoryStore:
+        return self._backend
+
+    @staticmethod
+    def _to_item(record: MemoryRecord) -> MemoryItem:
+        return MemoryItem(
+            memory_id=record.memory_id,
+            content=record.content,
+            metadata=dict(record.metadata),
+            embedding=(None if record.embedding is None else list(record.embedding)),
+            version=record.version,
+            status=record.status,
+            source_rollout_id=record.source_rollout_id,
+            source_step=record.source_step,
         )
+
+    def add(self, item: MemoryItem) -> None:
+        self._backend.add(
+            MemoryRecord(
+                memory_id=item.memory_id,
+                content=item.content,
+                metadata=dict(item.metadata),
+                embedding=(None if item.embedding is None else list(item.embedding)),
+                source_rollout_id=self.rollout_id,
+                source_step=item.source_step,
+            )
+        )
+
+    def get(self, memory_id: str) -> Optional[MemoryItem]:
+        record = self._backend.get(memory_id)
+        return None if record is None else self._to_item(record)
+
+    def update(
+        self,
+        memory_id: str,
+        new_content: Optional[str] = None,
+        new_metadata: Optional[Mapping[str, Any]] = None,
+        new_embedding: Optional[Sequence[float]] = None,
+        source_step: Optional[int] = None,
+    ) -> bool:
+        return (
+            self._backend.update(
+                memory_id,
+                content=new_content,
+                metadata=new_metadata,
+                embedding=new_embedding,
+                source_step=source_step,
+            )
+            is not None
+        )
+
+    def delete(self, memory_id: str, source_step: Optional[int] = None) -> bool:
+        return (
+            self._backend.delete(memory_id, source_step=source_step) is not None
+        )
+
+    def clear(self) -> None:
+        self._backend.reset()
+
+    def count(self) -> int:
+        return self._backend.size()
+
+    def search(
+        self,
+        query_embedding: List[float],
+        top_k: int = 5,
+        metadata_filter: Optional[Dict[str, Any]] = None,
+    ) -> List[Tuple[MemoryItem, float]]:
+        return [
+            (self._to_item(record), score)
+            for record, score in self._backend.retrieve(
+                query_embedding,
+                top_k=top_k,
+                metadata_filter=metadata_filter,
+            )
+        ]
+
+    def snapshot(self) -> MemoryStoreSnapshot:
+        return self._backend.snapshot()
+
+    def restore(self, snapshot: MemoryStoreSnapshot) -> None:
+        self._backend.restore(snapshot)
+
+    def history(self, memory_id: Optional[str] = None) -> List[MemoryItem]:
+        return [self._to_item(record) for record in self._backend.history(memory_id)]
+
+
+class MemoryManager:
+    """LTM facade backed by one M2 store per rollout.
+
+    Embedding remains a manager concern.  Tests and offline dry-runs can inject
+    a deterministic function; production may retain the original DashScope
+    provider without exposing it to the storage backend.
+    """
+
+    def __init__(
+        self,
+        embedding_model: str,
+        embedding_dim: int,
+        *,
+        rollout_id: Optional[str] = None,
+        registry: Optional[RolloutMemoryStoreRegistry] = None,
+        embedding_function: Optional[Callable[[str], Sequence[float]]] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+    ) -> None:
+        self._registry = registry or RolloutMemoryStoreRegistry()
+        self._embedding_function = embedding_function
+        self.client: Optional[OpenAI] = None
+        if embedding_function is None:
+            resolved_api_key = api_key or os.getenv("DASHSCOPE_API_KEY")
+            if not resolved_api_key:
+                raise ValueError(
+                    "DASHSCOPE_API_KEY environment variable is not set. "
+                    "Please set it before running the workflow, e.g., export DASHSCOPE_API_KEY='your_key'"
+                )
+            self.client = OpenAI(
+                api_key=resolved_api_key,
+                base_url=(
+                    base_url
+                    or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+                ),
+            )
         self.embedding_model = embedding_model
         self.embedding_dim = embedding_dim
+        self._rollout_id = ""
+        self._store: VersionedRolloutVectorStore
+        if rollout_id is None:
+            # Construction happens before a concrete task/run is selected.
+            # Keep this temporary store outside the registry so it cannot be
+            # mistaken for a sampled rollout during isolation audits.
+            temporary_id = f"unbound-{uuid.uuid4()}"
+            self._rollout_id = temporary_id
+            self._store = VersionedRolloutVectorStore(
+                InMemoryStore(temporary_id)
+            )
+        else:
+            self.bind_rollout(rollout_id, reset=True)
+
+    @property
+    def rollout_id(self) -> str:
+        return self._rollout_id
+
+    @property
+    def store_registry(self) -> RolloutMemoryStoreRegistry:
+        return self._registry
+
+    @property
+    def store(self) -> MemoryStore:
+        return self._store.backend
+
+    def bind_rollout(self, rollout_id: str, *, reset: bool = True) -> None:
+        """Select the isolated store for ``rollout_id``.
+
+        Retried rollout IDs start empty by default.  Existing snapshots can be
+        restored explicitly after binding with ``reset=False``.
+        """
+        if not isinstance(rollout_id, str) or not rollout_id.strip():
+            raise ValueError("rollout_id must be a non-empty string")
+        backend = self._registry.get_or_create(rollout_id)
+        if reset:
+            backend.reset()
+        self._rollout_id = rollout_id
+        self._store = VersionedRolloutVectorStore(backend)
 
     def embed(self, content: str):
         """把记忆文本编码成定长向量，供 add/update/retrieve 共用。"""
+        if self._embedding_function is not None:
+            embedding = list(self._embedding_function(content))
+            if len(embedding) != self.embedding_dim:
+                raise ValueError(
+                    "embedding_function returned an unexpected dimension: "
+                    f"{len(embedding)} != {self.embedding_dim}"
+                )
+            return embedding
+        if self.client is None:
+            raise RuntimeError("no embedding provider is configured")
         completion = self.client.embeddings.create(
             model=self.embedding_model,
             input=content,
@@ -146,7 +342,9 @@ class MemoryManager:
         self,
         memory_id: str,
         content: str,
-        metadata: Optional[Dict[str, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        *,
+        source_step: Optional[int] = None,
     ) -> bool:
         """写入记忆时立即计算 embedding，之后检索无需重复编码正文。"""
         if not content:
@@ -158,6 +356,8 @@ class MemoryManager:
                 content=content,
                 metadata=metadata or {},
                 embedding=embedding,
+                source_rollout_id=self.rollout_id,
+                source_step=source_step,
             )
         )
         return True
@@ -166,20 +366,31 @@ class MemoryManager:
         self,
         memory_id: str,
         content: Optional[str] = None,
-        metadata: Optional[Dict[str, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        *,
+        source_step: Optional[int] = None,
     ) -> bool:
         item = self._store.get(memory_id)
         if item is None:
             return False
 
         # 正文变化时必须同步刷新 embedding，否则检索仍会使用旧语义。
-        if content is not None:
-            embedding = self.embed(content)
-            item.embedding = embedding
-        return self._store.update(memory_id, content, metadata)
+        embedding = self.embed(content) if content is not None else None
+        return self._store.update(
+            memory_id,
+            content,
+            metadata,
+            embedding,
+            source_step,
+        )
 
-    def delete_memory(self, memory_id: str) -> bool:
-        return self._store.delete(memory_id)
+    def delete_memory(
+        self,
+        memory_id: str,
+        *,
+        source_step: Optional[int] = None,
+    ) -> bool:
+        return self._store.delete(memory_id, source_step)
 
     def clear(self) -> None:
         """Remove all memories from the store."""
@@ -188,6 +399,20 @@ class MemoryManager:
     def count(self) -> int:
         """Return the current number of long-term memories."""
         return self._store.count()
+
+    def snapshot(self) -> MemoryStoreSnapshot:
+        return self._store.snapshot()
+
+    def restore(self, snapshot: MemoryStoreSnapshot) -> None:
+        if snapshot.rollout_id != self.rollout_id:
+            raise ValueError(
+                "cannot restore snapshot from another rollout: "
+                f"{snapshot.rollout_id!r} != {self.rollout_id!r}"
+            )
+        self._store.restore(snapshot)
+
+    def history(self, memory_id: Optional[str] = None) -> List[MemoryItem]:
+        return self._store.history(memory_id)
 
     def retrieve(
         self,

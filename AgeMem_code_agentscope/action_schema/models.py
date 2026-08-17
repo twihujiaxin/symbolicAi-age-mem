@@ -95,6 +95,11 @@ class ActionEvent(BaseModel):
             raise ValueError("token metadata must be provided together or all be None")
         if self.source == "llm" and not all(populated):
             raise ValueError("LLM actions require token metadata and policy_version")
+        if self.source != "llm" and any(populated):
+            raise ValueError(
+                "non-LLM actions must not contain response tokens, logprobs, "
+                "token spans, or policy_version"
+            )
         if all(populated):
             assert self.response_token_ids is not None
             assert self.token_start is not None

@@ -39,6 +39,7 @@ dependencies = [
     "requests",
     "tensorboard",
     "openai",
+    "pydantic>=2.0,<3",
     "jsonlines",
     "sortedcontainers",
     "word2number",
@@ -95,7 +96,7 @@ flash_attn = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["trinity*"]
+include = ["trinity*", "AgeMem_code_agentscope*"]
 exclude = ["tests*", "docs*", "scripts*"]
 
 [tool.setuptools.package-data]

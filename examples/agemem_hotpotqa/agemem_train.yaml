@@ -2,7 +2,9 @@ project: "Trinity-RFT-AgeMem"
 name: "agemem-hotpotqa-train"
 checkpoint_root_dir: ${oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}
 algorithm:
-  algorithm_type: grpo
+  # E2 uses one scalar trajectory reward across all three stages.
+  algorithm_type: multi_step_grpo
+  advantage_fn: step_wise_grpo
   repeat_times: 8
 model:
   model_path: ${oc.env:TRINITY_MODEL_PATH,/path/to/Qwen2.5-7B-Instruct}
@@ -32,10 +34,15 @@ buffer:
       rollout_args:
         temperature: 0.6
       workflow_args:
+        # Compatibility arm: preserve the original AgeMem heuristic dense
+        # reward and LLM judge, but select it explicitly and keep DFA rewards off.
+        reward_profile: agemem_heuristic
+        milestone_reward_enabled: false
         auto_summary_threshold: 0.8
         max_tool_rounds_per_turn: 10
         max_context_tokens: 8192
         stage2_distractor_messages: 3
+        stage2_distractor_source: provider
         stage1_max_rounds: 5
         stage2_max_rounds: 5
         stage3_max_rounds: 5

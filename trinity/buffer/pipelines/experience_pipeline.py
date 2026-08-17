@@ -12,6 +12,7 @@ from trinity.common.config import (
     StorageConfig,
 )
 from trinity.common.constants import StorageType
+from trinity.common.action_event_contract import validate_on_policy_experiences
 from trinity.common.experience import Experience
 from trinity.utils.log import get_logger
 from trinity.utils.plugin_loader import load_plugins
@@ -38,6 +39,10 @@ class ExperiencePipeline:
         load_plugins()
         pipeline_config = config.data_processor.experience_pipeline
         buffer_config = config.buffer
+        self.require_agemem_action_contract = (
+            buffer_config.explorer_input.taskset.default_workflow_type
+            == "AgeMem_hotpot_workflow_training"
+        )
         self.input_store = self._init_input_storage(pipeline_config, buffer_config)  # type: ignore [arg-type]
         try:
             self.operators = ExperienceOperator.create_operators(pipeline_config.operators)
@@ -112,6 +117,16 @@ class ExperiencePipeline:
         Returns:
             Dict: A dictionary containing metrics collected during the processing of experiences.
         """
+        # Fail before both the optional raw-input sink and the trainer buffer.
+        # Existing non-AgeMem Experiences have no action contract and remain
+        # unaffected; AgeMem workflows require the contract to remain present.
+        validate_on_policy_experiences(
+            exps,
+            require_contract=getattr(
+                self, "require_agemem_action_contract", False
+            ),
+        )
+
         if self.input_store is not None:
             await self.input_store.write_async(exps)
 
@@ -121,6 +136,15 @@ class ExperiencePipeline:
         for operator in self.operators:
             exps, metric = operator.process(exps)
             metrics.update(metric)
+
+        # Operators may attach ActionCreditRecords or otherwise transform the
+        # batch. Revalidate the final payload at the actual trainer boundary.
+        validate_on_policy_experiences(
+            exps,
+            require_contract=getattr(
+                self, "require_agemem_action_contract", False
+            ),
+        )
 
         metrics["experience_count"] = len(exps)
 
