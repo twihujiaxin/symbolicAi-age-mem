@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-M8a：E1 terminal-only 上卡前本地门禁
+M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 
-状态：完成
+状态：本地上卡前准备与 280 项锁定回归已完成；真实 AutoDL E0/E1/checkpoint 尚未执行
 
 ## Completed
 
@@ -157,11 +157,30 @@ M8a：E1 terminal-only 上卡前本地门禁
 - [x] ActionEvent 与 Experience task/rollout/stage/timestep/EID 精确对齐；最终 buffer 边界重算 character→token span 并重查 ToolTrace join；同一 task 混合 policy version 时拒绝
 - [x] 规则/oracle/random/error-injector 轨迹禁止进入 on-policy buffer；AgeMem ExperiencePipeline 在 operator 前后均强制契约存在，删除或篡改契约时 fail closed
 - [x] `AgeMem_code_agentscope*` 已纳入 Trinity wheel，Pydantic 作为显式依赖；非 repo cwd 的 wheel 内 ActionEvent/M2 store import smoke 通过
-- [x] M8a 本地发现 46 项测试：43 PASS、3 SKIP；SKIP 均为缺 Ray/PyTorch/vLLM 的 runtime 接线测试
+- [x] M8a 初始范围为 46 项测试：43 PASS、3 SKIP；当前已由 M8b 锁扩展为 107 项 `m8a` scope（本地 104 PASS、3 SKIP）
 - [x] M1～M7 相关回归 145/145、既有 tool-trace 28/28 均通过
 - [x] 本阶段未调用真实 LLM/embedding/网络，未运行模型、GPU、优化器或 checkpoint
 - [ ] AutoDL Linux 上的 3 个 runtime tests、完整 Config/Ray/vLLM/veRL、E1 单次更新和 checkpoint 新进程重载尚未执行
 - [ ] 在线 `ActionCreditRecord` 自动生成器尚未实现；当前只有严格 schema、join 和 buffer validation
+
+### M8b 上卡前准备
+
+- [x] `configs/m8b_autodl_preflight.json` 锁定三份 YAML 的规范 LF SHA-256、M5 manifest、37 项 E1 契约、`m8a=107/all=280` 精确测试数和 `experience_buffer.path=null`
+- [x] 跨平台 preflight 核对完整 40 位 commit、dirty state、递归 `.env`/ignored credential、非空 key、持久路径、空 job、依赖版本与 Trinity Config schema
+- [x] 模型门禁固定 `Qwen/Qwen2.5-7B-Instruct`、完整 revision、Qwen2.5-7B 结构、必需文件、最小权重体积及逐文件 SHA-256 manifest，不伪造模型来源
+- [x] 数据门禁核对 fullwiki 三个 split 的规模/fingerprint，以及 6 条 train + 2 条 held-out 的 Hotpot ID 和规范内容 hash
+- [x] AutoDL GPU 门禁要求恰好 2 张卡、每张总显存至少 76,000 MiB、空闲显存至少 74,000 MiB，并交叉核对 `nvidia-smi` 与 PyTorch device UUID
+- [x] 严格 runtime gate 对 suite 发现数和执行数同时比对 lock；任意 `FAIL/ERROR/SKIP/unexpected success` 均失败，不能把本地 3 个 runtime SKIP 当通过
+- [x] 冻结 DashScope endpoint、`text-embedding-v4` 256 维和 `qwen-max`；provider SDK 禁用隐式重试，成功/失败/eval 调用立即写入独立 fsync 元数据 JSONL
+- [x] provider 记录包含 task/rollout/execution/call index、延迟、错误类型与真实 token usage，不保存 prompt/response/header/key；异常文本脱敏，usage 持久化失败时 fail closed，未报告金额保持 `None`
+- [x] launcher、trainer、explorer 与 WorkflowRunner 不再吞掉运行失败；有限步训练提前耗尽、NCCL 同步失败、rollout/eval 失败均向上传播且不生成伪成功凭据
+- [x] 训练与 benchmark receipt 记录进程 execution ID；训练凭据包含有限 loss/KL/reward 和 actor-update sentinel，E0 固定 model version 0，checkpoint eval 固定 model version 1
+- [x] postflight 校验 `trainer_meta.json`、`latest_checkpointed_iteration.txt==1`、完整非空 model/optimizer/extra shards、真实 LoRA 与 `dummy_lora` 不同，以及 checkpoint eval 来自不同进程
+- [x] 新增固定 2 条 held-out 样本的 E0 base eval 与 E1 checkpoint eval 配置；三份 YAML 都让 Trinity 在独立 job 内持久化 audit buffer
+- [x] 将 M8a `save_to_disk` 测试改为只读 marker fixture + 内存 DatasetDict，消除 Windows 沙箱临时目录 ACL 假失败
+- [x] 新增 model-manifest、preflight、runtime-gate、postflight CLI，以及分阶段 fail-closed 的 `scripts/autodl_m8b_smoke.sh`
+- [x] `pyproject.toml` 新增 `m8b` extra（AgentScope + Datasets）；完整安装、运行顺序、停止条件与 provider 对账口径记录于 `docs/m8b_autodl_preflight.md`
+- [ ] AutoDL 上的 E0、E1 单 optimizer update、`global_step_1`、新进程 checkpoint eval 尚未执行
 
 ## Environment
 
@@ -172,7 +191,7 @@ M8a：E1 terminal-only 上卡前本地门禁
 - Pydantic: 2.13.4
 - Datasets: 4.8.5
 - PyArrow: 25.0.0
-- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；M8a 的 3 个 runtime 接线测试因此 SKIP
+- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；锁定 280 项 suite 中 3 个 runtime 接线测试因此 SKIP
 - Ruff: 0.15.9；pytest/Flake8 未安装；测试使用标准库 `unittest`
 
 ## Git state
@@ -181,8 +200,11 @@ M8a：E1 terminal-only 上卡前本地门禁
 - M5 base: `6367569 feat(agemem): add HotpotQA Oracle benchmark`
 - M6 schema audit commit: `d1d45ab feat(agemem): audit and migrate M5 action schema`
 - M6 implementation commit: `1c8e5c1 feat(agemem): add extracted AP state benchmark`
-- M7 与 M8a 当前工作区尚未提交或推送
-- `PROJECT_HANDOFF.md` 原有用户修改已保留；本轮按用户授权增量更新到 v1.5，未暂存
+- M7 commit：`dd31d4d feat(agemem): add M7 group critic offline validation`
+- M8a commit：`a94c301 feat(agemem): add M8a terminal-only training gates`
+- M8a handoff commit：`c1fb0d4 docs(agemem): hand off M8a AutoDL smoke`
+- M8b implementation commit：`4389fd5 feat(agemem): add M8b AutoDL smoke gates`
+- M8b 上卡前执行包已完成本地验证与本地提交；尚未推送远程，真实 AutoDL 执行仍未开始
 
 ## Files changed in M6/M7/M8a
 
@@ -220,6 +242,18 @@ M8a：E1 terminal-only 上卡前本地门禁
 - `docs/m8a_terminal_only_preflight.md`、`examples/agemem_hotpotqa/README.md`、`PROJECT_HANDOFF.md`（M8a 文档）
 - `STATUS.md`
 
+## Files changed in M8b-prep
+
+- 锁与依赖：`.gitattributes`、`configs/m8b_autodl_preflight.json`、`pyproject.toml`
+- 三份执行配置：`agemem_e0_frozen_eval.yaml`、`agemem_e1_dry_run.yaml`、`agemem_e1_checkpoint_eval.yaml`
+- 核心门禁：`trinity/common/m8b_model_manifest.py`、`m8b_preflight.py`、`m8b_postflight.py`、`runtime_receipt.py`
+- provider/rollout 接线：`trinity/common/auxiliary_provider.py`、`memory_store.py`、`train_hotpotQA.py`、`workflow_runner.py`
+- fail-closed runtime：`trinity/cli/launcher.py`、`trinity/explorer/explorer.py`、`trinity/trainer/trainer.py`、`verl_trainer.py`
+- CLI/脚本：`scripts/agemem_m8b_{model_manifest,preflight,runtime_gate,postflight}.py`、`autodl_m8b_preflight.sh`、`autodl_m8b_smoke.sh`
+- M8b 测试：`m8b_provider_usage_test.py`、`m8b_preflight_test.py`、`m8b_model_manifest_test.py`、`m8b_runtime_gate_test.py`、`m8b_runtime_fail_closed_test.py`、`m8b_postflight_test.py`
+- fixture/既有测试：`tests/buffer/task_file_reader_dataset_dict_test.py`、`tests/fixtures/m8a_saved_dataset_dict/`
+- 文档：`docs/m8b_autodl_preflight.md`、`docs/m8a_terminal_only_preflight.md`、HotpotQA `README.md`、`PROJECT_HANDOFF.md`、`STATUS.md`
+
 ## Verification
 
 - M5 adapter/benchmark/local-data tests：10/10 PASS
@@ -253,13 +287,23 @@ M8a：E1 terminal-only 上卡前本地门禁
 - M7 hand-DFA reward farming：20/20 PASS（10 duplicate ADD + 10 two-step RETRIEVE loops）
 - M7 report schema/digest/source-immutability validation：PASS
 - M7 real LLM calls：0；provider token/cost：`None`
-- M8a tests：46 discovered，43 PASS，3 SKIP（缺 Ray/PyTorch/vLLM 的 runtime 接线）
+- M8a 初始 tests：46 discovered，43 PASS，3 SKIP（历史口径；已被下述 M8b lock scope 取代）
 - M8a data/reward/distractor/memory/action/packaging 可执行项：43/43 PASS
 - M8a 真实 fullwiki fixed split：90,447→6，顺序与 M5 Hotpot IDs 一致
 - M8a wheel build：PASS；非 repo cwd 的 ActionEvent/M2 store import：PASS
-- M8a + M1～M7 + tool-trace：43 PASS + 3 SKIP、145/145 PASS、28/28 PASS
+- M1～M7 + tool-trace：145/145 + 28/28 = 173/173 PASS
 - M8a real LLM / embedding / network / GPU / optimizer calls：0
 - M8a Ruff check、py_compile、YAML parse、setuptools package discovery：PASS
+- M8b lock 精确测试数：`m8a=107`、`all=280`；suite discovery 与 lock 完全一致
+- M8b 最终本地 all scope：280 RUN，277 PASS，0 FAIL，0 ERROR，3 SKIP，0 unexpected success
+- M8b 当前 m8a scope 组成：原 M8a 46 项 + M8b 新增 61 项 = 107；本地 104 PASS、3 SKIP
+- M8b 新增 61 项：provider 16、preflight 16、model manifest 2、runtime gate 5、runtime fail-closed 12、postflight 10，全部 PASS
+- M8b strict runtime gate 本地结果必须为 FAIL：仅有的 3 个 SKIP 都因缺 Ray，且门禁按设计不放行 SKIP
+- M8b 干净提交后的本地 preflight（最新 lock、`--no-write`）：18 PASS、0 FAIL、2 WARN、11 SKIP；两个 WARN 为未注入云端 key 与本地 ignored 凭据文件，整体状态 PASS，但不代表 AutoDL runtime/GPU 通过
+- M8b 本地真实 fullwiki：90,447/7,405/7,405、三个 fingerprint、6 条 train + 2 条 held-out 的 ID/内容 hash 精确一致
+- M8b 三份 YAML 规范 LF digest、37 项 E1 assertion、`experience_buffer.path=null` 与 lock 一致
+- M8b real LLM / embedding / network / GPU / optimizer/checkpoint calls：0
+- M8b Ruff、compileall、YAML/JSON parse 与 scoped diff check：PASS
 - M7 report digest：`6d78f7984f3f64cc57863f84d6250d2f6fa3ee65418f2a054723e0d2229642df`
 
 ## Known constraints
@@ -287,20 +331,23 @@ M8a：E1 terminal-only 上卡前本地门禁
 - M7 Critic 结果来自固定 K=3 的 Oracle/error-policy smoke 轨迹，不代表真实模型 rollout 上的 Critic 表现
 - M7 controlled-error 的 5 条 FR 是预期合成鲁棒性结果，已定位但没有被“修成 0”
 - M7 只测量一个真实干扰配置（Stage 1=6、Stage 2=3），没有据此声称跨干扰强度泛化
-- M8a 只建立 E1 上卡前契约；未执行真实模型 rollout、GPU、optimizer、checkpoint 或端到端 Trinity Config
-- E1 terminal reward 与固定 distractor 不调用辅助 LLM，但 memory embedding 默认仍访问 DashScope，SUMMARY/FILTER 仍可能调用 `qwen-max`
-- M8a 的 3 个 WorkflowRunner/ExperiencePipeline runtime tests 因本机缺 Ray/PyTorch/vLLM 而 SKIP，必须在 AutoDL 变为 PASS
+- M8b 只完成本地静态/离线门禁和模拟 artifact 的 postflight 单测；未执行真实模型 rollout、GPU、optimizer、checkpoint 或端到端 Trinity Config
+- E1 terminal reward 与固定 distractor 不调用辅助 LLM，但 memory embedding 仍访问已冻结的 DashScope，SUMMARY/FILTER 仍可能调用已冻结的 `qwen-max`
+- provider usage 记录不含请求/响应正文；OpenAI-compatible API 不报告货币金额时为 `None`，必须另与 DashScope 账单对账
+- 锁定 suite 的 3 个 WorkflowRunner/ExperiencePipeline runtime tests 因本机缺 Ray 而 SKIP，必须在 AutoDL 变为 PASS
+- 当前 Windows 已发现 `C:\\Program Files\\WSL\\wsl.exe`，但本地 WSL 服务枚举返回 `E_ACCESSDENIED`，因此两个 `.sh` 已通过单元测试与人工审查，`bash -n` 仍须在 AutoDL 作为首个只读检查执行
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
 - E5 的 DFA-state bucket、RTG、action-token mask 与动作级 loss 尚未实现
 - `agemem_e1_dry_run.yaml` 仅含固定 6 条数据、K=2 和 1 个 trainer step，不代表 E1 统计复现或正式结果
 
 ## Failures and blockers
 
-- 无未解决的本地 M1～M8a 可执行测试失败；M8a 仍有 3 个环境性 SKIP
-- AutoDL 前必须决定并冻结 DashScope embedding/辅助模型路径，记录调用、失败、延迟和成本；不得把 E1 声称为端到端无外部模型
+- 无未解决的本地可执行测试失败；280 项中有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此严格 runtime gate 当前按设计为 FAIL
+- DashScope provider 已冻结并接入调用/错误/延迟/usage 记录；货币成本仍须在实际 smoke 后与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL、GPU 资源分配、LoRA 初始化、optimizer update 或 checkpoint 重载
-- 本地 HotpotQA fullwiki 已可用；上传 AutoDL 持久盘后仍需重新校验 fingerprint、90,447 条 train 与 6 个固定 Hotpot IDs
+- 本地 postflight 只验证人工 fixture；尚无真实 E0/E1 receipt、`global_step_1` shard、训练后 LoRA 或新进程 model-version-1 eval 证据
+- 本地 HotpotQA fullwiki 已可用；上传 AutoDL 持久盘后仍需重新校验三个 fingerprint、8 条固定样本内容 hash 与模型 manifest/revision
 
 ## Next recommended action
 
-先整理并提交 M6/M7/M8a 工作区，轮换并隔离本地凭据；随后按 `docs/m8a_terminal_only_preflight.md` 在 AutoDL `2 x 80GB` 环境只执行 E0 冻结评测、E1 单 trainer step、checkpoint 保存与新进程重载。全部门禁通过前不进入 E3/E4/E5 或全量训练。
+先提交并推送已验证的 M8b-prep，用完整 commit 设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在 AutoDL `2 x 80GB` 持久盘准备固定模型 revision、模型 manifest 与 fullwiki 后，安装 `.[m8b,dev]`，先对两个 shell 脚本执行 `bash -n`，再按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 280/280 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启 Ray 后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止，真实报告通过前不进入 E3/E4/E5 或全量训练。

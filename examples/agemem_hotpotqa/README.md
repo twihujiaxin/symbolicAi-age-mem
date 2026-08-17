@@ -7,7 +7,9 @@
 | 文件 | 用途 | Workflow 注册名 |
 |------|------|-----------------|
 | `agemem_train.yaml` | E2 兼容性 heuristic dense reward 模板 | `AgeMem_hotpot_workflow_training` |
-| `agemem_e1_dry_run.yaml` | M8a 固定 6 条数据、2-GPU、单次更新 E1 smoke | `AgeMem_hotpot_workflow_training` |
+| `agemem_e0_frozen_eval.yaml` | M8b 固定 2 条 held-out 数据的 E0 基座评测 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_dry_run.yaml` | M8b 固定 6 条数据、2-GPU、单次更新 E1 smoke | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_checkpoint_eval.yaml` | M8b 新进程加载 E1 checkpoint 后的固定评测 | `AgeMem_hotpot_workflow_training` |
 | `agemem_eval.yaml`  | Bench 模式评估   | `AgeMem_hotpot_workflow_evaluation` |
 
 ## 快速开始
@@ -18,13 +20,17 @@
 export TRINITY_MODEL_PATH=/path/to/Qwen2.5-7B-Instruct
 export TRINITY_CHECKPOINT_ROOT_DIR=/path/to/checkpoints
 export HOTPOTQA_PATH=/path/to/dataset/hotpot_qa/fullwiki
+export TRINITY_MODEL_REVISION=<完整40位模型revision>
 export DASHSCOPE_API_KEY=your_dashscope_key
 ```
 
 E1 的 terminal reward 和固定 distractor 不调用辅助 LLM；但当前 memory
 workflow 的 embedding 以及模型主动调用的 SUMMARY/FILTER 仍可能访问 DashScope，
-因此 E1 也不能被描述为端到端离线运行。正式对照前须冻结 provider 配置并记录调用，
-或另行实现并验证本地冻结 provider。
+因此 E1 也不能被描述为端到端离线运行。M8b smoke 已在 YAML 中冻结 provider、
+embedding/chat model。每次调用会立即写入 checkpoint job 下独立的
+`trajectories/auxiliary_provider_calls.jsonl`，Experience 同时保存 rollout 汇总；
+两者都不含 prompt、response、header 或 key。API 不返回货币金额时保持 `null`，
+再用 provider 账单对账。
 
 ### 2. 修改 YAML 中的路径
 
@@ -46,18 +52,31 @@ ray start --head
 trinity run --config examples/agemem_hotpotqa/agemem_train.yaml
 ```
 
-**M8a E1 单次更新 smoke（只在 AutoDL 门禁通过后）：**
+**M8b 完整 smoke（只在 AutoDL 门禁通过后）：**
 
 ```bash
-ray start --head
-trinity run --config examples/agemem_hotpotqa/agemem_e1_dry_run.yaml
+bash scripts/autodl_m8b_preflight.sh
+bash scripts/autodl_m8b_smoke.sh
 ```
 
 该配置不是正式实验：它固定 M5 manifest 的 6 条 source-train 样本，并在读取时
 校验 train Dataset fingerprint、source index 顺序和 Hotpot ID；同时固定 K=2，
 使用 1 张 rollout GPU + 1 张 trainer GPU，并只执行 1 个 trainer step。
-当前本地尚未执行真实模型、GPU、优化器或 checkpoint 重载；完整顺序和停止条件见
-[M8a Terminal-only 上卡前门禁](../../docs/m8a_terminal_only_preflight.md)。
+第二个脚本按 E0 → E1 单次更新 → 重启 Ray → checkpoint eval → postflight 的固定
+顺序执行，并验证 receipt、有限 loss/KL/reward、checkpoint shards、LoRA 变化和
+不同进程的 model-version-1 重载。当前本地尚未执行真实模型、GPU、优化器或
+checkpoint 重载；完整环境、模型 manifest、顺序和停止条件见
+[M8b AutoDL 上卡前执行包](../../docs/m8b_autodl_preflight.md)。
+
+**单阶段调试命令（不替代完整 smoke 脚本）：**
+
+```bash
+trinity run --config examples/agemem_hotpotqa/agemem_e0_frozen_eval.yaml
+trinity run --config examples/agemem_hotpotqa/agemem_e1_checkpoint_eval.yaml
+```
+
+两者只读取 M5 manifest 固定的 2 条 held-out validation 样本。checkpoint 评测必须
+在 E1 保存完成并重启 Ray/Python 进程后执行。
 
 **评估：**
 

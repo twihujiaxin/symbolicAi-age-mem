@@ -1,10 +1,13 @@
 # M8a Terminal-only 上卡前门禁
 
-更新时间：2026-08-17
+更新时间：2026-08-18
 
 ## 结论
 
 M8a 已建立 E1 terminal-only 的本地静态/离线契约，但尚未执行真实模型、GPU、优化器更新或 checkpoint 重载。因此本阶段的结论是“可以进入 AutoDL 两卡 smoke 前置验证”，不是“E1 已复现”，更不是“可以直接开始全量训练”。
+
+后续上卡前检查现已固化为脚本和版本锁，执行入口见
+[M8b AutoDL 上卡前执行包](m8b_autodl_preflight.md)。
 
 本地未调用真实 LLM、embedding 服务或网络。
 
@@ -42,9 +45,10 @@ E1 的 terminal reward 与固定干扰不调用辅助 LLM，但现有 memory wor
 - ADD/UPDATE/RETRIEVE 的 embedding 默认调用 DashScope；
 - SUMMARY/FILTER 及 E2 judge 使用 `qwen-max` 路径。
 
-因此不能把当前 E1 描述为“端到端无辅助 LLM/无网络”。正式 E1/E3 对照前必须二选一并冻结：
+因此不能把当前 E1 描述为“端到端无辅助 LLM/无网络”。M8b 首轮 smoke 已选择并
+冻结方案 1；后续不得在同一组实验中临时切换：
 
-1. 保留上游 DashScope 路径：固定模型/请求参数，记录调用、错误、延迟和费用，并确保各实验臂完全一致；
+1. 保留上游 DashScope 路径：固定模型/请求参数，记录调用、错误、延迟和 usage；provider 不返回金额时保持 `None`，再与账单对账；
 2. 改成本地冻结 provider：先在独立 smoke 上验证检索与工具语义不发生不可接受的漂移。
 
 这项选择会改变实验环境，不在 M8a 中擅自决定。

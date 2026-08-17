@@ -2,10 +2,10 @@
 
 > 面向：VS Code 中的 Codex 插件  
 > 项目方向：AgeMem 式可学习记忆管理 + GLARE 式 LTLf/DFA 逻辑奖励  
-> 文档版本：v1.5<br>
-> 更新时间：2026-08-17<br>
+> 文档版本：v1.7<br>
+> 更新时间：2026-08-18<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7 已完成；M8a 上卡前本地门禁已实现。尚未执行真实 GPU 训练，下一步只做 AutoDL E1 单次更新 smoke
+> 当前状态：M0～M7 已完成；M8a 与 M8b-prep 上卡前执行包已实现。真实 AutoDL 严格预检、E0、E1 单次更新和 checkpoint 新进程重载均尚未执行
 
 ---
 
@@ -133,7 +133,7 @@ RQ7：逻辑奖励能否泛化到未见任务和更长轨迹？
 D:\Project\Age-Mem\AgeMem
 ```
 
-截至 2026-08-16，Codex 已在 Windows `D:` 盘工作区完成本地检查与 M8a 实现。后续会话仍必须先读取 `STATUS.md` 并重新执行只读检查，不能把本文记录当作实时 Git 状态：
+截至 2026-08-18，Codex 已在 Windows `D:` 盘工作区完成本地检查以及 M8a/M8b-prep 实现。后续会话仍必须先读取 `STATUS.md` 并重新执行只读检查，不能把本文记录当作实时 Git 状态：
 
 ```text
 当前是否为 Git 仓库
@@ -154,7 +154,7 @@ requirements/pyproject 的依赖约束
 - 假设上游仓库结构与当前最新版完全一致；
 - 直接开始修改训练代码。
 
-截至 2026-08-16，本地代码、报告和 scoped tests 核验后的阶段状态为：
+截至 2026-08-18，本地代码、报告和 scoped tests 核验后的阶段状态为：
 
 ```text
 M0 已完成：已有仓库接管与上游复现
@@ -166,9 +166,10 @@ M5 已完成：真实 HotpotQA 数据适配与 Oracle Benchmark
 M6 已完成：自然语言三元组抽取、显式状态跟踪与 False Reject 收尾
 M7 已完成：Group Critic 与自动机离线验证；真实 LLM 调用为 0
 M8a 已完成：E1 本地静态/离线门禁；尚未执行真实模型、GPU 或优化器更新
+M8b-prep 已完成：模型/数据/配置锁、严格预检、provider 遥测、运行时 receipt、E0/E1/checkpoint eval 与 fail-closed 一键脚本
 ```
 
-“已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a 只表示上卡前契约已建立，不表示 E1 已复现。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
+“已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a/M8b-prep 只表示上卡前契约、门禁和执行编排已建立，不表示 AutoDL 预检、E0、E1、optimizer update 或 checkpoint 重载已通过。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
 
 ---
 
@@ -1054,11 +1055,54 @@ M8a 不执行模型训练，只关闭 E1 在租卡前可以用 CPU/静态检查�
 - 规则、Oracle、random 和 error-injector 轨迹禁止进入 on-policy buffer；AgeMem pipeline 在 operator 前后均强制契约存在，删除或篡改时 fail closed；
 - Trinity wheel 同时包含 `trinity*` 与复用的 `AgeMem_code_agentscope*` 契约包。
 
-本地 M8a 测试发现 46 项：43 PASS，3 项因 Windows 环境缺 PyTorch/Ray/vLLM 而 SKIP。M1～M7 相关回归 145/145、既有 tool-trace 28/28 均通过。这 3 个 runtime 接线测试必须在 AutoDL 完整 Linux 环境变为 PASS，不能把 SKIP 记作验收通过。
+原始 M8a scoped 结果已被 M8b 冻结 runtime gate 取代。当前锁定发现数为 `m8a=107`、`all=280`；少跑、漏跑、数量漂移、FAIL、ERROR、unexpected success 或任意 SKIP 都判失败。本地因缺 PyTorch/Ray/vLLM 仍有 3 个环境性 SKIP，只能作为诊断，必须在 AutoDL 完整 Linux 环境变为 PASS。
 
-当前 E1 仍使用 DashScope embedding，SUMMARY/FILTER 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。因此正式对照前必须冻结并记录外部 provider，或另行实现并验证本地冻结 provider。M8a 也尚未在线生成 DFA `ActionCreditRecord`，E3/E4/E5 不得提前宣称完成。
+当前 E1 仍使用 DashScope embedding，SUMMARY/FILTER 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。M8b-prep 已为首轮 smoke 冻结 endpoint、embedding/chat model，并记录无正文的调用、错误、延迟和 usage；provider 不返回货币金额时保持 `None` 并在实验后与账单对账。M8a 也尚未在线生成 DFA `ActionCreditRecord`，E3/E4/E5 不得提前宣称完成。
 
-详细上卡顺序、停止条件和安全要求见 `docs/m8a_terminal_only_preflight.md`。
+### M8b-prep：AutoDL 上卡前执行包（已完成）
+
+M8b-prep 只完成可执行的上卡前约束与证据链，不表示任何真实 GPU 阶段成功。冻结输入和门禁如下：
+
+- `configs/m8b_autodl_preflight.json` 锁定 E1、E0、checkpoint eval 三份 YAML 的 canonical UTF-8/LF SHA-256、M5 manifest digest、依赖范围和精确测试发现数；
+- E1 固定 M5 的 6 条 source-train 样本、K=2、1 个 trainer step；E0 与 checkpoint eval 固定 2 条 held-out validation 样本。预检同时核对 fullwiki 三个 split 的大小/fingerprint、8 个 Hotpot ID 和每条选中记录的 canonical JSON 内容 SHA-256，不能只凭 ID 或 fingerprint 放行；
+- 模型固定为 `Qwen/Qwen2.5-7B-Instruct` 的小写 40 位 commit revision。下载完成且目录不再变化后，必须先设置 `TRINITY_MODEL_REVISION`，再生成一次离线逐文件清单：
+
+```bash
+export TRINITY_MODEL_REVISION=<Qwen模型的完整40位commit revision>
+python scripts/agemem_m8b_model_manifest.py \
+  --model-path "$TRINITY_MODEL_PATH" \
+  --repository-id Qwen/Qwen2.5-7B-Instruct \
+  --revision "$TRINITY_MODEL_REVISION"
+```
+
+生成的 `$TRINITY_MODEL_PATH/.agemem_model_manifest.json` 保存 repository/revision、完整文件集合、大小和 SHA-256。严格预检会重新计算所有物料文件，核对 Qwen2.5-7B 结构、tokenizer/chat template、weight index 和不少于 13 GB 的权重；模型目录漂移时不得用 `--force` 掩盖，须重新确认来源和 revision。
+
+- `scripts/agemem_m8b_preflight.py --mode autodl` 要求固定 40 位代码 commit、干净工作树、无嵌套 `.env`/云端 ignored 凭据、模型/数据/checkpoint 均位于 `/root/autodl-tmp`、至少 80 GiB checkpoint 空间，以及空的固定 E0/E1 job 路径；
+- GPU 门禁要求恰好两张可见卡，每张总显存至少 76,000 MiB、执行前空闲显存至少 74,000 MiB，并要求 PyTorch 与 `nvidia-smi` 的设备数、显存和 UUID 一致；不是“至少两张”或仅检查总显存；
+- `scripts/agemem_m8b_runtime_gate.py --scope all` 锁定 `m8a=107`、`all=280`，任何测试数量漂移、FAIL、ERROR、unexpected success 或 SKIP 都 fail closed；本地仍有 3 个环境性 SKIP，必须在 AutoDL 变为 PASS；
+- DashScope endpoint、`text-embedding-v4` 256 维和 `qwen-max` 已冻结。每次成功、失败、eval 或 malformed-response 调用立即写入独立、加锁、`fsync` 的 `<checkpoint_job_dir>/trajectories/auxiliary_provider_calls.jsonl`，键为 `task_id / rollout_id / execution_id / call_index`；只保存 provider/model/outcome/error type/latency/usage 等元数据，不保存 prompt、response、header 或 key。SDK retry 关闭，遥测无法持久化时调用本身失败；未返回货币成本时保持 `null`，不得估造；
+- launcher、Explorer、Trainer 和 NCCL 同步路径已改为失败向上传播；外围异常日志只记类型。训练和评测仅在真实步骤完成后写严格 JSON receipt，非有限指标、失败 rollout/eval、提前耗尽或写盘错误均不得生成成功证据；
+- E0 receipt 固定为 `bench_step_0_model_0.json`，E1 更新 receipt 固定为 `trainer_step_1.json`，checkpoint 新进程评测 receipt 固定为 `bench_step_1_model_1.json`。每份 receipt 记录 `process_id` 和每进程唯一的 `process_execution_id`；checkpoint eval 的执行 ID 必须与训练不同。
+
+AutoDL 环境、固定模型与凭据就绪后，唯一推荐的端到端 smoke 命令是：
+
+```bash
+bash scripts/autodl_m8b_smoke.sh
+```
+
+该脚本按顺序执行严格 preflight/runtime gate、E0、E1 单次更新、停止并重启 Ray、checkpoint eval 和只读 postflight；拒绝已有 Ray cluster、旧日志、旧 postflight 证据或被占用的固定 job 路径，任一 CLI/receipt/checkpoint/postflight 失败都会立即停止。`scripts/autodl_m8b_preflight.sh` 仍可单独运行只读门禁，并且绝不启动 Ray 或训练。
+
+postflight 必须同时证明：E0 是 step/model version `0/0` 且 2 条 held-out 无失败；E1 step 1 有有限 loss/KL/reward 和 `training/actor_update_completed=1`；`trainer_meta.json` 与 `latest_checkpointed_iteration.txt` 均指向 1；model/optimizer/extra-state shard 完整非空且 rank 集合闭合；训练后 LoRA 存在且与 `dummy_lora` 的权重 SHA-256 不同；checkpoint eval 是 step/model version `1/1`、held-out taskset/数量/分数完整，并且其 `process_execution_id` 与训练 receipt 不同。
+
+真实 AutoDL 验收状态如下，当前均未执行、不得勾选或宣称成功：
+
+- [ ] AutoDL 严格 preflight 与 280 项 runtime gate 全通过且 0 SKIP；
+- [ ] E0 model-version-0 held-out 冻结评测通过；
+- [ ] E1 单次 optimizer update、step-1 receipt 和 `global_step_1` 通过；
+- [ ] 停止/重启 Ray 后，model-version-1 checkpoint 新进程评测通过；
+- [ ] postflight 全部检查通过并保存最终 JSON 报告。
+
+详细上卡顺序、停止条件和安全要求见 `docs/m8b_autodl_preflight.md`。
 
 ### 任务
 
@@ -1422,20 +1466,22 @@ D:\Project\Age-Mem\AgeMem
 在 Codex 插件中粘贴：
 
 ```text
-请完整阅读 PROJECT_HANDOFF.md、STATUS.md 和
-docs/m8a_terminal_only_preflight.md。
+请完整阅读 PROJECT_HANDOFF.md、STATUS.md、
+docs/m8a_terminal_only_preflight.md 和 docs/m8b_autodl_preflight.md。
 
-M0～M7 和 M8a 本地门禁已完成。只执行 AutoDL 上的 E1 单次更新 smoke，
-不要开始 E3/E4/E5，不要扩大到全量 HotpotQA。
+M0～M7、M8a 和 M8b-prep 已完成。只执行 AutoDL M8b GPU smoke，
+不要重做准备实现，不要开始 E3/E4/E5，也不要扩大到全量 HotpotQA。
 
-先核对 commit、依赖、GPU 拓扑、模型/数据/checkpoint 持久路径和凭据隔离；
-运行全部 M8a 测试，要求 Windows 本地跳过的 3 个 Ray runtime 测试在 Linux PASS。
-然后依次做 Config validation、固定 6 条数据读取、E0 冻结评测、
-E1 单次 optimizer update、checkpoint 保存与新进程重载。
+先核对固定代码 commit、`TRINITY_MODEL_REVISION` 和模型 SHA-256 manifest，
+再由用户主动运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次完成
+严格 preflight、冻结的 280 项 0-SKIP runtime gate、E0 model-version-0 评测、
+E1 单次 optimizer update、Ray 重启、model-version-1 checkpoint 新进程评测
+和只读 postflight；不要手工跳过或并行运行阶段。
 
 任何 action_id/token span/old_logprobs/policy version、rollout memory 隔离、
-reward profile、NaN/Inf 或 checkpoint 门禁失败时立即停止，不继续租卡长跑。
-记录 DashScope embedding/辅助调用的冻结配置与实际成本，不声称端到端无外部模型。
+provider 遥测、reward profile、NaN/Inf、receipt、checkpoint shard、LoRA 差异或
+`process_execution_id` 门禁失败时立即停止，不继续租卡长跑。只按 metadata usage
+与 provider 账单对账，不伪造成本，也不声称端到端无外部模型。
 ```
 
 ### 16.3 M1 提示词
@@ -1531,12 +1577,17 @@ False Reject 和奖励误差传播。不要实现 Group Critic 或 GRPO。
 
 ```text
 请阅读 PROJECT_HANDOFF.md、STATUS.md、AgeMem、Trinity-RFT 文档和
-docs/m8a_terminal_only_preflight.md。
+docs/m8b_autodl_preflight.md。
 只执行 AutoDL E1 terminal-only 单次更新 smoke。
 
-使用 examples/agemem_hotpotqa/agemem_e1_dry_run.yaml，先让全部 runtime tests PASS，
-再验证固定 6 条数据、K=2 同策略版本、rollout memory isolation、确定性 terminal reward、
-token span/逐 token old_logprobs、checkpoint 保存和新进程重载。
+先核对 `TRINITY_MODEL_REVISION` 与 `.agemem_model_manifest.json`，然后运行
+`bash scripts/autodl_m8b_smoke.sh`。不得绕过脚本内的严格 preflight、280 项
+0-SKIP runtime gate、E0 model-version-0 receipt、E1 step-1 update/checkpoint、
+Ray 重启、model-version-1 checkpoint eval 和 postflight。
+
+postflight 必须验证有限 loss/KL/reward、actor update sentinel、完整非空 checkpoint
+shards、训练 LoRA 不同于 dummy、固定 held-out taskset，以及训练与 checkpoint eval
+具有不同的 `process_execution_id`。
 
 不要接入 DFA/Extracted AP/Group Critic，不要开始 E3/E4/E5 或全量 benchmark。
 若外部 embedding/辅助模型配置未冻结并记录，停止并报告，不自行改变实验环境。
@@ -1729,7 +1780,7 @@ Codex 当前只应执行：
 M8b：AutoDL 上的 E1 terminal-only 单次更新与 checkpoint 重载 smoke
 ```
 
-M0～M7 与 M8a 本地门禁已完成，不要重做或覆盖其实现。开始租卡前先整理并提交工作区、轮换本地凭据、固定代码 commit 与数据 manifest，并按照 `docs/m8a_terminal_only_preflight.md` 完成安全和环境检查。
+M0～M7、M8a 与 M8b-prep 已完成，不要重做或覆盖其实现。租卡前先提交并推送工作区、轮换本地凭据；上卡后固定代码 commit 和模型 revision，生成并核对模型 SHA-256 manifest，再按照 `docs/m8b_autodl_preflight.md` 由用户主动运行 `bash scripts/autodl_m8b_smoke.sh`。真实 AutoDL preflight、E0、E1 和 checkpoint eval 当前全部未执行。
 
 当前及后续顺序是：
 
@@ -1747,4 +1798,4 @@ E5：action-level advantage
 M9：正式 Benchmark + 跨域泛化
 ```
 
-当前不得提前开始 E3/E4/E5 或全量训练。M8a 的 3 个 Ray runtime SKIP 必须先在 AutoDL 变为 PASS；ActionCredit 在线生成器尚未实现，只有 schema/join/buffer validation。E1 单次更新与 checkpoint 重载全部通过后，再更新 `STATUS.md` 并决定是否扩大 E1。
+当前不得提前开始 E3/E4/E5 或全量训练。冻结 runtime gate 必须精确发现 280 项并达到 0 FAIL/ERROR/SKIP；ActionCredit 在线生成器尚未实现，只有 schema/join/buffer validation。只有 postflight 同时证明 E0 model version 0、E1 单次更新/checkpoint、checkpoint eval model version 1 且训练/评测 `process_execution_id` 不同后，才能更新 `STATUS.md` 并决定是否扩大 E1。
