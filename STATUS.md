@@ -2,7 +2,7 @@
 
 ## Current milestone
 
-M6：Extracted Triple/AP、显式状态与 Oracle 对照
+M8a：E1 terminal-only 上卡前本地门禁
 
 状态：完成
 
@@ -115,6 +115,54 @@ M6：Extracted Triple/AP、显式状态与 Oracle 对照
 - [x] M6 紧凑报告不保存原始句子；最终 report digest 为 `e803f7752dc9e7357284887cf7716273bbd5396f62db1fc438d7cad95a2f9f92`
 - [x] 未实现 Group Critic、GRPO 或模型训练
 
+### M6 False Reject 收尾
+
+- [x] 逐条审计 controlled-error 的 5 条 False Reject；全部由 5 个相关事实的 `drop_relevant_fact` 注入一一解释
+- [x] 每条均记录 task/rollout、Oracle/Extracted AP、首个差异 `action_id`、缺失 Triple/StateFact、grounding 与 DFA 差异
+- [x] v2 audit 对 M5/M6/manifest 的 digest 与 byte SHA、逐文件 hash/行数、完整动作坐标、StateFact/AP evidence 进行 fail-closed 交叉校验
+- [x] Oracle 与 controlled-error 两条 DFA/数值奖励流共重放检查 74 个动作；全部 gate 字段与错误计数由证据派生
+- [x] StateTracker、AP grounding、action 对齐及 DFA 实现错误计数均为 0；human-backed FA/FR 仍为 0/0
+- [x] 保存 `artifacts/m6_extraction_benchmark/false_reject_audit.json/.md` 与 `docs/m6_false_reject_audit.md`
+- [x] M6 收尾门禁通过；audit digest 为 `59a582d31396b548c0aa2c9dfc78cb5c93f6d6347a8e073d1ce0d5f291648032`
+
+### M7
+
+- [x] 保留 M4 手工 DFA 为主基线；实现严格 Group Critic 输入/输出、mock critic 与 injected-client LLM adapter
+- [x] validator 校验完整 action 坐标、AP evidence、命题定义域、依赖 DAG、可达接受状态、非接受初态及 state cap
+- [x] 将合法 milestone DAG 确定性编译为正向 DFA；bad behavior 只审计，不实现负自动机
+- [x] 无效/不可用 Critic 输出显式回退到手工 DFA 或 terminal-only；25 个 cyclic-invalid + 5 个 unavailable，共 30 次显式回退、静默采用 0 次
+- [x] 全失败组只保留 `reward_eligible=false` 的反事实建议，不编译为训练奖励
+- [x] 新 replay adapter 仅消费 `TrajectoryStepV2 + ActionCreditRecord`，不重跑 extractor/StateTracker/grounder，不调用 LLM
+- [x] 90/90 条 hand-DFA profile/rollout replay 与 M6 action reward 完全一致，覆盖 30 rollouts / 224 actions
+- [x] Oracle 与 human-backed FA/FR 均为 `0/20`、`0/10`；controlled-error 保留已解释的 `0/20`、`5/10`
+- [x] Critic + 显式回退管线与手工 DFA 的 90/90 个 profile/rollout 终局结果、3 x 224 个逐动作奖励观测一致；25 组采用 Critic DFA，5 组因缺受控 AP 显式回退
+- [x] milestone evidence 451/451 有效；150 次重复与 180 次 K=3 顺序排列检查 100% 稳定
+- [x] hand-DFA 上 10 个重复 ADD + 10 个两步检索循环场景无 reward farming，once-only 和 progress cap 均通过；不外推为 Critic-DFA farming 结论
+- [x] 调用成本只报告 mock 输入/输出与启发式 token：cold/cache hit/miss 为 360/30/30；provider token/cost 为 `None`，真实 LLM 调用为 0
+- [x] 按 HotpotQA question type、精确 action count 和唯一真实干扰配置（Stage 1=6、Stage 2=3）报告结果
+- [x] 保存 `artifacts/m7_group_critic/` 与 `docs/m7_group_critic_offline_validation.md`；report digest 为 `6d78f7984f3f64cc57863f84d6250d2f6fa3ee65418f2a054723e0d2229642df`
+- [x] 未实现 GRPO、模型训练、负自动机、LTLf 或真实 LLM 评测
+
+### M8a
+
+- [x] `TaskFileReader` 支持本地 Hugging Face `save_to_disk` Dataset/DatasetDict，并对 split、subset 与 row index fail closed
+- [x] E1 dry-run 固定复用 M5 manifest 的 6 条 source-train 样本；运行时校验 train fingerprint、source index 顺序与 Hotpot ID，真实 fullwiki 90,447→6 已核对
+- [x] 新增 2-GPU、K=2、单 trainer step 的 `agemem_e1_dry_run.yaml`；完整 K 组保持在同一 WorkflowRunner policy-freeze 窗口
+- [x] E1 使用确定性 HotpotQA answer F1，记录 EM/P/R/F1；reward breakdown 只含 terminal 与 total，DFA milestone 关闭
+- [x] E2 原始 `0.5/0.2/0.15/0.15` heuristic dense reward 作为显式独立对照保留
+- [x] E1 运行时强制 `multi_step_grpo + step_wise_grpo + K>=2`，错误 algorithm/advantage/group scheduling fail closed
+- [x] Stage 2 固定干扰不调用 provider；E1 禁止 provider distractor source
+- [x] Trinity memory workflow 复用 M2 rollout-scoped、版本化、soft-delete MemoryStore，并保留 snapshot/restore/history
+- [x] 在线 LLM 工具动作生成稳定 `action_id`，保存完整 response token IDs、old logprobs、token/character span、tool trace result 与 policy version
+- [x] ActionEvent 与 Experience task/rollout/stage/timestep/EID 精确对齐；最终 buffer 边界重算 character→token span 并重查 ToolTrace join；同一 task 混合 policy version 时拒绝
+- [x] 规则/oracle/random/error-injector 轨迹禁止进入 on-policy buffer；AgeMem ExperiencePipeline 在 operator 前后均强制契约存在，删除或篡改契约时 fail closed
+- [x] `AgeMem_code_agentscope*` 已纳入 Trinity wheel，Pydantic 作为显式依赖；非 repo cwd 的 wheel 内 ActionEvent/M2 store import smoke 通过
+- [x] M8a 本地发现 46 项测试：43 PASS、3 SKIP；SKIP 均为缺 Ray/PyTorch/vLLM 的 runtime 接线测试
+- [x] M1～M7 相关回归 145/145、既有 tool-trace 28/28 均通过
+- [x] 本阶段未调用真实 LLM/embedding/网络，未运行模型、GPU、优化器或 checkpoint
+- [ ] AutoDL Linux 上的 3 个 runtime tests、完整 Config/Ray/vLLM/veRL、E1 单次更新和 checkpoint 新进程重载尚未执行
+- [ ] 在线 `ActionCreditRecord` 自动生成器尚未实现；当前只有严格 schema、join 和 buffer validation
+
 ## Environment
 
 - OS: Windows NT 10.0.26200.0
@@ -124,7 +172,7 @@ M6：Extracted Triple/AP、显式状态与 Oracle 对照
 - Pydantic: 2.13.4
 - Datasets: 4.8.5
 - PyArrow: 25.0.0
-- PyTorch: 未安装（M6 离线 benchmark 不需要）
+- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；M8a 的 3 个 runtime 接线测试因此 SKIP
 - Ruff: 0.15.9；pytest/Flake8 未安装；测试使用标准库 `unittest`
 
 ## Git state
@@ -133,10 +181,10 @@ M6：Extracted Triple/AP、显式状态与 Oracle 对照
 - M5 base: `6367569 feat(agemem): add HotpotQA Oracle benchmark`
 - M6 schema audit commit: `d1d45ab feat(agemem): audit and migrate M5 action schema`
 - M6 implementation commit: `1c8e5c1 feat(agemem): add extracted AP state benchmark`
-- `PROJECT_HANDOFF.md` 是用户维护的未提交文件，Codex 未修改、未暂存
-- M6 未推送远程
+- M7 与 M8a 当前工作区尚未提交或推送
+- `PROJECT_HANDOFF.md` 原有用户修改已保留；本轮按用户授权增量更新到 v1.5，未暂存
 
-## Files changed in M6
+## Files changed in M6/M7/M8a
 
 - `AgeMem_code_agentscope/action_schema/`（新增）
 - `AgeMem_code_agentscope/memory_extraction/`（新增）
@@ -152,7 +200,24 @@ M6：Extracted Triple/AP、显式状态与 Oracle 对照
 - `tests/common/m6_grounding_reward_test.py`（新增）
 - `tests/common/m6_extraction_metrics_test.py`（新增）
 - `tests/common/m6_extraction_benchmark_test.py`（新增）
+- `AgeMem_code_agentscope/group_critic/`（M7 新增）
+- `configs/m7_group_critic.json`（M7 新增）
+- `artifacts/m7_group_critic/`（M7 新增）
+- `docs/m6_false_reject_audit.md`（M6 收尾新增）
+- `docs/m7_group_critic_offline_validation.md`（M7 新增）
+- `tests/common/m6_false_reject_audit_test.py`（M6 收尾新增）
+- `tests/common/m7_group_critic_*_test.py`（M7 新增）
 - `AgeMem_code_agentscope/README.md`
+- `examples/agemem_hotpotqa/agemem_e1_dry_run.yaml`（M8a 新增）
+- `trinity/common/action_event_contract.py`（M8a 新增）
+- `trinity/common/hf_task_dataset.py`（M8a 新增）
+- `trinity/common/workflows/memory_reward/reward_profiles.py`（M8a 新增）
+- `trinity/common/workflows/memory_context/distractors.py`（M8a 新增）
+- `trinity/common/workflows/memory_context/memory_store.py`、`train_hotpotQA.py`（M8a 接线）
+- `trinity/common/models/vllm_model.py`、`trinity/explorer/workflow_runner.py`、`trinity/buffer/pipelines/experience_pipeline.py`（M8a 接线）
+- `trinity/common/config.py`、`trinity/algorithm/algorithm.py`、`trinity/buffer/reader/file_reader.py`（M8a 门禁）
+- `tests/buffer/task_file_reader_dataset_dict_test.py` 与 `tests/common/m8*_test.py`（M8a 测试）
+- `docs/m8a_terminal_only_preflight.md`、`examples/agemem_hotpotqa/README.md`、`PROJECT_HANDOFF.md`（M8a 文档）
 - `STATUS.md`
 
 ## Verification
@@ -178,6 +243,24 @@ M6：Extracted Triple/AP、显式状态与 Oracle 对照
 - M6 real LLM calls：0
 - M6 report schema/digest validation：PASS
 - M6 report digest：`e803f7752dc9e7357284887cf7716273bbd5396f62db1fc438d7cad95a2f9f92`
+- M6 False Reject audit + 原 M6 scoped regression：47/47 PASS
+- M6 False Reject audit gate：5/5 可解释，74 个 DFA 动作重放，实现错误 0，PASS
+- M6 closeout + M7 combined scoped regression：85/85 PASS；M1～M7 相关回归：145/145 PASS
+- M7 schema/validator/compiler/replay/benchmark tests：38/38 PASS
+- M7 hand-DFA deterministic replay：90/90 exact，224 actions
+- M7 Critic fallback：25 cyclic-invalid + 5 unavailable = 30/30 explicit；silent adoption 0
+- M7 evidence integrity：451/451；repeat/permutation stability：150/150、180/180
+- M7 hand-DFA reward farming：20/20 PASS（10 duplicate ADD + 10 two-step RETRIEVE loops）
+- M7 report schema/digest/source-immutability validation：PASS
+- M7 real LLM calls：0；provider token/cost：`None`
+- M8a tests：46 discovered，43 PASS，3 SKIP（缺 Ray/PyTorch/vLLM 的 runtime 接线）
+- M8a data/reward/distractor/memory/action/packaging 可执行项：43/43 PASS
+- M8a 真实 fullwiki fixed split：90,447→6，顺序与 M5 Hotpot IDs 一致
+- M8a wheel build：PASS；非 repo cwd 的 ActionEvent/M2 store import：PASS
+- M8a + M1～M7 + tool-trace：43 PASS + 3 SKIP、145/145 PASS、28/28 PASS
+- M8a real LLM / embedding / network / GPU / optimizer calls：0
+- M8a Ruff check、py_compile、YAML parse、setuptools package discovery：PASS
+- M7 report digest：`6d78f7984f3f64cc57863f84d6250d2f6fa3ee65418f2a054723e0d2229642df`
 
 ## Known constraints
 
@@ -187,7 +270,7 @@ M6：Extracted Triple/AP、显式状态与 Oracle 对照
 - Stage 3 使用确定性 fact-ID metadata filter，这是 gold/error policy 的 Oracle 行为
 - 完整 JSONL 含事实正文和 embedding，必须按敏感数据处理
 - M4 使用 Oracle AP 上界，不代表后续自然语言 Extracted AP 的准确率
-- 当前正向 DFA 是手工有限状态基线，没有 LTLf 编译或自动 Critic
+- 手工正向 DFA 仍是主基线；M7 自动 Critic 仅为 deterministic mock 离线 shadow，尚无真实 LLM 评测或 LTLf 编译
 - `violation_weight=0.0`：M4 记录无关存储/检索，但不启用负奖励或 Negative Automata
 - `format=0.0`：输入已经通过 M1 严格 schema；M4 不额外设计格式奖励
 - M5 的 `gold` 是 Oracle 上界；`wrong_answer` / `missing_support` 是确定性失败对照，不代表真实 base model 表现
@@ -200,14 +283,24 @@ M6：Extracted Triple/AP、显式状态与 Oracle 对照
 - Triple F1 只在 34 个完整人工标注句子、37 个 gold triples 上计算；controlled drop/corrupt 是合成错误，不代表真实 LLM 错误分布
 - FA/FR 是 30 个 rollout 的终局指标；reward error 则在 224 个 `action_id` 精确连接上计算，并汇总到 30 条 trajectory
 - M6 规则/oracle/error-injector 轨迹没有 token IDs、token logprobs 或 policy version；迁移器保持 `None`
-- M6 没有运行真实 LLM，没有实现 Group Critic、GRPO 或训练接入
-- 全局 `git diff --check` 仍只报告用户更新的 `PROJECT_HANDOFF.md` 两处 Markdown 行尾空格；M6 范围文件检查通过
+- M6 没有运行真实 LLM；M7 新增 Group Critic 离线层，但没有运行真实 LLM，也没有实现 GRPO 或训练接入
+- M7 Critic 结果来自固定 K=3 的 Oracle/error-policy smoke 轨迹，不代表真实模型 rollout 上的 Critic 表现
+- M7 controlled-error 的 5 条 FR 是预期合成鲁棒性结果，已定位但没有被“修成 0”
+- M7 只测量一个真实干扰配置（Stage 1=6、Stage 2=3），没有据此声称跨干扰强度泛化
+- M8a 只建立 E1 上卡前契约；未执行真实模型 rollout、GPU、optimizer、checkpoint 或端到端 Trinity Config
+- E1 terminal reward 与固定 distractor 不调用辅助 LLM，但 memory embedding 默认仍访问 DashScope，SUMMARY/FILTER 仍可能调用 `qwen-max`
+- M8a 的 3 个 WorkflowRunner/ExperiencePipeline runtime tests 因本机缺 Ray/PyTorch/vLLM 而 SKIP，必须在 AutoDL 变为 PASS
+- 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
+- E5 的 DFA-state bucket、RTG、action-token mask 与动作级 loss 尚未实现
+- `agemem_e1_dry_run.yaml` 仅含固定 6 条数据、K=2 和 1 个 trainer step，不代表 E1 统计复现或正式结果
 
 ## Failures and blockers
 
-- 无未解决的 M6 测试或 benchmark 失败
-- 本地 HotpotQA fullwiki 已可用；无需模型、GPU、API 或网络
+- 无未解决的本地 M1～M8a 可执行测试失败；M8a 仍有 3 个环境性 SKIP
+- AutoDL 前必须决定并冻结 DashScope embedding/辅助模型路径，记录调用、失败、延迟和成本；不得把 E1 声称为端到端无外部模型
+- 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL、GPU 资源分配、LoRA 初始化、optimizer update 或 checkpoint 重载
+- 本地 HotpotQA fullwiki 已可用；上传 AutoDL 持久盘后仍需重新校验 fingerprint、90,447 条 train 与 6 个固定 Hotpot IDs
 
 ## Next recommended action
 
-等待用户验收 M6；未经明确授权，不进入 Group Critic、GRPO 或模型训练。
+先整理并提交 M6/M7/M8a 工作区，轮换并隔离本地凭据；随后按 `docs/m8a_terminal_only_preflight.md` 在 AutoDL `2 x 80GB` 环境只执行 E0 冻结评测、E1 单 trainer step、checkpoint 保存与新进程重载。全部门禁通过前不进入 E3/E4/E5 或全量训练。

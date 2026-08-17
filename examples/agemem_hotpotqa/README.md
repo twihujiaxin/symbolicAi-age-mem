@@ -6,7 +6,8 @@
 
 | 文件 | 用途 | Workflow 注册名 |
 |------|------|-----------------|
-| `agemem_train.yaml` | 三阶段 GRPO 训练 | `AgeMem_hotpot_workflow_training` |
+| `agemem_train.yaml` | E2 兼容性 heuristic dense reward 模板 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_dry_run.yaml` | M8a 固定 6 条数据、2-GPU、单次更新 E1 smoke | `AgeMem_hotpot_workflow_training` |
 | `agemem_eval.yaml`  | Bench 模式评估   | `AgeMem_hotpot_workflow_evaluation` |
 
 ## 快速开始
@@ -17,8 +18,13 @@
 export TRINITY_MODEL_PATH=/path/to/Qwen2.5-7B-Instruct
 export TRINITY_CHECKPOINT_ROOT_DIR=/path/to/checkpoints
 export HOTPOTQA_PATH=/path/to/dataset/hotpot_qa/fullwiki
-export DASHSCOPE_API_KEY=your_dashscope_key   # LLM-as-Judge / DistractorGenerator 必需
+export DASHSCOPE_API_KEY=your_dashscope_key
 ```
+
+E1 的 terminal reward 和固定 distractor 不调用辅助 LLM；但当前 memory
+workflow 的 embedding 以及模型主动调用的 SUMMARY/FILTER 仍可能访问 DashScope，
+因此 E1 也不能被描述为端到端离线运行。正式对照前须冻结 provider 配置并记录调用，
+或另行实现并验证本地冻结 provider。
 
 ### 2. 修改 YAML 中的路径
 
@@ -33,12 +39,25 @@ export DASHSCOPE_API_KEY=your_dashscope_key   # LLM-as-Judge / DistractorGenerat
 
 ### 3. 运行
 
-**训练：**
+**E2 兼容性模板：**
 
 ```bash
 ray start --head
 trinity run --config examples/agemem_hotpotqa/agemem_train.yaml
 ```
+
+**M8a E1 单次更新 smoke（只在 AutoDL 门禁通过后）：**
+
+```bash
+ray start --head
+trinity run --config examples/agemem_hotpotqa/agemem_e1_dry_run.yaml
+```
+
+该配置不是正式实验：它固定 M5 manifest 的 6 条 source-train 样本，并在读取时
+校验 train Dataset fingerprint、source index 顺序和 Hotpot ID；同时固定 K=2，
+使用 1 张 rollout GPU + 1 张 trainer GPU，并只执行 1 个 trainer step。
+当前本地尚未执行真实模型、GPU、优化器或 checkpoint 重载；完整顺序和停止条件见
+[M8a Terminal-only 上卡前门禁](../../docs/m8a_terminal_only_preflight.md)。
 
 **评估：**
 
@@ -95,6 +114,10 @@ Stage 3 耗尽惩罚仍单独按 Stage 3 轮数判断。这样轨迹中没有独
 | 参数 | 说明 |
 |------|------|
 | `stage2_distractor_messages` | Stage 2 干扰消息条数 |
+| `stage2_distractor_source` | `fixed` / `task` / `provider`；E1 禁止 provider |
+| `reward_profile` | `terminal_only`（E1）或 `agemem_heuristic`（E2） |
+| `terminal_reward_metric` | E1 的确定性 HotpotQA terminal metric |
+| `milestone_reward_enabled` | M8a 必须为 `false` |
 | `stage1_max_rounds` | Stage 1 最大多轮次数 |
 | `stage2_max_rounds` | Stage 2 最大多轮次数 |
 | `stage3_max_rounds` | Stage 3 最大多轮次数 |

@@ -2,10 +2,10 @@
 
 > 面向：VS Code 中的 Codex 插件  
 > 项目方向：AgeMem 式可学习记忆管理 + GLARE 式 LTLf/DFA 逻辑奖励  
-> 文档版本：v1.2  
-> 更新时间：2026-07-30  
+> 文档版本：v1.5<br>
+> 更新时间：2026-08-17<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：用户本地已有项目；Codex 接管后必须先检查仓库，不能重新初始化或覆盖现有代码
+> 当前状态：M0～M7 已完成；M8a 上卡前本地门禁已实现。尚未执行真实 GPU 训练，下一步只做 AutoDL E1 单次更新 smoke
 
 ---
 
@@ -23,11 +23,11 @@ GLARE 的三元组状态抽取、里程碑分析和自动机奖励
 Logic-Guided Agent Memory
 ```
 
-Agent 的动作空间最终包括：
+主实验中 Agent 的动作空间包括：
 
 ```text
-环境动作：
-    open / take / put / heat / clean / answer / ...
+任务输出：
+    ANSWER
 
 长期记忆操作：
     ADD / UPDATE / DELETE
@@ -99,14 +99,14 @@ RQ7：逻辑奖励能否泛化到未见任务和更长轨迹？
 - 一个基于 AgentScope 的单智能体循环；
 - `ADD / RETRIEVE / UPDATE` 三种记忆工具；
 - 每个 rollout 独立的记忆状态；
-- 一个三阶段 toy memory environment；
+- 一个 HotpotQA 风格的三阶段 toy memory environment；
 - 完整、可重放的 JSONL 轨迹；
 - Oracle AP；
 - 一个手工定义的正向 DFA；
 - Milestone Reward；
 - Terminal-only 和 Terminal+DFA 两种设置；
 - 单元测试和离线奖励重放；
-- 在 toy 环境上完成小规模 GRPO smoke test。
+- 在 HotpotQA 小数据子集上完成小规模 GRPO smoke test。
 
 ### 3.2 MVP 暂时不做
 
@@ -133,7 +133,7 @@ RQ7：逻辑奖励能否泛化到未见任务和更长轨迹？
 D:\Project\Age-Mem\AgeMem
 ```
 
-本交接文档生成环境无法直接读取用户 Windows `D:` 盘，因此不能预先断言本地项目的 Git 状态、依赖状态或现有修改。VS Code 中的 Codex 打开该目录后，必须首先完成只读检查：
+截至 2026-08-16，Codex 已在 Windows `D:` 盘工作区完成本地检查与 M8a 实现。后续会话仍必须先读取 `STATUS.md` 并重新执行只读检查，不能把本文记录当作实时 Git 状态：
 
 ```text
 当前是否为 Git 仓库
@@ -154,11 +154,21 @@ requirements/pyproject 的依赖约束
 - 假设上游仓库结构与当前最新版完全一致；
 - 直接开始修改训练代码。
 
-第一阶段应当是：
+截至 2026-08-16，本地代码、报告和 scoped tests 核验后的阶段状态为：
 
 ```text
-接管检查 → 记录现状 → 复现已有 standalone demo → 再开始增量开发
+M0 已完成：已有仓库接管与上游复现
+M1 已完成：轨迹记录与可重放
+M2 已完成：MemoryStore 抽象与 rollout 隔离
+M3 已完成：HotpotQA 风格三阶段 Toy Memory Environment
+M4 已完成：Memory Oracle AP + 手工 DFA + 离线奖励
+M5 已完成：真实 HotpotQA 数据适配与 Oracle Benchmark
+M6 已完成：自然语言三元组抽取、显式状态跟踪与 False Reject 收尾
+M7 已完成：Group Critic 与自动机离线验证；真实 LLM 调用为 0
+M8a 已完成：E1 本地静态/离线门禁；尚未执行真实模型、GPU 或优化器更新
 ```
+
+“已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a 只表示上卡前契约已建立，不表示 E1 已复现。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
 
 ---
 
@@ -171,8 +181,9 @@ requirements/pyproject 的依赖约束
 | 直接基线 | [AgeMem](https://github.com/y1y5/AgeMem) | 记忆工具、AgentScope demo、Trinity-RFT 工作流 |
 | Agent 层 | [AgentScope](https://github.com/agentscope-ai/agentscope) | Agent 循环、消息、工具调用 |
 | RFT 层 | [Trinity-RFT](https://github.com/agentscope-ai/Trinity-RFT) | Explorer、Buffer、Trainer、GRPO |
-| 主环境 | [ALFWorld](https://github.com/alfworld/alfworld) | 文本长程任务规划 |
-| 扩展环境 | [ScienceWorld](https://github.com/allenai/ScienceWorld) | 复杂自然语言观察和科学任务 |
+| 主训练数据 | [HotpotQA](https://hotpotqa.github.io/) | 多跳问答、supporting facts、AgeMem 三阶段训练 |
+| 跨域扩展 | 2WikiMultiHopQA / MuSiQue | 检验记忆策略跨数据集泛化 |
+| 可选规划环境 | [ALFWorld](https://github.com/alfworld/alfworld) | 仅在需要证明任务规划泛化时使用 |
 | LTLf 编译 | [LTLf2DFA](https://github.com/whitemech/ltlf2dfa) | LTLf 转最小 DFA |
 | 最终数据库 | [pgvector](https://github.com/pgvector/pgvector) | PostgreSQL 中的向量检索 |
 
@@ -180,7 +191,7 @@ requirements/pyproject 的依赖约束
 
 ```text
 日常代码阅读/standalone demo：Windows 或 WSL2 均可
-RL训练、ALFWorld、ScienceWorld、MONA/LTLf：优先 WSL2 Ubuntu 或原生 Linux
+RL训练、HotpotQA 全量实验、MONA/LTLf：优先 WSL2 Ubuntu 或原生 Linux
 Python：优先遵循 AgeMem requirements；新模块目标为 Python 3.11
 编辑器：VS Code + Codex 插件
 训练：Linux + NVIDIA GPU + CUDA
@@ -197,7 +208,7 @@ D:\Project\Age-Mem\AgeMem
 建议分两步处理：
 
 1. 先直接用 VS Code 打开该目录，完成代码理解、standalone demo 和非 GPU 模块开发；
-2. 进入 Trinity-RFT、ALFWorld、ScienceWorld 或 LTLf/MONA 阶段前，在 WSL Linux 文件系统中建立训练副本，例如：
+2. 进入 Trinity-RFT、HotpotQA 全量训练或 LTLf/MONA 阶段前，在 WSL Linux 文件系统中建立训练副本，例如：
 
 ```text
 ~/projects/Age-Mem
@@ -375,7 +386,8 @@ D:\Project\Age-Mem\AgeMem\
 │   ├── memory.yaml
 │   ├── reward.yaml
 │   ├── toy.yaml
-│   ├── alfworld.yaml
+│   ├── hotpotqa.yaml
+│   ├── alfworld.yaml              # M9 可选扩展
 │   └── training.yaml
 ├── src/
 │   └── logic_memory/
@@ -393,8 +405,8 @@ D:\Project\Age-Mem\AgeMem\
 │       ├── environments/
 │       │   ├── base.py
 │       │   ├── toy.py
-│       │   ├── alfworld.py
-│       │   └── scienceworld.py
+│       │   ├── hotpotqa.py
+│       │   └── alfworld.py        # M9 可选扩展
 │       ├── trajectory/
 │       │   ├── models.py
 │       │   ├── recorder.py
@@ -501,6 +513,7 @@ discarded
 ```python
 class MemoryEvent:
     event_id: str
+    action_id: str
     operation: str
     target_memory_id: str | None
     arguments: dict
@@ -509,24 +522,49 @@ class MemoryEvent:
     timestep: int
 ```
 
-### 9.3 TrajectoryStep
+### 9.3 ActionEvent 与 TrajectoryStep
 
 ```python
-class TrajectoryStep:
+class ActionEvent:
+    # 跨 replay、AP grounding、DFA reward 和训练 buffer 的稳定连接键
+    action_id: str
     task_id: str
     rollout_id: str
-    stage: int
+    stage_id: int
+    timestep: int
+    assistant_turn_id: int
+    action_index_in_turn: int
+
+    # oracle / random / error_injector / llm
+    source: str
+    action_type: str
+    action_text: str
+    arguments: dict
+    result: dict
+
+    # 仅 LLM rollout 必须存在；规则轨迹允许为 None
+    response_token_ids: list[int] | None
+    token_start: int | None
+    token_end: int | None
+    old_logprobs: list[float] | None
+    policy_version: str | None
+
+
+class TrajectoryStep:
+    schema_version: str
+    task_id: str
+    rollout_id: str
+    stage_id: int
     timestep: int
     observation: str
-    action_text: str
-    tool_calls: list[dict]
-    tool_results: list[dict]
+    actions: list[ActionEvent]
     memory_before: list[dict]
     memory_after: list[dict]
     env_reward: float
     done: bool
-    old_logprob: float | None
 ```
+
+兼容原则：历史 `TrajectoryStep.stage` 可以在读取时映射为 `stage_id`；历史单值 `old_logprob` 不得伪装为 token-level `old_logprobs`。同一 assistant turn 产生多个工具调用时，每个调用必须有独立 `action_id` 和 `action_index_in_turn`。
 
 ### 9.4 Triple 与 StateFact
 
@@ -589,10 +627,36 @@ class RewardBreakdown:
     violation: float
     trend: float
     format: float
+    cost: float
     total: float
     automaton_state_before: str
     automaton_state_after: str
 ```
+
+读取 v1.3 及更早版本的派生奖励记录时，缺失的 `cost` 按 `0.0` 处理；兼容读取不能覆盖原记录。
+
+### 9.8 ActionCreditRecord
+
+M3～M5 的原始动作轨迹保持不可变；M4 之后产生的 AP、DFA 状态和奖励以派生记录保存，并通过 `action_id` 关联：
+
+```python
+class ActionCreditRecord:
+    schema_version: str
+    action_id: str
+    atomic_propositions: list[str]
+
+    dfa_spec_id: str
+    transition_id: str | None
+    dfa_state_before: str
+    dfa_state_after: str
+
+    reward_breakdown: RewardBreakdown
+    return_to_go: float | None
+    advantage: float | None
+    reward_version: str
+```
+
+这样可以在不重新采样轨迹的情况下重算 AP、DFA、奖励、Return-to-Go 和 Advantage。`return_to_go` 只作为对应动作的训练权重，不能再次求和作为轨迹总奖励。
 
 ---
 
@@ -711,72 +775,89 @@ class RewardBreakdown:
 
 ---
 
-## M3：三阶段 Toy Environment
+## M3：HotpotQA 风格三阶段 Toy Memory Environment
 
 ### 目标
 
-建立一个不依赖 ALFWorld 的最小、确定性、可验证环境。
+建立一个与 AgeMem 三阶段训练语义一致、但不依赖完整 HotpotQA 数据和在线 LLM 的最小确定性环境。M3 不再模拟 `open/take/put` 等 ALFWorld 物体操作。
 
 ### 示例任务
 
 ```text
-Stage 1:
-    apple 位于 drawer1
-    microwave 位于 kitchen
+Stage 1：记忆构建
+    观察事实 A：The Eiffel Tower is located in Paris.
+    观察事实 B：Paris is the capital of France.
+    Agent 决定是否 ADD / UPDATE。
 
-Stage 2:
-    清空 STM
-    加入 banana、tomato、sink 等干扰事实
+Stage 2：上下文干扰
+    重置或压缩 STM，加入若干无关事实。
+    MVP 只验证关键事实仍保留在 LTM；SUMMARY/FILTER 暂不作为必需动作。
 
-Stage 3:
-    Heat apple and put it on dining table
+Stage 3：检索问答
+    问题：Which country contains the city where the Eiffel Tower is located?
+    Agent 需要 RETRIEVE supporting facts 后回答 France。
 ```
 
 ### 任务
 
-1. 定义环境状态；
-2. 定义合法动作；
-3. 定义状态转移；
-4. 定义环境成功条件；
-5. 输出自然语言 observation；
-6. 同时输出仅供调试使用的 Oracle AP；
-7. 创建不同难度：
-   - 无干扰；
-   - 有干扰；
-   - 事实更新；
-   - 过期事实；
-   - 关键记忆被删除；
-8. 划分 train/dev/test；
-9. 保证 test 中存在未见对象组合。
+1. 定义 `MemoryEpisode`、`StageInput` 和阶段切换协议；
+2. 使用 20～50 条人工合成的两跳事实任务；
+3. 为每条任务标注：
+   - `supporting_fact_ids`；
+   - `distractor_fact_ids`；
+   - `stale_fact_ids`；
+   - `answer`；
+4. 输出自然语言 observation 和仅供调试/监督使用的 Oracle labels；
+5. 复用 M1 的轨迹记录器和 M2 的 rollout 隔离；
+6. 覆盖无干扰、有干扰、事实更新、重复事实、过期事实和关键记忆误删；
+7. 划分 train/dev/test，并让 test 包含未见实体组合；
+8. 实现不调用 LLM 的 gold policy 和明显错误 policy。
 
 ### 验收标准
 
-- 固定 seed 时轨迹可复现；
-- gold action sequence 可以完成所有任务；
-- 明确错误的 action sequence 会失败；
-- Stage 之间 LTM 保留、STM 按协议重置；
-- 测试集不会访问训练答案。
+- 固定 seed 时 episode 和轨迹完全可复现；
+- gold policy 能完成全部任务；
+- 错误 policy 会在预期条件下失败；
+- Stage 之间 LTM 保留，STM 按协议重置；
+- 每个 rollout 使用独立 MemoryStore；
+- 不读取真实 HotpotQA test 答案，不发生答案泄漏。
 
 ---
 
-## M4：Oracle AP + 手工 DFA + 离线奖励
+## M4：Memory Oracle AP + 手工 DFA + 离线奖励
 
 ### 目标
 
-在完全排除 LLM 抽取误差的情况下验证自动机奖励链路。
+在排除自然语言抽取误差和 RL 不稳定性的情况下，验证“记忆语义事件 → DFA 转移 → 逐步奖励”链路。
+
+### 第一版原子命题
+
+```text
+observed_supporting_fact
+stored_supporting_fact
+stored_irrelevant_fact
+updated_stale_fact
+deleted_supporting_fact
+retrieved_supporting_fact
+retrieved_irrelevant_fact
+supporting_coverage_complete
+answered_correctly
+```
+
+这些命题描述动作产生的语义结果，而不是裸工具调用。`ADD` 本身不能直接获得奖励。
 
 ### 第一版 DFA
 
 ```text
-q0 --useful_fact_stored--> q1
-q1 --useful_fact_retrieved--> q2
-q2 --target_object_acquired--> q3
-q3 --task_goal_achieved--> q4(accept)
+q0 --stored_supporting_fact--> q1
+q1 --supporting_coverage_complete--> q2
+q2 --retrieved_supporting_fact--> q3
+q3 --answered_correctly--> q4(accept)
 ```
 
-### 奖励
+`updated_stale_fact` 可作为并行进展边；`stored_irrelevant_fact`、`deleted_supporting_fact` 和无关检索先记录为 violation，MVP 中再决定是否启用负奖励。
 
-第一版只使用：
+### 奖励
 
 \[
 r_t^{logic}
@@ -789,7 +870,7 @@ r_t^{logic}
 \[
 R_t
 =
-r_t^{env}
+r_t^{task}
 +
 \beta r_t^{logic}
 +
@@ -798,218 +879,232 @@ r_t^{fmt}
 
 ### 任务
 
-1. 实现 `AutomatonSpec`；
-2. 实现 DFA runner；
-3. 实现 progress transition；
-4. 每条 progress edge 只奖励一次；
-5. 实现 accepting/rejecting/timeout；
-6. 实现 `RewardBreakdown`；
-7. 对成功和失败 gold traces 离线 replay；
-8. 加入循环和重复调用测试；
-9. 检查 Agent 无法通过重复 `ADD` 刷奖励。
+1. 实现 `AutomatonSpec`、DFA runner 和 `RewardBreakdown`；
+2. 从 M3 Oracle labels 生成 AP，而不是调用 LLM；
+3. 每条 progress edge 只奖励一次；
+4. 实现 accepting/rejecting/timeout；
+5. 对成功、失败、重复调用和循环轨迹离线 replay；
+6. 验证重复 `ADD/RETRIEVE` 不能刷奖励；
+7. 分别保存 task reward、logic reward 和 format reward；
+8. 第一版不启用 Trend Shaping。
 
 ### 验收标准
 
-- 所有 gold success trace 被接受；
-- 预定义 failure trace 不被接受；
-- 同一 progress edge 不会重复奖励；
-- 轨迹重放奖励完全确定；
-- 不依赖在线 LLM；
-- 不使用 Trend Shaping。
+- 所有 gold success traces 被接受；
+- 预定义 failure traces 不被接受；
+- 同一 progress edge 不重复奖励；
+- 奖励重放完全确定；
+- 自动机只奖励有效内容变化，不奖励裸工具调用；
+- 整条链路不依赖在线 LLM。
 
 ---
 
-## M5：自然语言三元组抽取与显式状态跟踪
+## M5：真实 HotpotQA 数据适配与 Oracle Benchmark
 
 ### 目标
 
-用自然语言 observation 替换 Oracle AP，同时保留 Oracle 管线作为上界。
+将 M3/M4 的确定性管线接到真实 HotpotQA，同时继续使用 `supporting_facts` 生成 Oracle AP。此阶段只做 rollout、离线奖励和评测，不训练模型。
+
+### 三阶段构造
+
+```text
+Stage 1：按消息或段落提供候选事实，Agent 构建/更新 LTM
+Stage 2：注入 distractor、施加 STM token budget，并按协议重置上下文
+Stage 3：提供问题，Agent 检索 supporting facts 并回答
+```
 
 ### 任务
 
-1. 定义严格 JSON schema；
-2. 实现 `TripleExtractor` 接口；
-3. 实现一个 mock extractor；
-4. 实现一个 LLM extractor；
-5. 对完全相同 observation 做 group batching/cache；
-6. 实现 `StateTracker h_t`；
-7. 保存 confidence、source step 和有效时间；
-8. 实现 Markovian overwrite；
-9. 将状态映射为 AP；
-10. 人工标注一批 observation；
-11. 计算 triple/AP Precision、Recall、F1；
-12. 比较 Oracle AP 与 Extracted AP 的自动机结果。
+1. 适配 AgeMem 已有 HotpotQA fullwiki/distractor 数据读取逻辑；
+2. 将 `supporting_facts` 映射为稳定的 fact IDs；
+3. 明确 train/dev/test，禁止把答案文本写进 Agent observation；
+4. 构造小规模 smoke split，再扩展到正式 split；
+5. 收集 base model、规则策略和 gold policy 轨迹；
+6. 用 Oracle AP 运行 M4 自动机；
+7. 计算 Answer EM/F1、supporting-fact coverage、Memory Precision、Retrieval Recall@k、context tokens 和工具调用次数；
+8. 保存每条失败轨迹对应的事实、记忆状态和自动机状态。
 
 ### 验收标准
 
-- 非法 JSON 不会直接进入状态；
+- 小规模 HotpotQA episode 可确定性生成与重放；
+- supporting fact 的匹配不依赖脆弱的纯字符串包含；
+- Oracle AP 自动机可以解释成功和失败轨迹；
+- 数据 split 和答案不可见性有测试；
+- 在进入 M6 前生成一份 Oracle benchmark 报告。
+
+---
+
+## M6：自然语言三元组抽取与显式状态跟踪
+
+### 目标
+
+用自然语言 observation 和工具结果生成 Extracted AP，同时保留 M5 Oracle AP 作为监督上界。开始抽取器实现前，先完成一次历史轨迹 Schema 审计，确保 M3～M5 产物可以按动作关联后续 AP、DFA 奖励和动作级 GRPO。
+
+### 任务
+
+1. 阅读 `STATUS.md`、M5 Oracle benchmark 报告和 M3～M5 轨迹样本；
+2. 审计并报告以下字段的真实存在性和可用性：
+   - `action_id`；
+   - `stage_id`；
+   - `assistant_turn_id / action_index_in_turn`；
+   - `token_start / token_end`；
+   - `response_token_ids / old_logprobs / policy_version`；
+   - `ActionCreditRecord / RewardBreakdown`；
+3. 对规则/oracle/error-injector 轨迹允许 token 和 logprob 字段为 `None`；不得为通过校验而伪造数值；
+4. 若历史轨迹缺少稳定动作键，编写确定性迁移器和迁移测试，保留原始文件并输出新 schema 版本；
+5. 定义严格的 Triple/AP JSON schema；
+6. 实现 `TripleExtractor` 接口、mock extractor 和 LLM extractor；
+7. 规则映射确定性的 memory tool actions；
+8. 对相同 observation 做 group batching/cache；
+9. 实现 `StateTracker h_t`、版本信息、source step 和 confidence；
+10. 对冲突事实执行 Markovian overwrite，但保留历史证据；
+11. 将状态和 memory delta 映射为 AP；
+12. 每个 AP 和派生奖励必须通过 `action_id` 追溯到原始动作；
+13. 使用 HotpotQA supporting facts 和人工小样本评估抽取；
+14. 计算 Triple/AP Precision、Recall、F1；
+15. 比较 Oracle AP 与 Extracted AP 的奖励、接受状态和错误传播。
+
+### 验收标准
+
+- 非法输出不会进入状态；
 - 未知 subject/category 有明确策略；
+- 抽取错误可以定位到具体 timestep；
 - 更新事实不会物理删除旧证据；
-- 抽取错误可以定位到具体 step；
-- 能报告 AP 对最终奖励的误差传播。
+- 能报告 Oracle→Extracted 导致的 False Accept/Reject 增量；
+- `ActionEvent ↔ ActionCreditRecord` 的 `action_id` 连接完整且唯一；
+- 历史轨迹迁移可重复、可回滚，不覆盖 M3～M5 原始产物；
+- 在进入 M7 前生成 `docs/schema_audit_m6.md` 和抽取评测报告。
 
 ---
 
-## M6：Group-Level Logic Critic
+## M7：Group Critic 与自动机离线验证
 
 ### 目标
 
-根据同一任务的 K 条轨迹生成结构化里程碑和依赖关系。
+先证明手工 memory DFA 可靠，再把 Group-Level Logic Critic 作为可替换的自动里程碑生成器。自动 Critic 不是进入 M8 的硬依赖。
 
-### 输入
-
-```text
-task description
-K trajectories
-terminal outcomes
-memory events
-AP traces
-```
-
-### 输出
+### Critic 输入输出
 
 ```text
-milestones
-dependencies
-bad behavior tags
-evidence step IDs
-confidence
-warnings
+输入：task description、K trajectories、terminal outcomes、memory events、AP traces
+输出：milestones、dependencies、bad behavior tags、evidence step IDs、confidence、warnings
 ```
 
 ### 任务
 
-1. 先实现 hand-authored critic；
-2. 再实现 LLM critic；
-3. 要求每个里程碑提供 evidence；
-4. 验证 dependency graph 无环；
-5. 验证所有 proposition 已定义；
-6. 验证接受状态可达；
-7. 验证初始状态不会直接接受；
-8. 验证成功轨迹与公式基本一致；
-9. 无法验证时回退到 terminal-only reward；
-10. MVP 中全失败组不使用反事实奖励，只记录。
+1. 保留 M4 手工 DFA 作为主基线；
+2. 实现结构化 Critic schema、mock critic 和 LLM critic；
+3. 要求每个里程碑引用证据 step；
+4. 验证依赖图无环、命题已定义、接受状态可达且初态不接受；
+5. 无效 Critic 输出回退到手工 DFA 或 terminal-only reward；
+6. MVP 中全失败组只记录反事实建议，不把它直接作为训练奖励；
+7. 在真实 HotpotQA 离线轨迹上计算 False Accept Rate 和 False Reject Rate；
+8. 检查 reward farming、循环奖励、重复工具奖励和 Critic 稳定性；
+9. 输出按问题类型、轨迹长度和干扰强度拆分的离线报告。
 
 ### 验收标准
 
-- Critic 输出可被 schema parser 接受；
-- 同一输入、低温设置结果足够稳定；
-- 无效输出会被拒绝而不是静默使用；
-- 每个自动机可追溯到轨迹证据；
-- validator 有独立单元测试。
-
----
-
-## M7：自动机离线验证
-
-### 目标
-
-在开始 RL 前确认自动机与环境成功条件具有合理一致性。
-
-### 必须计算
-
-\[
-\text{False Accept Rate}
-=
-P(\text{DFA accepts}\land\text{environment fails})
-\]
-
-\[
-\text{False Reject Rate}
-=
-P(\text{DFA rejects}\land\text{environment succeeds})
-\]
-
-此外报告：
-
-- compilation/validation success rate；
-- milestone precision/recall；
-- violation detection accuracy；
-- reward 与 terminal success 的相关性；
-- 每条轨迹获得的 progress edge 数；
-- 重复工具调用得到的奖励；
-- Critic 调用成本和延迟。
-
-### 验收标准
-
-- 报告可以按任务类型拆分；
-- 自动机错误可以追溯到 extractor、state tracker 或 critic；
+- 手工 DFA 在离线 HotpotQA 轨迹上达到可接受的一致性；
+- 自动机错误可追溯到 extractor、state tracker、critic 或数据适配层；
+- 无效 Critic 输出不会被静默采用；
 - 不存在明显 reward farming；
-- 结果足够稳定后才允许进入 M8。
+- M8 可以先使用手工 DFA，不等待自动 Critic 完美。
 
 ---
 
-## M8：接入 Trinity-RFT 和 Step-wise GRPO
+## M8：HotpotQA 上接入 Trinity-RFT 和动作级 GRPO
 
 ### 目标
 
-先复现 terminal-only 训练，再增加 DFA reward。
+先复现 AgeMem 的 HotpotQA terminal-only 轨迹级 GRPO，再逐步增加 memory DFA reward 和动作级信用分配。奖励改进与信用分配改进必须作为两个独立变量进行对照。
 
 ### 集成关系
 
 ```text
-Explorer:
-    为每个 task 采样 K 条完整轨迹
-
-Logic Processor:
-    构造 AP、Critic 输出和 DFA
-
-Reward Processor:
-    replay 轨迹并写入 step rewards
-
-Buffer:
-    保存 token、old logprob、reward、metadata
-
-Trainer:
-    计算 group-relative advantage
-    更新 policy
+Explorer：为同一个 HotpotQA task 采样 K 条完整三阶段轨迹
+Logic Processor：构造 Oracle/Extracted AP，并选择手工 DFA 或 Critic DFA
+Reward Processor：重放轨迹，通过 action_id 把 reward 写回对应动作
+Buffer：保存 ActionEvent、ActionCreditRecord、token-level old_logprobs 和 policy_version
+Trainer：先支持 trajectory advantage，再支持 stage/DFA-state-conditioned action advantage
 ```
 
 ### 训练顺序
 
 ```text
 E0：Base model，无训练
-E1：Terminal-only GRPO
-E2：Terminal + 手工 milestone
-E3：Terminal + LLM milestone，无 DFA
-E4：Terminal + DFA reward
+E1：AgeMem Terminal-only GRPO
+E2：Terminal + Heuristic Dense Reward
+E3：Terminal + Oracle AP + Hand-authored DFA（监督上界）
+E4：Terminal + Extracted AP + Hand-authored DFA + Trajectory Advantage
+E5：Terminal + Extracted AP + Hand-authored DFA + Action-level Advantage（主方法）
+E6：Terminal + Extracted AP + Group Critic DFA + Action-level Advantage（M7 稳定后可选）
 ```
+
+### M8a：上卡前本地门禁（已完成）
+
+M8a 不执行模型训练，只关闭 E1 在租卡前可以用 CPU/静态检查发现的问题：
+
+- 支持读取本地 Hugging Face `save_to_disk` DatasetDict，按 M5 manifest 固定选择 6 条 source-train 样本，并在运行时核对 train fingerprint 与 Hotpot ID；
+- 新增 `agemem_e1_dry_run.yaml`：2 GPU、K=2、固定干扰、`multi_step_grpo + step_wise_grpo`、1 个 trainer step；
+- E1 只使用确定性 HotpotQA terminal answer F1，不加入工具、记忆、context、timeout 或 DFA reward；
+- 复用 M2 rollout-scoped、版本化、soft-delete MemoryStore；
+- 在线 LLM 工具动作保存稳定 `action_id`、完整 response token IDs、逐 token old logprobs、token span 和冻结 policy version；
+- K 组必须在同一 WorkflowRunner 的 policy-freeze 窗口，组内混合 policy version 时 fail closed；
+- ActionEvent 必须与 ToolTrace、Experience task/rollout/stage/timestep 及可选 ActionCreditRecord 精确连接；最终 buffer 边界重算 character→token span 并重查 ToolTrace join；
+- 规则、Oracle、random 和 error-injector 轨迹禁止进入 on-policy buffer；AgeMem pipeline 在 operator 前后均强制契约存在，删除或篡改时 fail closed；
+- Trinity wheel 同时包含 `trinity*` 与复用的 `AgeMem_code_agentscope*` 契约包。
+
+本地 M8a 测试发现 46 项：43 PASS，3 项因 Windows 环境缺 PyTorch/Ray/vLLM 而 SKIP。M1～M7 相关回归 145/145、既有 tool-trace 28/28 均通过。这 3 个 runtime 接线测试必须在 AutoDL 完整 Linux 环境变为 PASS，不能把 SKIP 记作验收通过。
+
+当前 E1 仍使用 DashScope embedding，SUMMARY/FILTER 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。因此正式对照前必须冻结并记录外部 provider，或另行实现并验证本地冻结 provider。M8a 也尚未在线生成 DFA `ActionCreditRecord`，E3/E4/E5 不得提前宣称完成。
+
+详细上卡顺序、停止条件和安全要求见 `docs/m8a_terminal_only_preflight.md`。
 
 ### 任务
 
-1. 复现 AgeMem terminal-only smoke run；
-2. 确认 reward adapter 不改变 token/action 对齐；
-3. 接入手工 DFA；
-4. 小 batch、小数据、短训练运行；
-5. 检查 loss、KL、reward 和工具调用频率；
-6. 再接入自动 Critic；
-7. 保存每次训练的完整配置；
-8. 固定 seed 并至少运行多个 seed；
-9. 对 checkpoint 做冻结评测。
+1. 复现 AgeMem HotpotQA terminal-only smoke run；
+2. 固定 `π_old` 完成同一组 K 条 rollout 后再更新参数，并保存逐 token `old_logprobs`；
+3. 确认 reward adapter 通过稳定 `action_id` 对齐动作，不依赖易变的裸 timestep；
+4. 先接入 E3/E4 的轨迹级 Advantage，确认奖励链路正确；
+5. 再实现 E5：按 `decision_key=(stage_id, dfa_state_before)` 对齐语义决策位置；
+6. 为每个动作计算即时奖励、Return-to-Go 和动作级 Advantage；
+7. 状态 bucket 样本不足时依次回退到 stage-level、trajectory-level Advantage；
+8. 将同一动作 Advantage 赋给该动作 token span，system/user/tool-result token 必须 mask；
+9. loss 先在动作内部按 token 平均，再对动作平均，避免长 JSON 参数获得额外权重；
+10. 规则 Oracle 和 ErrorInjector 轨迹不得进入 on-policy GRPO buffer；
+11. 使用小数据、小 batch、短训练检查 loss、KL、reward、工具调用频率和 context tokens；
+12. 防止不同 rollout 共享记忆；
+13. 保存每次训练的完整配置、数据 split、模型、tokenizer 和代码 commit；
+14. 正式结果至少运行多个 seed；
+15. 对 checkpoint 做冻结评测，测试时 DFA 默认只 shadow execution。
 
 ### 验收标准
 
-- E1 可以稳定运行；
-- E2/E4 奖励进入正确 timestep；
+- E1 可稳定复现；
+- E3/E4 奖励通过 `action_id` 进入正确动作；
+- E5 中 `response_token_ids` 与 `old_logprobs` 长度一致，token span 不越界、不重叠；
+- 相同 DFA 决策状态下的替代动作被放入相同 Advantage bucket；
 - 训练无 NaN、logprob 错位或 rollout 污染；
-- checkpoint 在冻结测试中可以加载；
-- 结果不是仅由工具调用次数增加造成。
+- checkpoint 可加载并在冻结 split 上评测；
+- 提升不只是来自工具调用次数增加；
+- Oracle AP 与 Extracted AP 结果分开报告，不能混为主结果；
+- E4 与 E5 的差异只来自信用分配粒度，用于区分奖励收益和动作级 GRPO 收益。
 
 ---
 
-## M9：正式 Benchmark 与完整功能
+## M9：正式 Benchmark、跨域泛化与可选任务规划
 
-扩展顺序：
+### Benchmark 顺序
 
 ```text
-1. Toy/PDDL：符号正确性
-2. HotpotQA：复现 AgeMem 训练接口
-3. ALFWorld：主要任务规划结果
-4. ScienceWorld：复杂观察和泛化
-5. LongMemEval/MemBench：长期记忆诊断
+1. HotpotQA：主训练、主结果和完整消融
+2. 2WikiMultiHopQA / MuSiQue：跨问答数据集泛化
+3. LongMemEval / MemBench：长期记忆诊断
+4. ALFWorld：仅在需要证明任务规划泛化时加入
+5. ScienceWorld：更后期的开放式扩展，不属于核心论文最低要求
 ```
 
-完整功能增加顺序：
+### 完整功能增加顺序
 
 ```text
 1. DELETE 与过期事实
@@ -1021,6 +1116,12 @@ E4：Terminal + DFA reward
 7. Hard DFA → belief/soft state
 8. PostgreSQL + pgvector
 ```
+
+### 论文结论边界
+
+- 只完成 HotpotQA 时，结论限定为“多跳问答中的可学习记忆管理”；
+- 加入 2Wiki/MuSiQue 后，可以讨论跨问答数据集泛化；
+- 只有完成 ALFWorld 并控制规划能力等混杂因素后，才讨论通用任务规划。
 
 ---
 
@@ -1059,6 +1160,7 @@ A5：去掉 Trend Shaping
 A6：去掉 counterfactual milestones
 A7：统一 Agent → 分离 Memory Manager
 A8：训练时 DFA → 训练+测试 runtime monitor
+A9：Trajectory Advantage → Action-level Advantage
 ```
 
 ---
@@ -1067,11 +1169,14 @@ A8：训练时 DFA → 训练+测试 runtime monitor
 
 ### 12.1 任务指标
 
-- Task Success Rate；
-- Normalized Environment Score；
-- 平均完成步数；
+- Answer Exact Match；
+- Answer F1；
+- Supporting-Fact Exact Match / F1；
+- Supporting-Fact Coverage；
+- 三阶段 Episode Success Rate；
+- 平均完成轮数；
 - timeout rate；
-- invalid action rate。
+- invalid tool-call rate。
 
 ### 12.2 记忆指标
 
@@ -1103,6 +1208,8 @@ A8：训练时 DFA → 训练+测试 runtime monitor
 - 训练 token；
 - 推理 token；
 - Critic 调用次数；
+- action bucket coverage 与零方差 bucket 比例；
+- action-level Advantage 的均值、方差和裁剪率；
 - 训练时间和推理延迟；
 - GPU 和 API 成本。
 
@@ -1164,6 +1271,23 @@ reward:
 
 具体系数通过 dev set 调整，不在代码中硬编码。
 
+### 13.5 动作奖励与 Return-to-Go 分开保存
+
+每个动作的即时奖励独立计算；最终任务成功通过 Return-to-Go 影响早期记忆动作：
+
+\[
+G_{k,t}=\sum_{u=t}^{T_k}\gamma^{u-t}r_{k,u}
+\]
+
+要求：
+
+- `reward_breakdown` 保存当前动作的即时奖励；
+- `return_to_go` 只作为当前动作的训练权重；
+- F1、F2 等 supporting facts 的覆盖增量分别计算；
+- 不得把所有 `return_to_go` 再次相加作为轨迹总奖励；
+- Action-level Advantage 通过 `(stage_id, dfa_state_before)` 对齐，不按裸 timestep 对齐；
+- bucket 样本不足时回退到 stage-level 或 trajectory-level Advantage。
+
 ---
 
 ## 14. 测试策略
@@ -1177,6 +1301,11 @@ memory add/update/delete/retrieve
 snapshot/restore/reset
 rollout isolation
 trajectory serialization
+action_id uniqueness and deterministic migration
+multiple actions in one assistant turn
+token span bounds/non-overlap
+response_token_ids and old_logprobs length match
+ActionEvent ↔ ActionCreditRecord join integrity
 triple schema validation
 state overwrite/versioning
 AP grounding
@@ -1191,10 +1320,12 @@ critic output validation
 
 ```text
 Agent → tool → memory → ToolResponse
-ToyEnv → observation → extractor → state → AP
+Hotpot-style ToyEnv → observation → extractor → state → AP
+HotpotQA adapter → three-stage episode → trajectory
 AP trace → DFA → step rewards
 K rollouts → critic → automaton → replay
 Explorer → reward adapter → Buffer
+ActionEvent → action return/advantage → token loss mask
 ```
 
 ### 14.3 测试原则
@@ -1284,26 +1415,27 @@ D:\Project\Age-Mem\AgeMem
 ~/projects/Age-Mem
 ```
 
-然后使用 VS Code 的 “Open Folder in WSL”。不要让 Codex直接复制一个包含未提交修改的工作区；先检查并保存 Git 状态。
+然后使用 VS Code 的 “Open Folder in WSL”。不要让 Codex 直接复制一个包含未提交修改的工作区；先检查并保存 Git 状态。
 
-### 16.2 第一次交给 Codex 的提示词
+### 16.2 当前交给 Codex 的提示词
 
 在 Codex 插件中粘贴：
 
 ```text
-请完整阅读 PROJECT_HANDOFF.md。
+请完整阅读 PROJECT_HANDOFF.md、STATUS.md 和
+docs/m8a_terminal_only_preflight.md。
 
-当前项目根目录是 D:\Project\Age-Mem\AgeMem，并且已有代码。
-只执行 M0：已有仓库接管检查与 standalone demo 复现。
+M0～M7 和 M8a 本地门禁已完成。只执行 AutoDL 上的 E1 单次更新 smoke，
+不要开始 E3/E4/E5，不要扩大到全量 HotpotQA。
 
-先只读检查系统、Python、Git 状态、当前分支、remote、未提交修改、
-目录结构、requirements、已有虚拟环境和 AgeMem_code_agentscope，
-然后给出计划。不要 git init，不要重复 clone，不要覆盖或清理用户修改。
+先核对 commit、依赖、GPU 拓扑、模型/数据/checkpoint 持久路径和凭据隔离；
+运行全部 M8a 测试，要求 Windows 本地跳过的 3 个 Ray runtime 测试在 Linux PASS。
+然后依次做 Config validation、固定 6 条数据读取、E0 冻结评测、
+E1 单次 optimizer update、checkpoint 保存与新进程重载。
 
-不要开始 LTL、自动机或强化学习实现。
-不要写入任何 API 密钥。
-完成后创建并更新 STATUS.md，运行能够安全执行的 smoke test，
-最后汇报修改文件、测试结果、阻塞项和下一步。
+任何 action_id/token span/old_logprobs/policy version、rollout memory 隔离、
+reward profile、NaN/Inf 或 checkpoint 门禁失败时立即停止，不继续租卡长跑。
+记录 DashScope embedding/辅助调用的冻结配置与实际成本，不声称端到端无外部模型。
 ```
 
 ### 16.3 M1 提示词
@@ -1328,38 +1460,86 @@ update 使用版本化语义，delete 使用 soft delete。
 完成后运行 memory 和 integration tests 并更新 STATUS.md。
 ```
 
-### 16.5 M3-M4 提示词
+### 16.5 M3 提示词（已完成，保留复现用）
 
 ```text
 请阅读 PROJECT_HANDOFF.md 和 STATUS.md。
-实现 M3 和 M4，但不要调用真实 LLM：
-先建立三阶段 Toy Environment 和 Oracle AP，
-再实现手工 DFA、once-only milestone reward 和离线 trajectory replay。
-必须包含成功、失败、重复 ADD、循环动作和过期事实测试。
-如果 Oracle AP 管线未通过，不要进入自然语言抽取。
+只执行 M3：HotpotQA 风格三阶段 Toy Memory Environment。
+不要下载完整 HotpotQA，不要调用真实 LLM，不要实现 DFA 或 GRPO。
+
+先检查并复用 M1 的 TrajectoryRecorder 和 M2 的 MemoryStore/rollout 隔离，
+然后实现 20～50 条人工两跳事实任务及 gold/error policy。
+每条任务必须包含 supporting_fact_ids、distractor_fact_ids、answer，
+并覆盖干扰、重复、事实更新、过期事实和关键记忆误删。
+
+运行固定 seed、阶段重置、rollout 隔离、gold success 和错误失败测试，
+最后更新 STATUS.md，只汇报 M3 结果，不开始 M4。
 ```
 
-### 16.6 M5-M7 提示词
+### 16.6 M4 提示词（已完成，保留复现用）
 
 ```text
 请阅读 PROJECT_HANDOFF.md 和 STATUS.md。
-按 M5、M6、M7 顺序工作：
-先定义严格的 Triple/Critic JSON schema 和 mock，
-再接入真实 LLM extractor/critic。
-所有输出必须经过 validator。
-计算 AP F1、False Accept、False Reject 和 reward determinism。
-不要开始 GRPO，直到离线验证报告生成并通过验收标准。
+只执行 M4：Memory Oracle AP + 手工 DFA + 离线奖励。
+从 M3 Oracle labels 生成语义 AP，不奖励裸 ADD/RETRIEVE 调用。
+实现 once-only progress reward，并测试成功、失败、重复调用、循环和 reward farming。
+不要调用真实 LLM，不要接入 HotpotQA 全量数据或 Trinity-RFT。
 ```
 
-### 16.7 M8 提示词
+### 16.7 M5 提示词（已完成，保留复现用）
 
 ```text
-请阅读 PROJECT_HANDOFF.md、STATUS.md、AgeMem 和 Trinity-RFT 文档。
-只执行 M8。
-先复现 terminal-only smoke training，再增加手工 DFA reward。
-确认逐步奖励与 token/action timestep 对齐，检查 NaN、KL、logprob、
-rollout memory isolation 和 checkpoint loading。
-不要直接开始全量 benchmark。
+请阅读 PROJECT_HANDOFF.md、STATUS.md 和 AgeMem 的 HotpotQA 数据读取代码。
+只执行 M5：真实 HotpotQA 数据适配与 Oracle Benchmark。
+先建立小规模 smoke split，确保 supporting facts、答案不可见性和数据 split 有测试。
+收集并重放轨迹，生成 Oracle benchmark 报告；不要开始模型训练。
+```
+
+### 16.8 M6 提示词（已完成，保留复现用）
+
+```text
+请阅读 PROJECT_HANDOFF.md 和 STATUS.md。
+用户报告 M0～M5 已完成。只执行 M6，不重做已完成阶段。
+
+第一步先读取 M5 报告和轨迹样本，生成 docs/schema_audit_m6.md，核查：
+action_id、stage_id、assistant_turn_id、action_index_in_turn、
+token_start/token_end、response_token_ids、old_logprobs、policy_version、
+ActionCreditRecord 和 RewardBreakdown。
+
+规则/oracle/error-injector 轨迹的 token/logprob 允许为 None，不得伪造。
+需要迁移时保留原文件，使用 schema_version 和确定性迁移测试。
+
+审计通过后再实现严格 Triple/AP schema、mock/LLM extractor、
+StateTracker、Markovian overwrite、AP grounding 和 group cache。
+每个派生 AP 必须通过 action_id 追溯到原始动作。
+
+比较 Oracle AP 与 Extracted AP，报告 Triple/AP F1、False Accept、
+False Reject 和奖励误差传播。不要实现 Group Critic 或 GRPO。
+```
+
+### 16.9 M7 提示词（已完成，保留复现用）
+
+```text
+请阅读 PROJECT_HANDOFF.md、STATUS.md、M5 Oracle 报告和 M6 抽取报告。
+只执行 M7：Group Critic 与自动机离线验证。
+保留手工 DFA 为主基线，实现结构化 Critic、validator 和回退机制。
+计算 False Accept/Reject、reward farming、稳定性和调用成本。
+不要开始 GRPO，直到离线报告通过验收标准。
+```
+
+### 16.10 M8 提示词（当前只执行 E1 GPU smoke）
+
+```text
+请阅读 PROJECT_HANDOFF.md、STATUS.md、AgeMem、Trinity-RFT 文档和
+docs/m8a_terminal_only_preflight.md。
+只执行 AutoDL E1 terminal-only 单次更新 smoke。
+
+使用 examples/agemem_hotpotqa/agemem_e1_dry_run.yaml，先让全部 runtime tests PASS，
+再验证固定 6 条数据、K=2 同策略版本、rollout memory isolation、确定性 terminal reward、
+token span/逐 token old_logprobs、checkpoint 保存和新进程重载。
+
+不要接入 DFA/Extracted AP/Group Critic，不要开始 E3/E4/E5 或全量 benchmark。
+若外部 embedding/辅助模型配置未冻结并记录，停止并报告，不自行改变实验环境。
 ```
 
 ---
@@ -1529,47 +1709,42 @@ M0
 4. Oracle AP 与 Extracted AP 结果分别报告；
 5. Critic 和 DFA 错误可追溯；
 6. Terminal-only baseline 已复现；
-7. DFA reward 在至少一个交互 benchmark 上有稳定结果；
+7. DFA reward 在 HotpotQA 三阶段记忆 benchmark 上有稳定结果；
 8. 提升不依赖测试时自动机干预；
 9. False Accept/Reject 被明确报告；
 10. 训练配置、seed、模型、commit 和数据 split 完整保存；
 11. 没有凭据或敏感信息进入仓库；
-12. 论文结论不超过实验实际支持范围。
+12. `ActionEvent` 与 `ActionCreditRecord` 可以通过唯一 `action_id` 完整连接；
+13. LLM rollout 的 token IDs、逐 token old logprobs 和动作 span 已通过一致性校验；
+14. 轨迹级 Advantage 与动作级 Advantage 的结果分别报告，不能把两者收益混合归因；
+15. 论文结论不超过实验实际支持范围。
 
 ---
 
-## 22. 立即执行的第一步
+## 22. 当前立即执行阶段
 
 Codex 当前只应执行：
 
 ```text
-M0：已有仓库接管检查与上游复现
+M8b：AutoDL 上的 E1 terminal-only 单次更新与 checkpoint 重载 smoke
 ```
 
-不要直接实现完整方案。正确顺序是：
+M0～M7 与 M8a 本地门禁已完成，不要重做或覆盖其实现。开始租卡前先整理并提交工作区、轮换本地凭据、固定代码 commit 与数据 manifest，并按照 `docs/m8a_terminal_only_preflight.md` 完成安全和环境检查。
+
+当前及后续顺序是：
 
 ```text
-检查并保护用户已有项目
+M8b：E0 冻结评测 + E1 单次更新 + checkpoint 新进程重载
+    ↓（E1 smoke 稳定且外部 provider 已冻结）
+E1：小规模 terminal-only 重复运行
     ↓
-复现 Agent 和记忆工具
+E3：Oracle AP + 手工 DFA + trajectory advantage
     ↓
-记录并重放轨迹
+E4：Extracted AP + 手工 DFA + trajectory advantage
     ↓
-隔离 MemoryStore
+E5：action-level advantage
     ↓
-Toy Environment + Oracle AP
-    ↓
-手工 DFA Reward
-    ↓
-自然语言抽取
-    ↓
-自动 Critic
-    ↓
-离线验证
-    ↓
-GRPO
-    ↓
-正式 Benchmark
+M9：正式 Benchmark + 跨域泛化
 ```
 
-这条顺序是本项目最重要的工程约束。
+当前不得提前开始 E3/E4/E5 或全量训练。M8a 的 3 个 Ray runtime SKIP 必须先在 AutoDL 变为 PASS；ActionCredit 在线生成器尚未实现，只有 schema/join/buffer validation。E1 单次更新与 checkpoint 重载全部通过后，再更新 `STATUS.md` 并决定是否扩大 E1。
