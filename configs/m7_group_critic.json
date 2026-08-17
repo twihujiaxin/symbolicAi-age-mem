@@ -1,0 +1,24 @@
+{
+  "schema_version": "agemem.m7_group_critic_config.v1",
+  "seed": 20260804,
+  "m5_report_path": "artifacts/m5_hotpotqa_smoke/oracle_benchmark.json",
+  "m6_report_path": "artifacts/m6_extraction_benchmark/extraction_benchmark.json",
+  "m6_false_reject_audit_path": "artifacts/m6_extraction_benchmark/false_reject_audit.json",
+  "hotpotqa_data_path": "../data/hotpot_qa/fullwiki",
+  "smoke_manifest_path": "data/splits/hotpotqa_smoke_manifest.json",
+  "migration_root": "runs/m6_schema_v2",
+  "extraction_runtime_root": "runs/m6_extraction_benchmark",
+  "reward_profile": "terminal_dfa",
+  "profiles": [
+    "oracle",
+    "human_backed_mock",
+    "controlled_error"
+  ],
+  "group_size": 3,
+  "repeat_count": 5,
+  "permutation_count": 6,
+  "stage_1_interference_count": 6,
+  "stage_2_interference_count": 3,
+  "allow_real_llm": false,
+  "provider_pricing": null
+}

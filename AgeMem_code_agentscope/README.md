@@ -307,6 +307,53 @@ Run the 43 M6 tests with:
 
 M6 does not implement a Group Critic, GRPO, or model training.
 
+The M6 closeout additionally audits each of the five controlled-error False
+Rejects. Schema-v2 lineage, action coordinates, StateFact identity, AP
+grounding, and both DFA/reward streams are checked from existing artifacts; 74
+DFA action checks establish that every failure is the expected consequence of
+one relevant-fact drop. Run the four closeout tests with
+`tests.common.m6_false_reject_audit_test`. The audit digest is
+`59a582d31396b548c0aa2c9dfc78cb5c93f6d6347a8e073d1ce0d5f291648032`.
+
+### M7 Group Critic and offline automaton validation
+
+M7 keeps the M4 hand-authored DFA as the primary baseline and adds strict,
+evidence-grounded Group Critic schemas, a deterministic mock critic, an
+injected-client LLM adapter, fail-closed validation, deterministic milestone
+DAG compilation, explicit hand-DFA/terminal-only fallback, and AP-credit-only
+offline replay. Replay consumes the existing `TrajectoryStepV2` and
+`ActionCreditRecord`; it does not rerun extraction, StateTracker, grounding, or
+an LLM.
+
+Run the fixed offline benchmark against the local M5/M6 artifacts:
+
+```powershell
+@'
+from AgeMem_code_agentscope.group_critic import write_m7_offline_report
+
+report = write_m7_offline_report()
+print(report.digest)
+'@ | .\.venv\python.exe -
+```
+
+The report covers 10 real HotpotQA smoke tasks, K=3 rollouts, three AP profiles,
+and 224 actions. All 90 hand-DFA profile/rollout replays exactly match their M6
+action rewards. Oracle and human-backed profiles have FA/FR `0/20` and `0/10`;
+the controlled-error profile retains the five explained FRs (`0/20`, `5/10`).
+The Critic plus explicit-fallback pipeline and hand DFA agree on all 90
+profile/rollout terminal decisions and all 3 x 224 action-reward observations.
+Twenty-five cyclic outputs are rejected
+by the validator and five mock outputs are unavailable; all 30 cases use an
+explicit fallback, with zero silent adoption. Evidence coverage is 451/451;
+150 direct repeat and 180 K-order permutation checks are stable. The hand-DFA
+farming audit passes 10 duplicate-ADD and 10 two-step RETRIEVE-loop scenarios;
+it does not claim Critic-DFA farming coverage.
+
+Outputs are under `artifacts/m7_group_critic/` and the readable report is
+`docs/m7_group_critic_offline_validation.md`. The report digest is
+`6d78f7984f3f64cc57863f84d6250d2f6fa3ee65418f2a054723e0d2229642df`.
+No real LLM, GRPO, or training is used.
+
 ## Install
 
 From the folder containing `AgeMem_code_agentscope` (e.g. project root):
@@ -427,6 +474,7 @@ AgeMem_code_agentscope/
   hotpotqa_benchmark/ # M5 local-data adapter, smoke manifest, metrics and CLI
   action_schema/ # M6 action-level v2 contracts and non-destructive migration
   memory_extraction/ # M6 extractors, cache, state, AP grounding, reward and benchmark
+  group_critic/ # M7 structured Critic, validator/compiler, replay and benchmark
   src/           # Helpers: utils, llm_client, schemas, hooks
   requirements.txt
   README.md
