@@ -5,7 +5,7 @@ Trainer Class
 from __future__ import annotations
 
 import asyncio
-import traceback
+import math
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 
@@ -16,12 +16,29 @@ from trinity.algorithm import SAMPLE_STRATEGY
 from trinity.common.config import Config
 from trinity.common.constants import RunningStatus, SyncMethod, SyncStyle
 from trinity.common.experience import Experiences
+from trinity.common.runtime_receipt import write_training_receipt
 from trinity.manager.state_manager import StateManager
 from trinity.manager.synchronizer import Synchronizer
 from trinity.utils.log import get_logger
 from trinity.utils.monitor import MONITOR
 from trinity.utils.plugin_loader import load_plugins
 from trinity.utils.timer import Timer
+
+
+def _experience_reward_metrics(exps: Experiences) -> Dict[str, float]:
+    """Extract finite-checkable task reward evidence from a gathered batch."""
+
+    rewards = getattr(exps, "rewards", None)
+    if rewards is None:
+        return {}
+    try:
+        return {
+            "training/reward_mean": float(rewards.mean().item()),
+            "training/reward_min": float(rewards.min().item()),
+            "training/reward_max": float(rewards.max().item()),
+        }
+    except (AttributeError, TypeError, ValueError):
+        return {}
 
 
 class Trainer:
@@ -78,7 +95,20 @@ class Trainer:
                     await asyncio.sleep(1)
                 exps, metrics, repr_samples = await sample_task
                 self.logger.info(f"Sample data for step {self.train_step_num + 1} finished.")
-                metrics.update(await self.train_step(exps))
+                train_metrics = await self.train_step(exps)
+                metrics.update(train_metrics)
+                receipt_metrics = dict(train_metrics)
+                receipt_metrics.update(_experience_reward_metrics(exps))
+                write_training_receipt(
+                    self.config.checkpoint_job_dir,
+                    completed_step=self.train_step_num,
+                    configured_total_steps=(
+                        int(self.total_steps)
+                        if math.isfinite(self.total_steps)
+                        else None
+                    ),
+                    metrics=receipt_metrics,
+                )
                 if await self.need_sync():
                     metrics.update(await self.sync_weight())
                 if self.need_save():
@@ -88,10 +118,15 @@ class Trainer:
                 self.monitor.log(metrics, self.train_step_num)
             except StopAsyncIteration:
                 self.logger.info("No more samples to train. Stopping training.")
+                if math.isfinite(self.total_steps) and self.train_step_num < self.total_steps:
+                    raise RuntimeError(
+                        "Experience input ended before the configured trainer steps completed: "
+                        f"{self.train_step_num}/{self.total_steps}"
+                    )
                 break
-            except Exception:
-                self.logger.error(f"Error in Trainer:\n{traceback.format_exc()}")
-                break
+            except Exception as e:
+                self.logger.error(f"Error in Trainer ({type(e).__name__})")
+                raise
 
         self.save_checkpoint(block_until_saved=True, save_as_hf=True)
         await self.synchronizer.set_trainer_status.remote(RunningStatus.STOPPED)
@@ -157,7 +192,9 @@ class Trainer:
                     "trainer", self.train_step_num
                 )
                 if result is None:
-                    self.logger.error("Trainer synchronizing weights failed.")
+                    raise RuntimeError(
+                        "Trainer synchronizing weights failed before NCCL update"
+                    )
                 else:
                     self.engine.sync_weight()
                     self.last_trainer_sync_step = self.train_step_num

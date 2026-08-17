@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-import json
 import math
 import os
 import threading
@@ -25,6 +24,82 @@ from AgeMem_code_agentscope.memory_store import (
     MemoryStoreSnapshot,
     RolloutMemoryStoreRegistry,
 )
+from trinity.common.auxiliary_provider import (
+    AuxiliaryProviderCallError,
+    AuxiliaryProviderResponseError,
+    AuxiliaryProviderUsageTracker,
+)
+
+
+def _provider_response_field(value: Any, field: str) -> Any:
+    if isinstance(value, Mapping):
+        return value.get(field)
+    return getattr(value, field, None)
+
+
+def _parse_embedding_response(response: Any, expected_dim: int) -> List[float]:
+    data = _provider_response_field(response, "data")
+    if not isinstance(data, Sequence) or isinstance(data, (str, bytes)) or not data:
+        raise AuxiliaryProviderResponseError(
+            "auxiliary provider returned a malformed embedding response"
+        )
+    raw_embedding = _provider_response_field(data[0], "embedding")
+    if not isinstance(raw_embedding, Sequence) or isinstance(
+        raw_embedding, (str, bytes)
+    ):
+        raise AuxiliaryProviderResponseError(
+            "auxiliary provider returned a malformed embedding response"
+        )
+    embedding: List[float] = []
+    for value in raw_embedding:
+        if (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not math.isfinite(float(value))
+        ):
+            raise AuxiliaryProviderResponseError(
+                "auxiliary provider returned a malformed embedding response"
+            )
+        embedding.append(float(value))
+    if len(embedding) != expected_dim:
+        raise AuxiliaryProviderResponseError(
+            "auxiliary provider returned an unexpected embedding dimension"
+        )
+    return embedding
+
+
+def _parse_chat_response(response: Any) -> str:
+    choices = _provider_response_field(response, "choices")
+    if (
+        not isinstance(choices, Sequence)
+        or isinstance(choices, (str, bytes))
+        or not choices
+    ):
+        raise AuxiliaryProviderResponseError(
+            "auxiliary provider returned a malformed chat response"
+        )
+    message = _provider_response_field(choices[0], "message")
+    content = _provider_response_field(message, "content")
+    if not isinstance(content, str) or not content.strip():
+        raise AuxiliaryProviderResponseError(
+            "auxiliary provider returned an empty chat response"
+        )
+    return content
+
+
+def _call_provider_without_tracker(
+    operation: str,
+    invoke: Callable[[], Any],
+    parser: Callable[[Any], Any],
+) -> Any:
+    try:
+        response = invoke()
+    except Exception as exc:
+        error_type = type(exc).__name__[:128]
+        raise AuxiliaryProviderCallError(
+            f"auxiliary provider {operation} failed ({error_type})"
+        ) from None
+    return parser(response)
 
 
 def _cosine_similarity(a: List[float], b: List[float]) -> float:
@@ -256,23 +331,41 @@ class MemoryManager:
         embedding_function: Optional[Callable[[str], Sequence[float]]] = None,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        usage_tracker: Optional[AuxiliaryProviderUsageTracker] = None,
     ) -> None:
         self._registry = registry or RolloutMemoryStoreRegistry()
         self._embedding_function = embedding_function
+        self._usage_tracker = usage_tracker
         self.client: Optional[OpenAI] = None
         if embedding_function is None:
-            resolved_api_key = api_key or os.getenv("DASHSCOPE_API_KEY")
-            if not resolved_api_key:
+            resolved_api_key = (
+                api_key if api_key is not None else os.getenv("DASHSCOPE_API_KEY")
+            )
+            if not isinstance(resolved_api_key, str) or not resolved_api_key.strip():
                 raise ValueError(
-                    "DASHSCOPE_API_KEY environment variable is not set. "
-                    "Please set it before running the workflow, e.g., export DASHSCOPE_API_KEY='your_key'"
+                    "DASHSCOPE_API_KEY environment variable is not set"
                 )
+            resolved_base_url = (
+                base_url
+                or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            )
+            if usage_tracker is not None:
+                if embedding_model != usage_tracker.config.embedding_model:
+                    raise ValueError(
+                        "embedding_model differs from auxiliary_provider contract"
+                    )
+                if embedding_dim != usage_tracker.config.embedding_dimensions:
+                    raise ValueError(
+                        "embedding_dim differs from auxiliary_provider contract"
+                    )
+                if resolved_base_url != usage_tracker.config.base_url:
+                    raise ValueError(
+                        "base_url differs from auxiliary_provider contract"
+                    )
             self.client = OpenAI(
                 api_key=resolved_api_key,
-                base_url=(
-                    base_url
-                    or "https://dashscope.aliyuncs.com/compatible-mode/v1"
-                ),
+                base_url=resolved_base_url,
+                max_retries=0,
             )
         self.embedding_model = embedding_model
         self.embedding_dim = embedding_dim
@@ -328,15 +421,35 @@ class MemoryManager:
             return embedding
         if self.client is None:
             raise RuntimeError("no embedding provider is configured")
-        completion = self.client.embeddings.create(
-            model=self.embedding_model,
-            input=content,
-            dimensions=self.embedding_dim,
-            encoding_format="float",
+        def invoke_embedding():
+            return self.client.embeddings.create(
+                model=self.embedding_model,
+                input=content,
+                dimensions=self.embedding_dim,
+                encoding_format="float",
+            )
+
+        embedding = (
+            self._usage_tracker.call(
+                operation="embedding",
+                model=self.embedding_model,
+                invoke=invoke_embedding,
+                response_parser=lambda response: _parse_embedding_response(
+                    response,
+                    self.embedding_dim,
+                ),
+            )
+            if self._usage_tracker is not None
+            else _call_provider_without_tracker(
+                "embedding",
+                invoke_embedding,
+                lambda response: _parse_embedding_response(
+                    response,
+                    self.embedding_dim,
+                ),
+            )
         )
-        json_response = completion.model_dump_json()
-        response = json.loads(json_response)
-        return response["data"][0]["embedding"]
+        return embedding
 
     def add_memory(
         self,
@@ -435,21 +548,64 @@ class MemoryManager:
 class chat_client:
     """给摘要、相似度判断和 LLM-as-a-Judge 使用的辅助模型客户端。"""
 
-    def __init__(self):
-        api_key = os.getenv("DASHSCOPE_API_KEY")
-        if not api_key:
+    def __init__(
+        self,
+        *,
+        api_key: Optional[str] = None,
+        base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        default_model: str = "qwen-max",
+        usage_tracker: Optional[AuxiliaryProviderUsageTracker] = None,
+    ):
+        resolved_api_key = (
+            api_key if api_key is not None else os.getenv("DASHSCOPE_API_KEY")
+        )
+        if not isinstance(resolved_api_key, str) or not resolved_api_key.strip():
             raise ValueError(
-                "DASHSCOPE_API_KEY environment variable is not set. "
-                "Please set it before running the workflow, e.g., export DASHSCOPE_API_KEY='your_key'"
+                "DASHSCOPE_API_KEY environment variable is not set"
             )
+        if usage_tracker is not None:
+            if base_url != usage_tracker.config.base_url:
+                raise ValueError(
+                    "base_url differs from auxiliary_provider contract"
+                )
+            if default_model != usage_tracker.config.chat_model:
+                raise ValueError(
+                    "default_model differs from auxiliary_provider contract"
+                )
         self.client = OpenAI(
-            api_key=api_key,
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            api_key=resolved_api_key,
+            base_url=base_url,
+            max_retries=0,
         )
+        self.default_model = default_model
+        self._usage_tracker = usage_tracker
 
-    def chat(self, messages: List[Dict], model_name: str = "qwen-max") -> str:
-        completion = self.client.chat.completions.create(
-            model=model_name,
-            messages=messages,
+    def chat(self, messages: List[Dict], model_name: Optional[str] = None) -> str:
+        resolved_model = model_name or self.default_model
+        if (
+            self._usage_tracker is not None
+            and resolved_model != self._usage_tracker.config.chat_model
+        ):
+            raise ValueError("model_name differs from auxiliary_provider contract")
+
+        def invoke_chat():
+            return self.client.chat.completions.create(
+                model=resolved_model,
+                messages=messages,
+            )
+
+        content = (
+            self._usage_tracker.call(
+                operation="chat_completion",
+                model=resolved_model,
+                invoke=invoke_chat,
+                response_parser=_parse_chat_response,
+            )
+            if self._usage_tracker is not None
+            else _call_provider_without_tracker(
+                "chat_completion",
+                invoke_chat,
+                _parse_chat_response,
+            )
         )
-        return completion.choices[0].message.content
+        return content

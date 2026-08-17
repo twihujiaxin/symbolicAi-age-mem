@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-import traceback
 from collections import deque
 from typing import List, Optional
 
@@ -24,6 +23,7 @@ from trinity.common.constants import (
 )
 from trinity.common.models import create_inference_models
 from trinity.common.models.utils import get_checkpoint_dir_with_step_num
+from trinity.common.runtime_receipt import write_benchmark_receipt
 from trinity.explorer.scheduler import Scheduler
 from trinity.manager.state_manager import StateManager
 from trinity.manager.synchronizer import Synchronizer
@@ -167,9 +167,11 @@ class Explorer:
 
             await self.synchronizer.set_explorer_status.remote(RunningStatus.REQUIRE_SYNC)
         except Exception as e:
-            self.logger.error(f"Error during explorer preparation: {traceback.format_exc()}")
+            self.logger.error(
+                f"Error during explorer preparation ({type(e).__name__})"
+            )
             await self.shutdown()
-            raise e
+            raise
 
     async def get_weight(self, name: str) -> torch.Tensor:
         """Get the weight of the loaded model (For checkpoint weights update)."""
@@ -198,9 +200,9 @@ class Explorer:
                     await self.eval()
                 if await self.need_sync():
                     await self.sync_weight()
-            except Exception:
-                self.logger.error(f"Error in Explorer: {traceback.format_exc()}")
-                break
+            except Exception as e:
+                self.logger.error(f"Error in Explorer ({type(e).__name__})")
+                raise
         self.logger.info(
             f"--------------------\n> Explorer ({self.config.explorer.name}) finished.\n--------------------"
         )
@@ -281,12 +283,15 @@ class Explorer:
         # benchmark on the latest checkpoint
         if self.config.explorer.bench_on_latest_checkpoint:
             self.explore_step_num = await self._checkpoint_weights_update()
+            self.model_version = self.explore_step_num
             await self.eval()
             await self._finish_eval_step(prefix="bench")
             return True
 
         # benchmark on base model
         if self.config.explorer.eval_on_startup:
+            if self.model_version < 0:
+                self.model_version = 0
             await self._finish_eval_step(prefix="bench")
 
         # benchmark on all checkpoints
@@ -300,6 +305,7 @@ class Explorer:
         )
         for step_num in all_ckp_steps:
             self.explore_step_num = await self._checkpoint_weights_update(step_num=step_num)
+            self.model_version = self.explore_step_num
             await self.eval()
             await self._finish_eval_step(prefix="bench")
         return True
@@ -340,6 +346,11 @@ class Explorer:
 
     async def _finish_explore_step(self, step: int, model_version: int) -> None:
         statuses, exps = await self.scheduler.get_results(batch_id=step)
+        failed_count = sum(not status.ok for status in statuses)
+        if failed_count:
+            raise RuntimeError(
+                f"{failed_count}/{len(statuses)} rollout tasks failed at step {step}"
+            )
         metric = {"rollout/model_version": model_version}
         pipeline_metrics = await self.experience_pipeline.process.remote(exps)
         metric.update(pipeline_metrics)
@@ -353,18 +364,40 @@ class Explorer:
         step = step or self.explore_step_num
         st = time.time()
         metric = {}
+        task_summaries = []
         while self.pending_eval_tasks:
             eval_step, eval_task_name = self.pending_eval_tasks[0]
             if eval_step != step:
                 return
             self.pending_eval_tasks.popleft()
             eval_results, _ = await self.scheduler.get_results(f"{step}/{eval_task_name}")
+            failed_count = sum(not status.ok for status in eval_results)
+            if failed_count:
+                raise RuntimeError(
+                    f"{failed_count}/{len(eval_results)} evaluation tasks failed "
+                    f"for {eval_task_name} at step {step}"
+                )
+            task_summaries.append(
+                {
+                    "taskset": eval_task_name,
+                    "task_count": len(eval_results),
+                    "failed_count": failed_count,
+                }
+            )
             metric.update(
                 gather_metrics(
                     [status.metric for status in eval_results], f"{prefix}/{eval_task_name}"
                 )
             )
         metric[f"{prefix}/total_time"] = time.time() - st
+        write_benchmark_receipt(
+            self.config.checkpoint_job_dir,
+            prefix=prefix,
+            step=step,
+            model_version=self.model_version,
+            task_summaries=task_summaries,
+            metrics=metric,
+        )
         self.monitor.log(metric, step)
 
     async def shutdown(self) -> None:

@@ -58,6 +58,10 @@ agent = [
     "mcp>=1.24,<2",
     "ollama>=0.5.4",
 ]
+m8b = [
+    "agentscope>=1.0.5,<2",
+    "datasets>=4,<5",
+]
 rm_gallery = [
     "rm-gallery>=0.1.5"
 ]

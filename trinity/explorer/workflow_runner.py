@@ -2,13 +2,13 @@
 """The Workflow Runner Module."""
 import asyncio
 import time
-import traceback
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from trinity.buffer import get_buffer_reader
 from trinity.common.action_event_contract import (
+    ActionContractError,
     finalize_experience_action_contract,
     freeze_rollout_policy_version,
 )
@@ -161,9 +161,19 @@ class WorkflowRunner:
                 return Status(True, metric=metric), exps
 
         except Exception as e:
-            error_trace_back = traceback.format_exc()
-            self.logger.error(f"WorkflowRunner run task error: {e}\nTraceback:\n{error_trace_back}")
-            return Status(False, metric={"time_per_task": time.time() - st}, message=str(e)), []
+            error_type = type(e).__name__
+            self.logger.error(f"WorkflowRunner run task error ({error_type})")
+            if isinstance(e, ActionContractError) and str(e).startswith(
+                "rollout policy version changed"
+            ):
+                status_message = "ActionContractError: rollout policy version changed"
+            else:
+                status_message = f"Workflow task failed ({error_type})"
+            return Status(
+                False,
+                metric={"time_per_task": time.time() - st},
+                message=status_message,
+            ), []
 
 
 class DebugWorkflowRunner(WorkflowRunner):

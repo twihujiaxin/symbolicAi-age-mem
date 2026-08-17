@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import gc
 import json
-import shutil
-import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -26,9 +23,8 @@ M5_MANIFEST = ROOT / "data" / "splits" / "hotpotqa_smoke_manifest.json"
 
 class TestSavedDatasetDictTaskReader(unittest.TestCase):
     def setUp(self):
-        self.temp_root = Path(tempfile.mkdtemp(prefix="agemem-m8a-dataset-"))
-        self.dataset_path = self.temp_root / "saved"
-        DatasetDict(
+        self.dataset_path = ROOT / "tests" / "fixtures" / "m8a_saved_dataset_dict"
+        self.saved_dataset = DatasetDict(
             {
                 "train": Dataset.from_dict(
                     {
@@ -45,11 +41,15 @@ class TestSavedDatasetDictTaskReader(unittest.TestCase):
                     }
                 ),
             }
-        ).save_to_disk(str(self.dataset_path))
+        )
+        self.load_patch = patch(
+            "trinity.common.hf_task_dataset.load_from_disk",
+            return_value=self.saved_dataset,
+        )
+        self.load_patch.start()
 
     def tearDown(self):
-        gc.collect()
-        shutil.rmtree(self.temp_root, ignore_errors=True)
+        self.load_patch.stop()
 
     def test_loads_requested_split_from_saved_dataset_dict(self):
         dataset = load_task_dataset(str(self.dataset_path), None, "validation")
@@ -65,8 +65,7 @@ class TestSavedDatasetDictTaskReader(unittest.TestCase):
 
     def test_non_saved_path_keeps_legacy_load_dataset_call(self):
         legacy_dataset = Dataset.from_dict({"id": ["legacy"]})
-        ordinary_path = self.temp_root / "ordinary-directory"
-        ordinary_path.mkdir()
+        ordinary_path = ROOT / "tests"
 
         with patch(
             "trinity.common.hf_task_dataset.load_dataset",
@@ -209,6 +208,18 @@ class TestE1DryRunConfig(unittest.TestCase):
         self.assertEqual(workflow_args["terminal_reward_metric"], "hotpotqa_official")
         self.assertIs(workflow_args["milestone_reward_enabled"], False)
         self.assertEqual(workflow_args["stage2_distractor_source"], "fixed")
+        self.assertEqual(
+            workflow_args["auxiliary_provider"],
+            {
+                "schema_version": "agemem.auxiliary_provider.v1",
+                "provider": "dashscope",
+                "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                "embedding_model": "text-embedding-v4",
+                "embedding_dimensions": 256,
+                "chat_model": "qwen-max",
+                "usage_tracking": True,
+            },
+        )
         self.assertIs(config["continue_from_checkpoint"], False)
 
 

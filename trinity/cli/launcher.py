@@ -3,7 +3,6 @@ import argparse
 import asyncio
 import os
 import sys
-import traceback
 from pathlib import Path
 from pprint import pprint
 
@@ -31,8 +30,9 @@ def bench(config: Config) -> None:
         ray.get(explorer.benchmark.remote())
         logger.info("Benchmark finished.")
         ray.get(explorer.shutdown.remote())
-    except Exception:
-        logger.error(f"Benchmark failed:\n{traceback.format_exc()}")
+    except Exception as e:
+        logger.error(f"Benchmark failed ({type(e).__name__})")
+        raise
 
 
 def explore(config: Config) -> None:
@@ -43,8 +43,9 @@ def explore(config: Config) -> None:
         ray.get(explorer.sync_weight.remote())
         ray.get(explorer.explore.remote())
         ray.get(explorer.shutdown.remote())
-    except Exception:
-        logger.error(f"Explorer failed:\n{traceback.format_exc()}")
+    except Exception as e:
+        logger.error(f"Explorer failed ({type(e).__name__})")
+        raise
 
 
 def train(config: Config) -> None:
@@ -55,8 +56,9 @@ def train(config: Config) -> None:
         ray.get(trainer.sync_weight.remote())
         ray.get(trainer.train.remote())
         ray.get(trainer.shutdown.remote())
-    except Exception:
-        logger.error(f"Trainer failed:\n{traceback.format_exc()}")
+    except Exception as e:
+        logger.error(f"Trainer failed ({type(e).__name__})")
+        raise
 
 
 def serve(config: Config) -> None:
@@ -67,8 +69,9 @@ def serve(config: Config) -> None:
         ray.get(explorer.sync_weight.remote())
         ray.get(explorer.serve.remote())
         ray.get(explorer.shutdown.remote())
-    except Exception:
-        logger.error(f"Explorer failed:\n{traceback.format_exc()}")
+    except Exception as e:
+        logger.error(f"Explorer failed ({type(e).__name__})")
+        raise
 
 
 def both(config: Config) -> None:
@@ -113,7 +116,9 @@ def both(config: Config) -> None:
                 "> Stopping the explorer process immediately.\n"
                 "==========================================================="
             )
-            ray.wait(wait_ref, timeout=5)
+            finished, _ = ray.wait(wait_ref, timeout=5)
+            if finished:
+                ray.get(finished)
         elif ready == config.explorer.name:
             logger.info(
                 "===============================================================\n"
@@ -123,14 +128,28 @@ def both(config: Config) -> None:
                 "> You can force stop the `Trainer` process by pressing Ctrl+C.\n"
                 "==============================================================="
             )
-            ray.wait(wait_ref, timeout=config.synchronizer.sync_timeout)
-        ray.wait(
+            finished, unfinished = ray.wait(
+                wait_ref,
+                timeout=config.synchronizer.sync_timeout,
+            )
+            if unfinished:
+                raise TimeoutError(
+                    "Trainer did not finish within synchronizer.sync_timeout"
+                )
+            ray.get(finished)
+        else:
+            raise RuntimeError(f"Unexpected completed process identity: {ready!r}")
+        shutdown_finished, shutdown_unfinished = ray.wait(
             [explorer.shutdown.remote(), trainer.shutdown.remote()],
             timeout=config.synchronizer.sync_timeout,
             num_returns=2,
         )
-    except Exception:
-        logger.error(f"Explorer or Trainer failed:\n{traceback.format_exc()}")
+        if shutdown_unfinished:
+            raise TimeoutError("Explorer or Trainer shutdown timed out")
+        ray.get(shutdown_finished)
+    except Exception as e:
+        logger.error(f"Explorer or Trainer failed ({type(e).__name__})")
+        raise
 
 
 MODE_MAP = {

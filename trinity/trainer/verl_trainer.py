@@ -469,6 +469,7 @@ class VerlPPOTrainerWrapper(RayPPOTrainer, TrainEngineWrapper):
                     # TODO add send weight explorer
                 actor_output_metrics = reduce_metrics(actor_output.meta_info["metrics"])
                 metrics.update(actor_output_metrics)
+                metrics["training/actor_update_completed"] = 1.0
 
         # collect metrics
         metrics.update(compute_data_metrics(batch=batch, use_critic=self.use_critic))

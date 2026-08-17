@@ -9,6 +9,11 @@ from trinity.common.action_event_contract import (
     prepare_experience_action_drafts,
     record_experience_action_result,
 )
+from trinity.common.auxiliary_provider import (
+    AuxiliaryProviderUsageTracker,
+    load_auxiliary_provider_config,
+    resolve_auxiliary_provider_telemetry_path,
+)
 from trinity.common.experience import Experience
 from trinity.common.models.model import ModelWrapper
 from trinity.common.tool_trace import ToolTraceRecorder
@@ -91,6 +96,25 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.workflow_args = task.workflow_args
         self.verbose: bool = bool(self.workflow_args.get("verbose_logging", False))
         self.reward_profile = load_workflow_reward_profile(self.workflow_args)
+        self.auxiliary_provider_config = load_auxiliary_provider_config(
+            self.workflow_args,
+            required=self.reward_profile.is_terminal_only,
+        )
+        self.auxiliary_provider_telemetry_path = (
+            resolve_auxiliary_provider_telemetry_path(self.workflow_args)
+        )
+        if (
+            self.reward_profile.is_terminal_only
+            and self.auxiliary_provider_telemetry_path is None
+        ):
+            raise ValueError(
+                "terminal_only requires TRINITY_LOG_DIR, tool_trace_path, or "
+                "auxiliary_provider_telemetry_path for durable provider telemetry"
+            )
+        self.auxiliary_provider_usage = AuxiliaryProviderUsageTracker(
+            self.auxiliary_provider_config,
+            telemetry_path=self.auxiliary_provider_telemetry_path,
+        )
 
         # STM（context_messages）的容量与自动摘要阈值。
         self.max_context_tokens = self.workflow_args.get("max_context_tokens", 32768)
@@ -138,9 +162,16 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
 
         # memory_manager 是 LTM；chat_client 是摘要、相似度判断、Judge 等辅助调用。
         self.memory_manager = MemoryManager(
-            embedding_model="text-embedding-v4", embedding_dim=256
+            embedding_model=self.auxiliary_provider_config.embedding_model,
+            embedding_dim=self.auxiliary_provider_config.embedding_dimensions,
+            base_url=self.auxiliary_provider_config.base_url,
+            usage_tracker=self.auxiliary_provider_usage,
         )
-        self.chat_client = chat_client()
+        self.chat_client = chat_client(
+            base_url=self.auxiliary_provider_config.base_url,
+            default_model=self.auxiliary_provider_config.chat_model,
+            usage_tracker=self.auxiliary_provider_usage,
+        )
         self.distractor_generator = DistractorGenerator(self.chat_client)
 
         # context_messages 是 STM。它与 LTM 分开维护，因此可以只清空当前上下文。
@@ -278,7 +309,11 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                                 ),
                             }
                         ],
-                        model_name="qwen-max",
+                        model_name=getattr(
+                            getattr(self, "auxiliary_provider_config", None),
+                            "chat_model",
+                            "qwen-max",
+                        ),
                     )
 
                     # Replace the original messages with summary
@@ -353,7 +388,11 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                                     ),
                                 }
                             ],
-                            model_name="qwen-max",
+                            model_name=getattr(
+                                getattr(self, "auxiliary_provider_config", None),
+                                "chat_model",
+                                "qwen-max",
+                            ),
                         )
 
                         similarity_score = extract_score(similarity_text, default=0.0)
@@ -789,6 +828,9 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self._last_answer_score = None
         self._tool_trace_events.clear()
         self._last_tool_result = {}
+        provider_usage = getattr(self, "auxiliary_provider_usage", None)
+        if provider_usage is not None:
+            provider_usage.reset()
 
     async def run_async(self) -> List[Experience]:
         """Initialize the workflow and start the multi-turn, multi-step process."""
@@ -823,7 +865,10 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             return await self.inference_samples(rollout_n)
 
         except Exception as e:
-            self.logger.error(f"Error in run: {e}", exc_info=True)
+            self.logger.error(
+                "Error in run (%s)",
+                type(e).__name__[:128],
+            )
             raise
 
     def _mark_retrievals_used_by_next_response(self, messages) -> None:
@@ -911,6 +956,12 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             memory_rollout_id = f"{batch_id}/{task_id}/{self.current_run_id}"
             self.reset_per_run(rollout_id=memory_rollout_id)
             self.current_execution_id = str(uuid.uuid4())
+            self.auxiliary_provider_usage.start_rollout(
+                task_id=task_id,
+                rollout_id=memory_rollout_id,
+                execution_id=self.current_execution_id,
+                is_eval=bool(getattr(self.task, "is_eval", False)),
+            )
             self._append_context("system", self.sys_prompt)
 
             all_stage_experiences: List[Experience] = []
@@ -1076,6 +1127,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 if self._last_answer_score is not None
                 else {}
             )
+            auxiliary_provider_usage = self.auxiliary_provider_usage.snapshot()
 
             detailed_info = {
                 "task_score": task_score,
@@ -1119,6 +1171,13 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 ),
                 "trace_execution_id": self.current_execution_id,
                 "memory_rollout_id": self.memory_manager.rollout_id,
+                "auxiliary_provider": (
+                    self.auxiliary_provider_config.public_dict()
+                ),
+                "auxiliary_provider_usage": auxiliary_provider_usage,
+                "auxiliary_provider_telemetry_path": (
+                    self.auxiliary_provider_telemetry_path
+                ),
                 "num_stages": 3,
             }
 
@@ -1146,6 +1205,18 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 if exp.metrics is None:
                     exp.metrics = {}
                 exp.metrics["task_score"] = task_score
+                exp.metrics["auxiliary_provider_calls"] = (
+                    auxiliary_provider_usage["total_calls"]
+                )
+                exp.metrics["auxiliary_provider_failures"] = (
+                    auxiliary_provider_usage["failed_calls"]
+                )
+                exp.metrics["auxiliary_provider_latency_ms"] = (
+                    auxiliary_provider_usage["total_latency_ms"]
+                )
+                exp.metrics["auxiliary_provider_total_tokens"] = (
+                    auxiliary_provider_usage["usage"]["total_tokens"]
+                )
 
             experience_list.extend(all_stage_experiences)
 
