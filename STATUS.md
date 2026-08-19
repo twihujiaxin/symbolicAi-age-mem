@@ -145,6 +145,8 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 
 ### M8a
 
+> 状态说明：M8a 的本地静态/离线门禁实现已完成，但阶段验收仍有两项未关闭：真实 AutoDL runtime/E1 smoke，以及在线 `ActionCreditRecord` 自动生成。前者由 M8b smoke 执行，后者属于 E3/E4，不能在 terminal-only 基线中伪记为完成。
+
 - [x] `TaskFileReader` 支持本地 Hugging Face `save_to_disk` Dataset/DatasetDict，并对 split、subset 与 row index fail closed
 - [x] E1 dry-run 固定复用 M5 manifest 的 6 条 source-train 样本；运行时校验 train fingerprint、source index 顺序与 Hotpot ID，真实 fullwiki 90,447→6 已核对
 - [x] 新增 2-GPU、K=2、单 trainer step 的 `agemem_e1_dry_run.yaml`；完整 K 组保持在同一 WorkflowRunner policy-freeze 窗口
@@ -160,8 +162,8 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 - [x] M8a 初始范围为 46 项测试：43 PASS、3 SKIP；当前已由 M8b 锁扩展为 107 项 `m8a` scope（本地 104 PASS、3 SKIP）
 - [x] M1～M7 相关回归 145/145、既有 tool-trace 28/28 均通过
 - [x] 本阶段未调用真实 LLM/embedding/网络，未运行模型、GPU、优化器或 checkpoint
-- [ ] AutoDL Linux 上的 3 个 runtime tests、完整 Config/Ray/vLLM/veRL、E1 单次更新和 checkpoint 新进程重载尚未执行
-- [ ] 在线 `ActionCreditRecord` 自动生成器尚未实现；当前只有严格 schema、join 和 buffer validation
+- [ ] **未关闭项 1：** AutoDL Linux 上的 3 个 runtime tests、完整 Config/Ray/vLLM/veRL、E1 单次更新和 checkpoint 新进程重载尚未执行（对应 M8b 真实 smoke）
+- [ ] **未关闭项 2：** 在线 `ActionCreditRecord` 自动生成器尚未实现；当前只有严格 schema、join 和 buffer validation（对应 E3/E4）
 
 ### M8b 上卡前准备
 

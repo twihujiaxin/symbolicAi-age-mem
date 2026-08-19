@@ -2,8 +2,8 @@
 
 > 面向：VS Code 中的 Codex 插件  
 > 项目方向：AgeMem 式可学习记忆管理 + GLARE 式 LTLf/DFA 逻辑奖励  
-> 文档版本：v1.7<br>
-> 更新时间：2026-08-18<br>
+> 文档版本：v1.8<br>
+> 更新时间：2026-08-19<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
 > 当前状态：M0～M7 已完成；M8a 与 M8b-prep 上卡前执行包已实现。真实 AutoDL 严格预检、E0、E1 单次更新和 checkpoint 新进程重载均尚未执行
 
@@ -133,7 +133,7 @@ RQ7：逻辑奖励能否泛化到未见任务和更长轨迹？
 D:\Project\Age-Mem\AgeMem
 ```
 
-截至 2026-08-18，Codex 已在 Windows `D:` 盘工作区完成本地检查以及 M8a/M8b-prep 实现。后续会话仍必须先读取 `STATUS.md` 并重新执行只读检查，不能把本文记录当作实时 Git 状态：
+截至 2026-08-19，Codex 已在 Windows `D:` 盘工作区完成本地检查以及 M8a/M8b-prep 实现。后续会话仍必须先读取 `STATUS.md` 并重新执行只读检查，不能把本文记录当作实时 Git 状态：
 
 ```text
 当前是否为 Git 仓库
@@ -165,7 +165,7 @@ M4 已完成：Memory Oracle AP + 手工 DFA + 离线奖励
 M5 已完成：真实 HotpotQA 数据适配与 Oracle Benchmark
 M6 已完成：自然语言三元组抽取、显式状态跟踪与 False Reject 收尾
 M7 已完成：Group Critic 与自动机离线验证；真实 LLM 调用为 0
-M8a 已完成：E1 本地静态/离线门禁；尚未执行真实模型、GPU 或优化器更新
+M8a 本地门禁实现已完成，但仍有两项未关闭：真实 AutoDL runtime/E1 smoke 尚未执行；在线 `ActionCreditRecord` 自动生成器尚未实现（后者属于 E3/E4）
 M8b-prep 已完成：模型/数据/配置锁、严格预检、provider 遥测、运行时 receipt、E0/E1/checkpoint eval 与 fail-closed 一键脚本
 ```
 

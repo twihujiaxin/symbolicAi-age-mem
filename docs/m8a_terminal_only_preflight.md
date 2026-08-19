@@ -1,10 +1,15 @@
 # M8a Terminal-only 上卡前门禁
 
-更新时间：2026-08-18
+更新时间：2026-08-19
 
 ## 结论
 
 M8a 已建立 E1 terminal-only 的本地静态/离线契约，但尚未执行真实模型、GPU、优化器更新或 checkpoint 重载。因此本阶段的结论是“可以进入 AutoDL 两卡 smoke 前置验证”，不是“E1 已复现”，更不是“可以直接开始全量训练”。
+
+当前仍有两项未关闭：
+
+1. AutoDL Linux 上的完整 runtime、E1 单次更新和 checkpoint 新进程重载尚未执行；这由 M8b smoke 负责，不在本地 Windows 门禁中伪记为通过。
+2. 在线 `ActionCreditRecord` 自动生成尚未接入；M8a 保持 terminal-only 基线，AP/DFA credit 接线留到 E3/E4。
 
 后续上卡前检查现已固化为脚本和版本锁，执行入口见
 [M8b AutoDL 上卡前执行包](m8b_autodl_preflight.md)。
