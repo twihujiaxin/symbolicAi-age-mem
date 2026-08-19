@@ -256,6 +256,10 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 - fixture/既有测试：`tests/buffer/task_file_reader_dataset_dict_test.py`、`tests/fixtures/m8a_saved_dataset_dict/`
 - 文档：`docs/m8b_autodl_preflight.md`、`docs/m8a_terminal_only_preflight.md`、HotpotQA `README.md`、`PROJECT_HANDOFF.md`、`STATUS.md`
 
+## Presentation artifact
+
+- `docs/project_presentation_materials.md`：14 页 PPT 素材、页级结论、图表建议、证据来源和后续 PPT 生成提示词；不包含 `.pptx`，不代表新增实验结果
+
 ## Verification
 
 - M5 adapter/benchmark/local-data tests：10/10 PASS
