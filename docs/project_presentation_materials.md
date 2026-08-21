@@ -1,7 +1,7 @@
 # AgeMem 神经符号记忆项目：PPT 素材文档
 
 > 用途：供后续会话生成项目汇报、开题答辩或阶段性进展 PPT。<br>
-> 建议版本：15 分钟、14 页；可压缩为 10 页。<br>
+> 建议版本：15 分钟、15 页；可压缩为 10 页。<br>
 > 更新时间：2026-08-19<br>
 > 当前代码分支：`feat/m6-extracted-ap-state-tracker`<br>
 > 当前阶段：M8b-prep；真实 AutoDL E0/E1/checkpoint 尚未执行。
@@ -96,15 +96,16 @@
 **页面内容**
 
 ```text
-Stage 1：观察事实 → ADD / UPDATE
-Stage 2：上下文变化 → RETRIEVE
-Stage 3：组合证据 → ANSWER
-                         ↑
-                 终局奖励在这里才出现
+Stage 1：候选事实 → ADD / UPDATE
+Stage 2：查询尚未公开 → SUMMARY / CLEAR（或离线 KEEP / CLEAR / COMPRESS）
+Stage 3：问题公开 → RETRIEVE / ANSWER
+                              ↑
+                      终局奖励在这里才出现
 ```
 
 - 早期 ADD 是否保存了真正的 supporting fact？
-- 中间 RETRIEVE 是否覆盖了正确事实？
+- Stage 2 是否在预算内保留未来有用信息？
+- Stage 3 RETRIEVE 是否覆盖了正确证据？
 - UPDATE 是否替换了过期版本，而不是制造重复记忆？
 - 重复调用和循环动作是否能“刷奖励”？
 
@@ -137,10 +138,14 @@ Stage 3：组合证据 → ANSWER
 
 **暂不纳入首轮主实验**
 
-- `SUMMARY / FILTER / DELETE`；
+- `SUMMARY / CLEAR / DELETE` 的在线 DFA 奖励；
 - Negative Automata、反事实推理、动态图数据库；
 - 真实 Group Critic、GRPO 全量训练；
 - 开放式 LTLf 自动生成。
+
+Stage 1/2 sidecar 中的 KEEP/CLEAR/COMPRESS 是固定离线诊断策略；在线
+SUMMARY/CLEAR 已存在于 E1 工具与 Experience 路径，可能调用冻结的 `qwen-max`，
+但其 AP/DFA 奖励尚未接入主实验。
 
 **建议图示**
 
@@ -268,7 +273,52 @@ RewardBreakdown / ActionCreditRecord
 
 ---
 
-### Slide 7｜M4：Oracle AP 与手工正向 DFA
+### Slide 7｜Stage 1/2 反捷径压力测试
+
+**页面结论**
+
+固定容量与查询延迟挑战能排除 Store-All、Always-Keep、Always-Clear 和当前 min-ID control，但只证明 benchmark 对这些固定策略有区分力，不代表模型已学会泛化相关性。
+
+**Stage 1：LTM 存储预算**
+
+固定 `toy-train-005`、seed 7、15 个 `unicode-lexical-v1` active-content tokens：
+
+| Policy | Support recall | Memory precision | Budget rejects |
+|---|---:|---:|---:|
+| Store-All | 0.500 | 0.500 | 1 |
+| Store-None | 0.000 | 0.000 | 0 |
+| Oracle-Safe-Store | 1.000 | 1.000 | 0 |
+
+**Stage 2：query-delayed context challenge**
+
+6 条 dev/test case 覆盖 hard negative、partial relevance、delayed relevance；公开输入不含 `task_id`、split、原始消息/segment ID、`future_query` / `future_answer` 字段、scenario 或 Oracle role，每个 seed 使用与角色无关的不透明句柄。Supporting message 可以包含未来答案事实，但当时没有查询可用于判断相关性。
+
+| Policy | Support | Budget | Safe success |
+|---|---:|---:|---:|
+| Always-Keep | 1.000 | 0.000 | 0.000 |
+| Always-Clear | 0.000 | 1.000 | 0.000 |
+| Opaque-ID control | 0.667 | 1.000 | 0.667 |
+| Oracle-Safe-Compress | 1.000 | 1.000 | 1.000 |
+
+**证据边界**
+
+- 两个 Oracle 策略使用私有 labels，只是不可部署的离线上界；
+- 7/7 gates PASS，真实 LLM / external embedding service / network calls 为 0；报告 schema v2 checksum 为 `b5ced8e688194d3d9e7cb3a6b4bd8d256d7cc38610fcb56a1d8c37987a7b952c`；
+- Stage 2 budget scope 为 `retained_segment_text_only`，句柄、格式和控制提示不计入 payload budget；
+- E1 `terminal_only` 配置与 M3-M7 artifacts 未改写；
+- 当前结果不证明真实 LLM、真实 HotpotQA 泛化或 DFA 优于 terminal-only。
+
+**建议图示**
+
+左右放两张策略对照图：左图显示 Store-All 在固定 LTM budget 下丢 support，右图显示 Always-Keep、Always-Clear 与 min-ID control 均未达到 Oracle。Oracle 柱使用虚线并标“privileged upper bound”。
+
+**来源**
+
+`docs/anti_shortcut_benchmark.md`，checksum：`b5ced8e688194d3d9e7cb3a6b4bd8d256d7cc38610fcb56a1d8c37987a7b952c`。
+
+---
+
+### Slide 8｜M4：Oracle AP 与手工正向 DFA
 
 **页面结论**
 M4 证明了“轨迹 → AP → DFA → 逐步 reward”这条离线链路能够确定性重放，并能抵抗重复和循环刷奖励。
@@ -310,7 +360,7 @@ M4 实现、`STATUS.md` M4、`docs/m5_hotpotqa_oracle_benchmark.md`。
 
 ---
 
-### Slide 8｜M5：真实 HotpotQA 数据适配与 Oracle Benchmark
+### Slide 9｜M5：真实 HotpotQA 数据适配与 Oracle Benchmark
 
 **页面结论**
 在不调用 LLM 的条件下，数据适配、supporting facts、答案不可见性和 Oracle reward 链路已经在真实 fullwiki 上闭环。
@@ -350,7 +400,7 @@ M4 实现、`STATUS.md` M4、`docs/m5_hotpotqa_oracle_benchmark.md`。
 
 ---
 
-### Slide 9｜M6：从 Triple 到 StateTracker 与 Extracted AP
+### Slide 10｜M6：从 Triple 到 StateTracker 与 Extracted AP
 
 **页面结论**
 M6 把 Oracle AP 之外的抽取链路显式化，并保证每个派生 AP 都能追溯到原始 `action_id`。
@@ -387,7 +437,7 @@ M6 把 Oracle AP 之外的抽取链路显式化，并保证每个派生 AP 都�
 
 ---
 
-### Slide 10｜M6 收尾：错误如何传播？
+### Slide 11｜M6 收尾：错误如何传播？
 
 **页面结论**
 5 条 False Reject 全部可解释为预期抽取器漏抽，未发现 StateTracker、AP grounding、action alignment 或 DFA 实现错误。
@@ -426,7 +476,7 @@ DFA 未从 q1 进入 q3/q4
 
 ---
 
-### Slide 11｜M7：Group Critic 与手工 DFA 的离线验证
+### Slide 12｜M7：Group Critic 与手工 DFA 的离线验证
 
 **页面结论**
 在不调用真实 LLM 的前提下，Critic 只作为 deterministic mock shadow；无效输出显式回退到手工 DFA，且 replay 结果保持一致。
@@ -464,7 +514,7 @@ M7 验证的是离线管线的稳定性与回退安全，不是证明真实 LLM 
 
 ---
 
-### Slide 12｜M8a：Terminal-only 训练基线契约
+### Slide 13｜M8a：Terminal-only 训练基线契约
 
 **页面结论**
 M8a 将首轮 GPU smoke 收缩为可控的 terminal-only baseline，确保奖励对照不被 DFA/AP 接线污染。
@@ -478,14 +528,14 @@ M8a 将首轮 GPU smoke 收缩为可控的 terminal-only baseline，确保奖励
 - `multi_step_grpo + step_wise_grpo`；
 - 1 个 trainer step；
 - reward breakdown 仅有 terminal 与 total；
-- Stage 2 使用固定 distractor，不调用 provider distractor；
+- Stage 2 使用固定 distractor，不调用 provider distractor；这不代表 SUMMARY/CLEAR 或 memory embedding 没有外部调用；
 - milestone/DFA reward 关闭。
 
 **本地证据**
 
-- M8a 原始 46 项：43 PASS、3 SKIP；
-- M8b 锁定后 m8a scope：107 项，104 PASS、3 个缺 Ray 的环境性 SKIP；
-- M1-M7 相关回归：145/145；tool-trace：28/28；
+- M8a 原始历史 subset：46 项，43 PASS、3 SKIP；
+- M8b 锁定后 m8a scope：133 项，130 PASS、3 个缺 Ray 的环境性 SKIP；
+- M1-M7 相关回归：145/145；tool-trace：30/30；
 - 本阶段真实 LLM/embedding/network/GPU/optimizer/checkpoint：0。
 
 **两项未关闭**
@@ -503,7 +553,7 @@ M8a 将首轮 GPU smoke 收缩为可控的 terminal-only baseline，确保奖励
 
 ---
 
-### Slide 13｜M8b-prep：上卡前证据门禁
+### Slide 14｜M8b-prep：上卡前证据门禁
 
 **页面结论**
 M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、运行时 fail-closed 和 postflight 证据，但尚未运行真实 GPU。
@@ -521,8 +571,8 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 
 **本地结果**
 
-- 定向 M8b tests：61/61 PASS；
-- 全量锁定 suite：280 discovered/executed，277 PASS、3 SKIP、0 FAIL、0 ERROR；
+- 定向 M8b tests：61/61 PASS；反捷径 tests：26/26 PASS；另有 2 项 E2 target-question 对齐回归；
+- 全量锁定 suite：308 discovered/executed，305 PASS、3 SKIP、0 FAIL、0 ERROR；
 - 本地 preflight：18 PASS、0 FAIL、2 WARN、11 SKIP；
 - 严格 runtime gate 对 SKIP fail closed；
 - 真实 GPU/LLM/optimizer/checkpoint：0。
@@ -537,7 +587,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 
 ---
 
-### Slide 14｜结论、未完成项与下一步
+### Slide 15｜结论、未完成项与下一步
 
 **页面结论**
 项目已经完成奖励链路的离线可解释性验证，下一步不是直接扩大训练，而是先完成严格 GPU smoke，再实现在线 credit 与正式对照。
@@ -555,13 +605,14 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 
 - 不能声称 DFA 已优于 terminal-only 训练：尚无真实 E1/E3/E4 训练结果；
 - 不能声称真实 LLM AP/Group Critic 性能：当前使用 mock/fake client；
+- 不能声称真实模型已摆脱 Store-All 或主题偏移捷径：当前只有确定性 sidecar；
 - 不能声称 GPU/checkpoint smoke 通过：AutoDL 尚未执行；
 - 不能声称在线 `ActionCreditRecord` 已接入：当前仍是 schema/join/validation。
 
 **推荐下一步**
 
-1. 提交并推送当前两个 M8b-prep commit，轮换本地凭据；
-2. AutoDL 上执行 `bash -n`、严格 preflight 和 `280/280` runtime gate；
+1. 推送当前已验证的本地提交，轮换本地凭据；
+2. AutoDL 上执行 `bash -n`、严格 preflight 和 `308/308` runtime gate；
 3. 依次完成 E0 frozen eval、E1 单次 update、checkpoint 保存、重启后 eval、postflight；
 4. 只有 M8b smoke 通过后，设计 E3/E4 在线 `ActionCreditRecord` 生成与 terminal-only 对照；
 5. 最后才进入多 seed、扩大数据和正式 DFA-vs-terminal 研究。
@@ -577,12 +628,13 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 | M1 | TrajectoryRecorder / Replay | JSONL 可重放、查询、确定性 digest | 无真实模型 |
 | M2 | MemoryStore / rollout registry | 版本化、snapshot/restore、隔离 | CPU/内存实现 |
 | M3 | 三阶段 Toy Environment | 30 tasks；gold 30/30 | 规则 policy |
+| Anti-shortcut | Stage 1/2 固定策略压力测试 | 26/26 tests；7/7 gates | Toy/Oracle sidecar |
 | M4 | Oracle AP + hand DFA | gold 30/30；failure 全拒绝；once-only | Oracle 上界 |
 | M5 | HotpotQA smoke adapter | 90,447/7,405/7,405；30 trajectories | 确定性策略 |
 | M6 | Extracted AP / StateTracker | mock AP F1 .976；controlled FR 5/10 可解释 | fake/mock extractor |
 | M7 | Critic offline validation | 90/90 replay；30 fallback；20/20 farming | deterministic mock |
-| M8a | Terminal-only contract | 107 scope；104 PASS、3 local SKIP | 尚未上卡 |
-| M8b-prep | AutoDL evidence gates | 61/61 targeted；preflight 18/0/2/11 | 尚未真实执行 |
+| M8a | Terminal-only contract | 133 scope；130 PASS、3 local SKIP | 尚未上卡 |
+| M8b-prep | AutoDL evidence gates | 61/61 targeted；308 all scope | 尚未真实执行 |
 
 ## 5. 图表与素材清单
 
@@ -590,14 +642,15 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 
 1. **研究路线图**：M0 → M1 → M2 → M3/M4 → M5 → M6 → M7 → M8a/M8b；
 2. **三阶段环境时间轴**：Stage 1 记忆写入、Stage 2 干扰、Stage 3 检索回答；
-3. **系统数据流图**：ActionEvent → MemoryStore delta → Triple/StateFact → AP → DFA → Reward；
-4. **DFA 状态图**：`q0/q1/q2/q3/q4/q_reject/q_timeout`，标注 once-only edges；
-5. **M5 策略对比柱状图**：gold 10/10 success，wrong-answer 0/10，missing-support 0/10；
-6. **M6 指标表/散点图**：human-backed 与 controlled-error 的 Triple/AP F1、FA/FR、reward MAE；
-7. **M6 错误传播因果链**：注入漏抽 → AP 缺失 → DFA 转移失败；
-8. **M7 fallback 流程图**：valid critic / invalid critic / unavailable critic；
-9. **M8b 闸门流程图**：preflight → runtime gate → E0 → E1 → checkpoint eval → postflight；
-10. **证据边界矩阵**：已验证、mock/Oracle、待 AutoDL、待 E3/E4。
+3. **反捷径双对照图**：Store-All/None/Oracle-Safe-Store 与 Always-Keep/Clear/Opaque-ID-Control/Oracle-Safe-Compress；
+4. **系统数据流图**：ActionEvent → MemoryStore delta → Triple/StateFact → AP → DFA → Reward；
+5. **DFA 状态图**：`q0/q1/q2/q3/q4/q_reject/q_timeout`，标注 once-only edges；
+6. **M5 策略对比柱状图**：gold 10/10 success，wrong-answer 0/10，missing-support 0/10；
+7. **M6 指标表/散点图**：human-backed 与 controlled-error 的 Triple/AP F1、FA/FR、reward MAE；
+8. **M6 错误传播因果链**：注入漏抽 → AP 缺失 → DFA 转移失败；
+9. **M7 fallback 流程图**：valid critic / invalid critic / unavailable critic；
+10. **M8b 闸门流程图**：preflight → runtime gate → E0 → E1 → checkpoint eval → postflight；
+11. **证据边界矩阵**：已验证、mock/Oracle、待 AutoDL、待 E3/E4。
 
 ## 6. 视觉与排版建议
 
@@ -614,14 +667,14 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 
 ```text
 请阅读 docs/project_presentation_materials.md、STATUS.md、PROJECT_HANDOFF.md，
-生成一份 14 页中文学术工程汇报 PPT，主题为
+生成一份 15 页中文学术工程汇报 PPT，主题为
 “Logic-Guided Agent Memory：面向长程记忆操作的可重放轨迹与 DFA 里程碑奖励”。
 
 严格遵守素材文档中的阶段边界：M0-M7 与 M8b-prep 只按已验证证据呈现；
 不要把 mock、Oracle 或 controlled-error 指标写成真实 LLM/训练结果；
 不要声称 AutoDL、GPU、optimizer、checkpoint 或在线 ActionCreditRecord 已完成。
 
-优先制作：研究问题、系统数据流、三阶段环境、DFA 状态图、M5/M6/M7 结果图、
+优先制作：研究问题、系统数据流、三阶段环境、反捷径双对照、DFA 状态图、M5/M6/M7 结果图、
 M8b 闸门流程和未完成项。每页一个结论，图表优先于代码截图，保留数据来源和免责声明。
 ```
 
@@ -635,6 +688,7 @@ M8b 闸门流程和未完成项。每页一个结论，图表优先于代码截�
 | M6 抽取指标 | `docs/m6_extraction_benchmark.md` |
 | M6 五条 False Reject 审计 | `docs/m6_false_reject_audit.md` |
 | M7 Critic 离线验证 | `docs/m7_group_critic_offline_validation.md` |
+| Stage 1/2 反捷径报告 | `docs/anti_shortcut_benchmark.md`、`artifacts/anti_shortcut_benchmark/anti_shortcut_benchmark.json` |
 | M8a terminal-only 契约 | `docs/m8a_terminal_only_preflight.md` |
 | M8b AutoDL 门禁与 smoke 顺序 | `docs/m8b_autodl_preflight.md` |
 | 固定数据清单 | `data/splits/hotpotqa_smoke_manifest.json` |

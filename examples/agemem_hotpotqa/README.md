@@ -25,7 +25,7 @@ export DASHSCOPE_API_KEY=your_dashscope_key
 ```
 
 E1 的 terminal reward 和固定 distractor 不调用辅助 LLM；但当前 memory
-workflow 的 embedding 以及模型主动调用的 SUMMARY/FILTER 仍可能访问 DashScope，
+workflow 的 embedding 以及模型主动调用的 SUMMARY/CLEAR 仍可能访问 DashScope，
 因此 E1 也不能被描述为端到端离线运行。M8b smoke 已在 YAML 中冻结 provider、
 embedding/chat model。每次调用会立即写入 checkpoint job 下独立的
 `trajectories/auxiliary_provider_calls.jsonl`，Experience 同时保存 rollout 汇总；

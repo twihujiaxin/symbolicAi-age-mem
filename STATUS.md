@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
+M8b：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 
-状态：本地上卡前准备与 280 项锁定回归已完成；真实 AutoDL E0/E1/checkpoint 尚未执行
+状态：本地上卡前准备、Stage 1/2 反捷径 benchmark 与 308 项锁定回归已完成；真实 AutoDL E0/E1/checkpoint 尚未执行
 
 ## Completed
 
@@ -159,15 +159,15 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 - [x] ActionEvent 与 Experience task/rollout/stage/timestep/EID 精确对齐；最终 buffer 边界重算 character→token span 并重查 ToolTrace join；同一 task 混合 policy version 时拒绝
 - [x] 规则/oracle/random/error-injector 轨迹禁止进入 on-policy buffer；AgeMem ExperiencePipeline 在 operator 前后均强制契约存在，删除或篡改契约时 fail closed
 - [x] `AgeMem_code_agentscope*` 已纳入 Trinity wheel，Pydantic 作为显式依赖；非 repo cwd 的 wheel 内 ActionEvent/M2 store import smoke 通过
-- [x] M8a 初始范围为 46 项测试：43 PASS、3 SKIP；当前已由 M8b 锁扩展为 107 项 `m8a` scope（本地 104 PASS、3 SKIP）
-- [x] M1～M7 相关回归 145/145、既有 tool-trace 28/28 均通过
+- [x] M8a 初始范围为 46 项测试：43 PASS、3 SKIP；当前已由 M8b 锁扩展为 133 项 `m8a` scope（本地 130 PASS、3 SKIP）
+- [x] M1～M7 相关回归 145/145、tool-trace 30/30 均通过
 - [x] 本阶段未调用真实 LLM/embedding/网络，未运行模型、GPU、优化器或 checkpoint
 - [ ] **未关闭项 1：** AutoDL Linux 上的 3 个 runtime tests、完整 Config/Ray/vLLM/veRL、E1 单次更新和 checkpoint 新进程重载尚未执行（对应 M8b 真实 smoke）
 - [ ] **未关闭项 2：** 在线 `ActionCreditRecord` 自动生成器尚未实现；当前只有严格 schema、join 和 buffer validation（对应 E3/E4）
 
 ### M8b 上卡前准备
 
-- [x] `configs/m8b_autodl_preflight.json` 锁定三份 YAML 的规范 LF SHA-256、M5 manifest、37 项 E1 契约、`m8a=107/all=280` 精确测试数和 `experience_buffer.path=null`
+- [x] `configs/m8b_autodl_preflight.json` 锁定三份 YAML 的规范 LF SHA-256、M5 manifest、37 项 E1 契约、`m8a=133/all=308` 精确测试数和 `experience_buffer.path=null`
 - [x] 跨平台 preflight 核对完整 40 位 commit、dirty state、递归 `.env`/ignored credential、非空 key、持久路径、空 job、依赖版本与 Trinity Config schema
 - [x] 模型门禁固定 `Qwen/Qwen2.5-7B-Instruct`、完整 revision、Qwen2.5-7B 结构、必需文件、最小权重体积及逐文件 SHA-256 manifest，不伪造模型来源
 - [x] 数据门禁核对 fullwiki 三个 split 的规模/fingerprint，以及 6 条 train + 2 条 held-out 的 Hotpot ID 和规范内容 hash
@@ -184,6 +184,20 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 - [x] `pyproject.toml` 新增 `m8b` extra（AgentScope + Datasets）；完整安装、运行顺序、停止条件与 provider 对账口径记录于 `docs/m8b_autodl_preflight.md`
 - [ ] AutoDL 上的 E0、E1 单 optimizer update、`global_step_1`、新进程 checkpoint eval 尚未执行
 
+### Stage 1/2 反捷径 benchmark
+
+- [x] 新增复用 M2 `MemoryStore` 的 `TokenBudgetMemoryStore`：按 active-content token 而非条目数计费，单条整段写入不能绕过预算；ADD/UPDATE/restore 超预算 fail closed，UPDATE 按 token 差额计费，soft delete、snapshot/restore 与版本历史保持可审计
+- [x] Stage 1 普通策略只接收 `PublicStage1Input`（不透明 handle + 已观察正文），不能读取 question/answer、内部 fact ID 或 supporting/distractor labels；仅内置 Oracle 类型走专用私有路径
+- [x] Stage 1 在固定 `toy-train-005`、seed 7 和 15 lexical-token LTM budget 下比较 Store-All、Store-None 与 Oracle-Safe-Store
+- [x] Store-All 的 supporting recall / memory precision 为 `0.5/0.5` 且有 1 次预算拒绝；Oracle-Safe-Store 为 `1.0/1.0`
+- [x] Stage 2 使用 6 条固定 dev/test case，覆盖 hard negative、partial relevance 与 delayed relevance；公开输入不含 `task_id`、split、原始消息/segment ID、`future_query` / `future_answer` 字段、scenario 或 Oracle role；每个 seed 使用与角色无关的不透明句柄；supporting message 可包含未来答案事实，但没有查询可用于判断相关性
+- [x] Stage 2 schema 明确 budget scope 为 `retained_segment_text_only`（句柄、格式和控制提示不计入 payload budget），并要求 future answer 出现在 supporting text 且不出现在 distractor text
+- [x] Always-Keep 的 support/budget/safe 为 `1.0/0.0/0.0`；Always-Clear 为 `0.0/1.0/0.0`；`opaque_id_control` 为 `0.667/1.0/0.667`；Oracle-Safe-Compress 为 `1.0/1.0/1.0`
+- [x] 统一报告 7/7 gate PASS；schema `agemem.anti_shortcut_benchmark.v2`，Stage 1/2 输入 digest 已绑定，checksum `b5ced8e688194d3d9e7cb3a6b4bd8d256d7cc38610fcb56a1d8c37987a7b952c`
+- [x] E2 context preservation 显式使用真实 `target_question`，避免把 Stage 2 第一条干扰消息误当目标问题；保留旧调用兼容回退
+- [x] 新增 26 项测试与 2 项 E2 对齐回归通过；未调用真实 LLM、外部 embedding 服务、网络、GPU 或训练
+- [x] E1 `terminal_only` 配置和 M3～M7 既有轨迹/报告未改写；两个 Oracle 策略只作为私有标签离线上界，不是可部署策略
+
 ## Environment
 
 - OS: Windows NT 10.0.26200.0
@@ -193,7 +207,7 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 - Pydantic: 2.13.4
 - Datasets: 4.8.5
 - PyArrow: 25.0.0
-- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；锁定 280 项 suite 中 3 个 runtime 接线测试因此 SKIP
+- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；锁定 308 项 suite 中 3 个 runtime 接线测试因此 SKIP
 - Ruff: 0.15.9；pytest/Flake8 未安装；测试使用标准库 `unittest`
 
 ## Git state
@@ -206,7 +220,10 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 - M8a commit：`a94c301 feat(agemem): add M8a terminal-only training gates`
 - M8a handoff commit：`c1fb0d4 docs(agemem): hand off M8a AutoDL smoke`
 - M8b implementation commit：`4389fd5 feat(agemem): add M8b AutoDL smoke gates`
-- M8b 上卡前执行包已完成本地验证与本地提交；尚未推送远程，真实 AutoDL 执行仍未开始
+- M8b 上卡前执行包已完成本地验证与本地提交
+- Stage 1/2 反捷径 benchmark commit：`7d3c45d feat(agemem): add stage 1/2 anti-shortcut gates`
+- Git scratch-directory cleanup commit：`c26ecb8 chore(git): ignore local verification scratch directories`
+- 当前本地提交尚未推送远程；真实 AutoDL 执行仍未开始
 
 ## Files changed in M6/M7/M8a
 
@@ -256,15 +273,23 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 - fixture/既有测试：`tests/buffer/task_file_reader_dataset_dict_test.py`、`tests/fixtures/m8a_saved_dataset_dict/`
 - 文档：`docs/m8b_autodl_preflight.md`、`docs/m8a_terminal_only_preflight.md`、HotpotQA `README.md`、`PROJECT_HANDOFF.md`、`STATUS.md`
 
+## Files changed in Stage 1/2 anti-shortcut extension
+
+- Stage 1：`AgeMem_code_agentscope/toy_hotpotqa/storage_baselines.py`、`tests/common/stage1_storage_baseline_test.py`
+- Stage 2：`AgeMem_code_agentscope/toy_hotpotqa/stage2_challenge.py`、源码 fixture `data/toy/stage2_context_challenges.json`、wheel package-data 副本 `AgeMem_code_agentscope/toy_hotpotqa/data/`、`tests/common/stage2_context_challenge_test.py`
+- 统一报告：`shortcut_benchmark.py`、`anti_shortcut_benchmark_test.py`、`artifacts/anti_shortcut_benchmark/`、`docs/anti_shortcut_benchmark.md`
+- E2 对齐：`my_reward.py`、train/eval workflow 与 `tool_trace_test.py`
+- 冻结门禁：`scripts/agemem_m8b_runtime_gate.py`、`configs/m8b_autodl_preflight.json`、`m8b_runtime_gate_test.py`
+
 ## Presentation artifact
 
-- `docs/project_presentation_materials.md`：14 页 PPT 素材、页级结论、图表建议、证据来源和后续 PPT 生成提示词；不包含 `.pptx`，不代表新增实验结果
+- `docs/project_presentation_materials.md`：15 页 PPT 素材、页级结论、图表建议、证据来源和后续 PPT 生成提示词；不包含 `.pptx`，不代表真实训练结果
 
 ## Verification
 
 - M5 adapter/benchmark/local-data tests：10/10 PASS
 - M1～M5 core regression：60/60 PASS
-- Existing tool-trace regression：28/28 PASS
+- Existing tool-trace regression（含 2 项 E2 显式问题对齐回归）：30/30 PASS
 - Combined scoped unittest suite：88/88 PASS
 - M5 gold success + DFA acceptance：10/10
 - M5 wrong-answer/missing-support failure + DFA rejection：20/20
@@ -297,15 +322,19 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 - M8a data/reward/distractor/memory/action/packaging 可执行项：43/43 PASS
 - M8a 真实 fullwiki fixed split：90,447→6，顺序与 M5 Hotpot IDs 一致
 - M8a wheel build：PASS；非 repo cwd 的 ActionEvent/M2 store import：PASS
-- M1～M7 + tool-trace：145/145 + 28/28 = 173/173 PASS
+- M1～M7 + tool-trace：145/145 + 30/30 = 175/175 PASS
 - M8a real LLM / embedding / network / GPU / optimizer calls：0
 - M8a Ruff check、py_compile、YAML parse、setuptools package discovery：PASS
-- M8b lock 精确测试数：`m8a=107`、`all=280`；suite discovery 与 lock 完全一致
-- M8b 最终本地 all scope：280 RUN，277 PASS，0 FAIL，0 ERROR，3 SKIP，0 unexpected success
-- M8b 当前 m8a scope 组成：原 M8a 46 项 + M8b 新增 61 项 = 107；本地 104 PASS、3 SKIP
+- Stage 1 budget/store baselines：13/13 PASS；Stage 2 challenge：9/9 PASS；统一报告：4/4 PASS；合计 26/26 PASS
+- E2 显式 target-question 对齐回归：2/2 PASS
+- 反捷径统一报告：7/7 gates PASS，real LLM / external embedding service / network calls 0，schema v2 checksum `b5ced8e688194d3d9e7cb3a6b4bd8d256d7cc38610fcb56a1d8c37987a7b952c`
+- M8b lock 精确测试数：`m8a=133`、`all=308`；suite discovery 与 lock 完全一致
+- M8b 最终本地 all scope：308 RUN，305 PASS，0 FAIL，0 ERROR，3 SKIP，0 unexpected success
+- M8b 当前 m8a scope 组成：原 M8a 46 项 + M8b 新增 61 项 + 反捷径 26 项 = 133；本地 130 PASS、3 SKIP
 - M8b 新增 61 项：provider 16、preflight 16、model manifest 2、runtime gate 5、runtime fail-closed 12、postflight 10，全部 PASS
 - M8b strict runtime gate 本地结果必须为 FAIL：仅有的 3 个 SKIP 都因缺 Ray，且门禁按设计不放行 SKIP
 - M8b 干净提交后的本地 preflight（最新 lock、`--no-write`）：18 PASS、0 FAIL、2 WARN、11 SKIP；两个 WARN 为未注入云端 key 与本地 ignored 凭据文件，整体状态 PASS，但不代表 AutoDL runtime/GPU 通过
+- 反捷径扩展提交前的本地 preflight（`--no-write`）：17 PASS、0 FAIL、3 WARN、11 SKIP；相对干净提交新增的 WARN 仅为当时预期的 dirty worktree
 - M8b 本地真实 fullwiki：90,447/7,405/7,405、三个 fingerprint、6 条 train + 2 条 held-out 的 ID/内容 hash 精确一致
 - M8b 三份 YAML 规范 LF digest、37 项 E1 assertion、`experience_buffer.path=null` 与 lock 一致
 - M8b real LLM / embedding / network / GPU / optimizer/checkpoint calls：0
@@ -338,17 +367,20 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 - M7 controlled-error 的 5 条 FR 是预期合成鲁棒性结果，已定位但没有被“修成 0”
 - M7 只测量一个真实干扰配置（Stage 1=6、Stage 2=3），没有据此声称跨干扰强度泛化
 - M8b 只完成本地静态/离线门禁和模拟 artifact 的 postflight 单测；未执行真实模型 rollout、GPU、optimizer、checkpoint 或端到端 Trinity Config
-- E1 terminal reward 与固定 distractor 不调用辅助 LLM，但 memory embedding 仍访问已冻结的 DashScope，SUMMARY/FILTER 仍可能调用已冻结的 `qwen-max`
+- E1 terminal reward 与固定 distractor 不调用辅助 LLM，但 memory embedding 仍访问已冻结的 DashScope，SUMMARY/CLEAR 仍可能调用已冻结的 `qwen-max`
 - provider usage 记录不含请求/响应正文；OpenAI-compatible API 不报告货币金额时为 `None`，必须另与 DashScope 账单对账
 - 锁定 suite 的 3 个 WorkflowRunner/ExperiencePipeline runtime tests 因本机缺 Ray 而 SKIP，必须在 AutoDL 变为 PASS
 - 当前 Windows 已发现 `C:\\Program Files\\WSL\\wsl.exe`，但本地 WSL 服务枚举返回 `E_ACCESSDENIED`，因此两个 `.sh` 已通过单元测试与人工审查，`bash -n` 仍须在 AutoDL 作为首个只读检查执行
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
 - E5 的 DFA-state bucket、RTG、action-token mask 与动作级 loss 尚未实现
 - `agemem_e1_dry_run.yaml` 仅含固定 6 条数据、K=2 和 1 个 trainer step，不代表 E1 统计复现或正式结果
+- Stage 1 反捷径结果只来自 1 个固定 toy task/seed，默认 `unicode-lexical-v1` 计数器不是生产模型 tokenizer；正式实验必须换成同一冻结 tokenizer 并扩展多任务、多 seed
+- Stage 2 反捷径结果只来自 6 条合成 case；预算只计 retained segment text；Oracle-Safe-Store/Compress 使用私有 labels，只证明固定预算下存在可行上界
+- 当前 sidecar 只证明 benchmark 能区分 Store-All、Always-Keep、Always-Clear 与当前 min-ID control 固定捷径，不证明穷尽所有 ID-only 策略、真实模型已学会未来相关性、真实 HotpotQA 泛化或 DFA 优于 terminal-only
 
 ## Failures and blockers
 
-- 无未解决的本地可执行测试失败；280 项中有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此严格 runtime gate 当前按设计为 FAIL
+- 无未解决的本地可执行测试失败；308 项中有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此严格 runtime gate 当前按设计为 FAIL
 - DashScope provider 已冻结并接入调用/错误/延迟/usage 记录；货币成本仍须在实际 smoke 后与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL、GPU 资源分配、LoRA 初始化、optimizer update 或 checkpoint 重载
 - 本地 postflight 只验证人工 fixture；尚无真实 E0/E1 receipt、`global_step_1` shard、训练后 LoRA 或新进程 model-version-1 eval 证据
@@ -356,4 +388,4 @@ M8b-prep：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁执行包
 
 ## Next recommended action
 
-先提交并推送已验证的 M8b-prep，用完整 commit 设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在 AutoDL `2 x 80GB` 持久盘准备固定模型 revision、模型 manifest 与 fullwiki 后，安装 `.[m8b,dev]`，先对两个 shell 脚本执行 `bash -n`，再按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 280/280 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启 Ray 后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止，真实报告通过前不进入 E3/E4/E5 或全量训练。
+先推送已验证并在本地提交的 M8b-prep 与 Stage 1/2 反捷径扩展，用最终推送的完整 commit 设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在 AutoDL `2 x 80GB` 持久盘准备固定模型 revision、模型 manifest 与 fullwiki 后，安装 `.[m8b,dev]`，先对两个 shell 脚本执行 `bash -n`，再按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 308/308 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启 Ray 后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止，真实报告通过前不进入 E3/E4/E5 或全量训练。

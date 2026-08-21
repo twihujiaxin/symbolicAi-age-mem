@@ -34,9 +34,9 @@ M8a 已建立 E1 terminal-only 的本地静态/离线契约，但尚未执行真
 ## 本地验证
 
 ```text
-M8a tests：46 discovered，43 PASS，3 SKIP
+历史 M8a 初始 subset：46 discovered，43 PASS，3 SKIP；当前 M8b lock scope：133 discovered，130 PASS，3 SKIP
 M1～M7 related regression：145/145 PASS
-existing tool-trace regression：28/28 PASS
+existing tool-trace regression：30/30 PASS
 Ruff check：PASS
 Python compile：PASS
 ```
@@ -48,7 +48,7 @@ Python compile：PASS
 E1 的 terminal reward 与固定干扰不调用辅助 LLM，但现有 memory workflow 仍有两类外部依赖：
 
 - ADD/UPDATE/RETRIEVE 的 embedding 默认调用 DashScope；
-- SUMMARY/FILTER 及 E2 judge 使用 `qwen-max` 路径。
+- SUMMARY/CLEAR 及 E2 judge 使用 `qwen-max` 路径。
 
 因此不能把当前 E1 描述为“端到端无辅助 LLM/无网络”。M8b 首轮 smoke 已选择并
 冻结方案 1；后续不得在同一组实验中临时切换：

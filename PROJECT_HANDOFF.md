@@ -2,10 +2,10 @@
 
 > 面向：VS Code 中的 Codex 插件  
 > 项目方向：AgeMem 式可学习记忆管理 + GLARE 式 LTLf/DFA 逻辑奖励  
-> 文档版本：v1.8<br>
+> 文档版本：v1.9<br>
 > 更新时间：2026-08-19<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7 已完成；M8a 与 M8b-prep 上卡前执行包已实现。真实 AutoDL 严格预检、E0、E1 单次更新和 checkpoint 新进程重载均尚未执行
+> 当前状态：M0～M7 已完成；M8a、M8b-prep 与 Stage 1/2 反捷径离线门禁已实现。真实 AutoDL 严格预检、E0、E1 单次更新和 checkpoint 新进程重载均尚未执行
 
 ---
 
@@ -33,7 +33,7 @@ Logic-Guided Agent Memory
     ADD / UPDATE / DELETE
 
 短期上下文操作：
-    RETRIEVE / SUMMARY / FILTER
+    RETRIEVE / SUMMARY / CLEAR
 ```
 
 训练流程：
@@ -108,9 +108,9 @@ RQ7：逻辑奖励能否泛化到未见任务和更长轨迹？
 - 单元测试和离线奖励重放；
 - 在 HotpotQA 小数据子集上完成小规模 GRPO smoke test。
 
-### 3.2 MVP 暂时不做
+### 3.2 原始奖励 MVP 暂时不做
 
-- `SUMMARY / FILTER / DELETE`；
+- `SUMMARY / CLEAR / DELETE` 的在线 DFA 奖励；
 - Negative Automata；
 - Trend Shaping；
 - 全失败组的反事实里程碑；
@@ -122,6 +122,10 @@ RQ7：逻辑奖励能否泛化到未见任务和更长轨迹？
 - GUI、网页服务和生产部署。
 
 这些功能只有在 MVP 证明 DFA Reward 有效后再依次加入。
+
+Stage 1/2 反捷径 sidecar 中的 KEEP/CLEAR/COMPRESS 是固定离线诊断策略，
+没有改动 E1 `terminal_only` 配置。在线 SUMMARY/CLEAR 已存在于 E1 工具与
+Experience 路径；当前尚未接入的是其 AP/DFA 奖励。
 
 ---
 
@@ -154,7 +158,7 @@ requirements/pyproject 的依赖约束
 - 假设上游仓库结构与当前最新版完全一致；
 - 直接开始修改训练代码。
 
-截至 2026-08-18，本地代码、报告和 scoped tests 核验后的阶段状态为：
+截至 2026-08-19，本地代码、报告和 scoped tests 核验后的阶段状态为：
 
 ```text
 M0 已完成：已有仓库接管与上游复现
@@ -167,6 +171,7 @@ M6 已完成：自然语言三元组抽取、显式状态跟踪与 False Reject 
 M7 已完成：Group Critic 与自动机离线验证；真实 LLM 调用为 0
 M8a 本地门禁实现已完成，但仍有两项未关闭：真实 AutoDL runtime/E1 smoke 尚未执行；在线 `ActionCreditRecord` 自动生成器尚未实现（后者属于 E3/E4）
 M8b-prep 已完成：模型/数据/配置锁、严格预检、provider 遥测、运行时 receipt、E0/E1/checkpoint eval 与 fail-closed 一键脚本
+Stage 1/2 反捷径 sidecar 已完成：固定 LTM/STM token budget，加入 Store-All/Store-None/Oracle-Safe-Store 与 Always-Keep/Always-Clear/Opaque-ID-Control/Oracle-Safe-Compress 离线对照；schema v2 绑定输入 digest 并从指标重算 gate，未改写 E1 或 M3～M7 artifact
 ```
 
 “已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a/M8b-prep 只表示上卡前契约、门禁和执行编排已建立，不表示 AutoDL 预检、E0、E1、optimizer update 或 checkpoint 重载已通过。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
@@ -790,9 +795,9 @@ Stage 1：记忆构建
     观察事实 B：Paris is the capital of France.
     Agent 决定是否 ADD / UPDATE。
 
-Stage 2：上下文干扰
-    重置或压缩 STM，加入若干无关事实。
-    MVP 只验证关键事实仍保留在 LTM；SUMMARY/FILTER 暂不作为必需动作。
+Stage 2：查询延迟的上下文干扰
+    问题和答案尚未公开；重置或压缩 STM，加入若干干扰事实。
+    M3 只验证关键事实仍保留在 LTM；SUMMARY/CLEAR 暂不作为必需动作。
 
 Stage 3：检索问答
     问题：Which country contains the city where the Eiffel Tower is located?
@@ -909,9 +914,9 @@ r_t^{fmt}
 ### 三阶段构造
 
 ```text
-Stage 1：按消息或段落提供候选事实，Agent 构建/更新 LTM
-Stage 2：注入 distractor、施加 STM token budget，并按协议重置上下文
-Stage 3：提供问题，Agent 检索 supporting facts 并回答
+Stage 1：按消息或段落提供候选事实，Agent 使用 ADD/UPDATE 构建 LTM
+Stage 2：问题尚未公开，注入 distractor、施加 STM token budget，并进行 SUMMARY/CLEAR 或离线上下文控制
+Stage 3：公开问题，Agent 使用 RETRIEVE 获取 supporting facts 并回答
 ```
 
 ### 任务
@@ -1055,9 +1060,9 @@ M8a 不执行模型训练，只关闭 E1 在租卡前可以用 CPU/静态检查�
 - 规则、Oracle、random 和 error-injector 轨迹禁止进入 on-policy buffer；AgeMem pipeline 在 operator 前后均强制契约存在，删除或篡改时 fail closed；
 - Trinity wheel 同时包含 `trinity*` 与复用的 `AgeMem_code_agentscope*` 契约包。
 
-原始 M8a scoped 结果已被 M8b 冻结 runtime gate 取代。当前锁定发现数为 `m8a=107`、`all=280`；少跑、漏跑、数量漂移、FAIL、ERROR、unexpected success 或任意 SKIP 都判失败。本地因缺 PyTorch/Ray/vLLM 仍有 3 个环境性 SKIP，只能作为诊断，必须在 AutoDL 完整 Linux 环境变为 PASS。
+原始 M8a scoped 结果已被 M8b 冻结 runtime gate 取代。当前锁定发现数为 `m8a=133`、`all=308`；少跑、漏跑、数量漂移、FAIL、ERROR、unexpected success 或任意 SKIP 都判失败。本地因缺 PyTorch/Ray/vLLM 仍有 3 个环境性 SKIP，只能作为诊断，必须在 AutoDL 完整 Linux 环境变为 PASS。
 
-当前 E1 仍使用 DashScope embedding，SUMMARY/FILTER 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。M8b-prep 已为首轮 smoke 冻结 endpoint、embedding/chat model，并记录无正文的调用、错误、延迟和 usage；provider 不返回货币金额时保持 `None` 并在实验后与账单对账。M8a 也尚未在线生成 DFA `ActionCreditRecord`，E3/E4/E5 不得提前宣称完成。
+当前 E1 仍使用 DashScope embedding，SUMMARY/CLEAR 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。M8b-prep 已为首轮 smoke 冻结 endpoint、embedding/chat model，并记录无正文的调用、错误、延迟和 usage；provider 不返回货币金额时保持 `None` 并在实验后与账单对账。M8a 也尚未在线生成 DFA `ActionCreditRecord`，E3/E4/E5 不得提前宣称完成。
 
 ### M8b-prep：AutoDL 上卡前执行包（已完成）
 
@@ -1079,7 +1084,7 @@ python scripts/agemem_m8b_model_manifest.py \
 
 - `scripts/agemem_m8b_preflight.py --mode autodl` 要求固定 40 位代码 commit、干净工作树、无嵌套 `.env`/云端 ignored 凭据、模型/数据/checkpoint 均位于 `/root/autodl-tmp`、至少 80 GiB checkpoint 空间，以及空的固定 E0/E1 job 路径；
 - GPU 门禁要求恰好两张可见卡，每张总显存至少 76,000 MiB、执行前空闲显存至少 74,000 MiB，并要求 PyTorch 与 `nvidia-smi` 的设备数、显存和 UUID 一致；不是“至少两张”或仅检查总显存；
-- `scripts/agemem_m8b_runtime_gate.py --scope all` 锁定 `m8a=107`、`all=280`，任何测试数量漂移、FAIL、ERROR、unexpected success 或 SKIP 都 fail closed；本地仍有 3 个环境性 SKIP，必须在 AutoDL 变为 PASS；
+- `scripts/agemem_m8b_runtime_gate.py --scope all` 锁定 `m8a=133`、`all=308`，任何测试数量漂移、FAIL、ERROR、unexpected success 或 SKIP 都 fail closed；本地仍有 3 个环境性 SKIP，必须在 AutoDL 变为 PASS；
 - DashScope endpoint、`text-embedding-v4` 256 维和 `qwen-max` 已冻结。每次成功、失败、eval 或 malformed-response 调用立即写入独立、加锁、`fsync` 的 `<checkpoint_job_dir>/trajectories/auxiliary_provider_calls.jsonl`，键为 `task_id / rollout_id / execution_id / call_index`；只保存 provider/model/outcome/error type/latency/usage 等元数据，不保存 prompt、response、header 或 key。SDK retry 关闭，遥测无法持久化时调用本身失败；未返回货币成本时保持 `null`，不得估造；
 - launcher、Explorer、Trainer 和 NCCL 同步路径已改为失败向上传播；外围异常日志只记类型。训练和评测仅在真实步骤完成后写严格 JSON receipt，非有限指标、失败 rollout/eval、提前耗尽或写盘错误均不得生成成功证据；
 - E0 receipt 固定为 `bench_step_0_model_0.json`，E1 更新 receipt 固定为 `trainer_step_1.json`，checkpoint 新进程评测 receipt 固定为 `bench_step_1_model_1.json`。每份 receipt 记录 `process_id` 和每进程唯一的 `process_execution_id`；checkpoint eval 的执行 ID 必须与训练不同。
@@ -1096,13 +1101,32 @@ postflight 必须同时证明：E0 是 step/model version `0/0` 且 2 条 held-o
 
 真实 AutoDL 验收状态如下，当前均未执行、不得勾选或宣称成功：
 
-- [ ] AutoDL 严格 preflight 与 280 项 runtime gate 全通过且 0 SKIP；
+- [ ] AutoDL 严格 preflight 与 308 项 runtime gate 全通过且 0 SKIP；
 - [ ] E0 model-version-0 held-out 冻结评测通过；
 - [ ] E1 单次 optimizer update、step-1 receipt 和 `global_step_1` 通过；
 - [ ] 停止/重启 Ray 后，model-version-1 checkpoint 新进程评测通过；
 - [ ] postflight 全部检查通过并保存最终 JSON 报告。
 
 详细上卡顺序、停止条件和安全要求见 `docs/m8b_autodl_preflight.md`。
+
+#### Stage 1/2 反捷径 sidecar（已完成）
+
+该 sidecar 是上卡前的确定性可证伪检查，不进入训练 buffer，也不修改现有 E1
+`terminal_only` YAML、M3～M7 轨迹或报告：
+
+- Stage 1 在 `toy-train-005` 的 seeded 观察流中同时放入 supporting facts 和 distractor，并以恰好容纳两条 supporting facts 的 15 lexical-token LTM budget 比较 `store-all`、`store-none` 与 `oracle-safe-store`；
+- `TokenBudgetMemoryStore` 复用 M2 `MemoryStore`，按 active-content token 而不是条目数计费，因此单条整段写入不能绕过预算；ADD/UPDATE/restore 超预算 fail closed，UPDATE 按新旧内容差额计费，soft delete 与版本历史保持可审计；
+- 固定 seed 7 时，Store-All 因先写入一条 distractor 而拒绝后续 supporting fact，support recall / memory precision 均为 `0.5`；Oracle-Safe-Store 两项均为 `1.0`；
+- Stage 2 使用 6 条固定 dev/test challenge，覆盖 hard negative、partial relevance 和 delayed relevance；公开输入不含 `task_id`、split、原始消息/segment ID、`future_query` / `future_answer` 字段、场景标签或 Oracle role，每个 seed 使用与角色无关的不透明句柄；supporting message 正文可以包含未来答案事实，但当时没有查询可判断其相关性；
+- Stage 2 schema 明确 budget scope 为 `retained_segment_text_only`，只对保留 segment 正文计 token，句柄、格式和控制提示不计入该 payload budget；并验证 future answer 必须落在 supporting text 且不落在 distractor text；
+- `always_keep` 的 support recall 为 `1.0` 但 budget compliance / safe success 为 `0.0`；`always_clear` 的 budget compliance 为 `1.0` 但 support recall / safe success 为 `0.0`；`opaque_id_control`（仅保留字典序最小句柄）为 `0.667/1.0/0.667`；`oracle_safe_compress` 的 support recall、distractor removal、budget compliance 与 safe success 均为 `1.0`；
+- Oracle 策略只证明同一预算下存在可行上界，不是可部署模型，也不证明未知未来查询下可以在线达到该上界；
+- E2 context preservation 现在由 workflow 显式传入真实 `target_question`，不再把 Stage 2 第一条干扰消息误当问题；旧调用保留兼容回退；
+- 26 项新增测试全部通过；锁定 all scope 另包含 2 项显式问题对齐回归，因此由 280 增至 308；完整本地结果为 308 RUN、305 PASS、3 个环境性 SKIP、0 FAIL/ERROR；报告写出后可重新读回并通过 v2 schema 校验。
+
+规范报告位于 `artifacts/anti_shortcut_benchmark/` 与
+`docs/anti_shortcut_benchmark.md`，checksum 为
+`b5ced8e688194d3d9e7cb3a6b4bd8d256d7cc38610fcb56a1d8c37987a7b952c`；该 SHA-256 仅用于确定性重复和输入绑定，不提供来源认证。
 
 ### 任务
 
@@ -1153,7 +1177,7 @@ postflight 必须同时证明：E0 是 step/model version `0/0` 且 2 条 held-o
 ```text
 1. DELETE 与过期事实
 2. Negative Automata
-3. SUMMARY / FILTER
+3. SUMMARY / CLEAR 的 AP/DFA 奖励（FILTER 仅作为后续可选扩展）
 4. STM context pressure
 5. bounded Trend Shaping
 6. 全失败组反事实分析
@@ -1207,6 +1231,21 @@ A8：训练时 DFA → 训练+测试 runtime monitor
 A9：Trajectory Advantage → Action-level Advantage
 ```
 
+### 11.4 Stage 1/2 反捷径诊断基线
+
+| 阶段 | 固定策略 | 信息权限 | 诊断目的 |
+|---|---|---|---|
+| Stage 1 | Store-All | 仅公开候选事实 | 检查“全存再检索”捷径 |
+| Stage 1 | Store-None | 仅公开候选事实 | 检查零写入是否丢失未来证据 |
+| Stage 1 | Oracle-Safe-Store | 私有 supporting labels | 同预算下的离线可行上界，不可部署 |
+| Stage 2 | Always-Keep | 仅公开 query-delayed context | 检查不管理 STM 的预算失败 |
+| Stage 2 | Always-Clear | 仅公开 query-delayed context | 检查清空导致 delayed support 丢失 |
+| Stage 2 | Opaque-ID control | 仅公开不透明句柄 | 检查“保留最小 ID”这一固定规则不能达到 Oracle；不代表穷尽 ID-only 策略 |
+| Stage 2 | Oracle-Safe-Compress | 私有 segment labels | 同预算下的离线可行上界，不可部署 |
+
+这些基线只验证 benchmark 能否区分所列固定捷径，不代表已训练模型表现，也不替代
+后续真实 model policy、生产 tokenizer 和多 seed HotpotQA 评测。
+
 ---
 
 ## 12. 评价指标
@@ -1231,7 +1270,11 @@ A9：Trajectory Advantage → Action-level Advantage
 - update accuracy；
 - 平均 memory items；
 - 平均 memory tool calls；
-- retrieved context tokens。
+- retrieved context tokens；
+- active LTM token budget / utilization；
+- supporting-fact recall 与 memory precision；
+- budget rejection count；
+- Stage 2 future-support recall、distractor-removal recall、budget compliance 与 safe success。
 
 ### 12.3 符号指标
 
@@ -1358,6 +1401,12 @@ accept/reject
 edge reward once-only
 reward replay determinism
 critic output validation
+ADD/UPDATE/restore budget admission and fail-closed state preservation
+UPDATE token-delta accounting and version-history preservation
+query-delayed public input hides task/split/private IDs/future query/answer/scenario/oracle role
+hard-negative/partial-relevance/delayed-relevance challenge coverage
+answer/support grounding, opaque-ID control, payload-budget scope
+anti-shortcut report v2 cross-field validation, JSON round trip and byte determinism
 ```
 
 ### 14.2 集成测试
@@ -1474,7 +1523,7 @@ M0～M7、M8a 和 M8b-prep 已完成。只执行 AutoDL M8b GPU smoke，
 
 先核对固定代码 commit、`TRINITY_MODEL_REVISION` 和模型 SHA-256 manifest，
 再由用户主动运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次完成
-严格 preflight、冻结的 280 项 0-SKIP runtime gate、E0 model-version-0 评测、
+严格 preflight、冻结的 308 项 0-SKIP runtime gate、E0 model-version-0 评测、
 E1 单次 optimizer update、Ray 重启、model-version-1 checkpoint 新进程评测
 和只读 postflight；不要手工跳过或并行运行阶段。
 
@@ -1581,7 +1630,7 @@ docs/m8b_autodl_preflight.md。
 只执行 AutoDL E1 terminal-only 单次更新 smoke。
 
 先核对 `TRINITY_MODEL_REVISION` 与 `.agemem_model_manifest.json`，然后运行
-`bash scripts/autodl_m8b_smoke.sh`。不得绕过脚本内的严格 preflight、280 项
+`bash scripts/autodl_m8b_smoke.sh`。不得绕过脚本内的严格 preflight、308 项
 0-SKIP runtime gate、E0 model-version-0 receipt、E1 step-1 update/checkpoint、
 Ray 重启、model-version-1 checkpoint eval 和 postflight。
 
@@ -1701,6 +1750,8 @@ M0
 | AP 抽取错误 | DFA 错误转移 | Oracle AP 上界、confidence、版本证据 |
 | Critic 幻觉 | 不存在的里程碑 | evidence step、schema、validator |
 | 奖励作弊 | 重复 ADD/拖延 | edge once-only、工具成本、无 Trend MVP |
+| Store-All 捷径 | Stage 1 全存后只依赖 Stage 3 检索 | Stage 1 内 distractor、固定 LTM token budget、Store-All 对照 |
+| 主题偏移/全清/ID 捷径 | Stage 2 按主题、固定 ID 删除或直接清空 | query-delayed hard negative/partial/delayed challenge、Always-Keep/Clear 与 min-ID control 对照；不声称穷尽 ID-only 策略 |
 | 奖励泄漏 | Critic 使用测试答案 | Critic 仅训练使用，测试 shadow execution |
 | 状态污染 | rollout 相互读写 | 独立 store、snapshot、隔离测试 |
 | 依赖冲突 | AgentScope/Trinity 无法运行 | 固定上游 commit、先复现再升级 |
@@ -1746,7 +1797,8 @@ M0
 - benchmark 协议；
 - 训练和评测命令；
 - 已知限制；
-- 可复现实验配置。
+- 可复现实验配置；
+- `docs/anti_shortcut_benchmark.md` 与规范 JSON/Markdown benchmark artifact。
 
 ---
 
@@ -1780,7 +1832,7 @@ Codex 当前只应执行：
 M8b：AutoDL 上的 E1 terminal-only 单次更新与 checkpoint 重载 smoke
 ```
 
-M0～M7、M8a 与 M8b-prep 已完成，不要重做或覆盖其实现。租卡前先提交并推送工作区、轮换本地凭据；上卡后固定代码 commit 和模型 revision，生成并核对模型 SHA-256 manifest，再按照 `docs/m8b_autodl_preflight.md` 由用户主动运行 `bash scripts/autodl_m8b_smoke.sh`。真实 AutoDL preflight、E0、E1 和 checkpoint eval 当前全部未执行。
+M0～M7、M8a 与 M8b-prep 已完成，不要重做或覆盖其实现。租卡前先推送本地已整理提交并轮换本地凭据；上卡后固定最终推送的代码 commit 和模型 revision，生成并核对模型 SHA-256 manifest，再按照 `docs/m8b_autodl_preflight.md` 由用户主动运行 `bash scripts/autodl_m8b_smoke.sh`。真实 AutoDL preflight、E0、E1 和 checkpoint eval 当前全部未执行。
 
 当前及后续顺序是：
 
@@ -1798,4 +1850,4 @@ E5：action-level advantage
 M9：正式 Benchmark + 跨域泛化
 ```
 
-当前不得提前开始 E3/E4/E5 或全量训练。冻结 runtime gate 必须精确发现 280 项并达到 0 FAIL/ERROR/SKIP；ActionCredit 在线生成器尚未实现，只有 schema/join/buffer validation。只有 postflight 同时证明 E0 model version 0、E1 单次更新/checkpoint、checkpoint eval model version 1 且训练/评测 `process_execution_id` 不同后，才能更新 `STATUS.md` 并决定是否扩大 E1。
+当前不得提前开始 E3/E4/E5 或全量训练。冻结 runtime gate 必须精确发现 308 项并达到 0 FAIL/ERROR/SKIP；ActionCredit 在线生成器尚未实现，只有 schema/join/buffer validation。只有 postflight 同时证明 E0 model version 0、E1 单次更新/checkpoint、checkpoint eval model version 1 且训练/评测 `process_execution_id` 不同后，才能更新 `STATUS.md` 并决定是否扩大 E1。

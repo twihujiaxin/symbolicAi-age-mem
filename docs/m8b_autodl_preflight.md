@@ -38,7 +38,10 @@ terminal-only reward、固定 Stage-2 干扰和同一个 DashScope provider prof
 干净提交后的本地只读预检结果为 `18 PASS / 0 FAIL / 2 WARN / 11 SKIP`。两项
 WARN 是未注入云端 key 和仓库根部存在本地 ignored 凭据文件；11 项 SKIP 均为
 仅能在 AutoDL 完整环境验证的模型/GPU/runtime 项。严格 runtime suite 已冻结
-发现数为 `m8a=107`、`all=280`，少跑、漏跑、FAIL、ERROR 或 SKIP 都会失败。
+发现数为 `m8a=133`、`all=308`，少跑、漏跑、FAIL、ERROR 或 SKIP 都会失败。
+其中 `m8a` scope 已纳入 Stage 1 storage budget、Stage 2 query-delayed challenge
+和统一 anti-shortcut report 三个模块，共 26 项测试；这些测试不改动 E1 YAML 或
+`terminal_only` reward profile。
 
 本地 `config` 是 ignored 凭据文件，门禁会明确警告。迁移代码必须使用 Git，不得
 把该文件、`.env`、`runs/`、数据库、轨迹或历史日志整体复制到云端。现有 key 应先
@@ -105,7 +108,7 @@ bash scripts/autodl_m8b_preflight.sh
    和行内容 SHA-256，并用 Trinity structured Config 解析三份 YAML；
 3. 核对关键包版本、恰好两张可见 GPU、每张总显存至少 76,000 MiB、空闲显存至少
    74,000 MiB，以及 `nvidia-smi` 与 PyTorch 所见设备 UUID 对齐；
-4. 运行锁定的 280 项 M1～M8b/tool-trace 回归，并把数量漂移或任何
+4. 运行锁定的 308 项 M1～M8b/tool-trace/anti-shortcut 回归，并把数量漂移或任何
    `FAIL/ERROR/SKIP` 都视为失败。
 
 报告保存到：
@@ -125,7 +128,7 @@ $TRINITY_CHECKPOINT_ROOT_DIR/m8b_preflight/$AGEMEM_EXPECTED_COMMIT/
 ```text
 endpoint             https://dashscope.aliyuncs.com/compatible-mode/v1
 embedding            text-embedding-v4, dimensions=256
-SUMMARY/FILTER chat  qwen-max
+SUMMARY/CLEAR chat  qwen-max
 ```
 
 每一次 provider 调用都会立即追加到独立、加锁并 `fsync` 的元数据 JSONL：

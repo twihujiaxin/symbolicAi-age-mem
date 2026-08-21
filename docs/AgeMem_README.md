@@ -84,7 +84,7 @@ export TRINITY_CHECKPOINT_ROOT_DIR=/path/to/checkpoints
 # HotpotQA fullwiki path
 export HOTPOTQA_PATH=/path/to/dataset/hotpot_qa/fullwiki
 
-# DashScope API key (required for distractor generation and LLM-as-judge)
+# DashScope API key (used by distractor/judge, memory embedding, and SUMMARY/CLEAR paths)
 export DASHSCOPE_API_KEY=your_dashscope_api_key
 
 # Tokenizer path (optional, defaults to bert-base-uncased)
@@ -211,7 +211,7 @@ Key fields:
 | `buffer.explorer_input.eval_tasksets` | Evaluation tasksets |
 | `explorer.bench_on_latest_checkpoint` | Evaluate latest checkpoint or not |
 | `explorer.eval_on_startup` | Run evaluation on startup |
-| `explorer.env_vars.DASHSCOPE_API_KEY` | API key for LLM judge |
+| `explorer.env_vars.DASHSCOPE_API_KEY` | API key for judge, memory embedding, and SUMMARY/CLEAR auxiliary calls |
 | `workflow_args.use_context_tools` | Enable Summary/Clear/Retrieve |
 | `workflow_args.enable_stage2_in_eval` | Enable Stage 2 distractors in eval |
 
