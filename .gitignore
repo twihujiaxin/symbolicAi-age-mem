@@ -127,5 +127,9 @@ docs/sphinx_doc/
 *_copy.yaml
 .github/workflows/
 
+# Local test and wheel-verification scratch directories
+/tmp????????/
+/tmp_m6_wheel_verify_*/
+
 .pre-commit-config.yaml
 
