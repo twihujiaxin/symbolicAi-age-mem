@@ -1,0 +1,262 @@
+[
+  {
+    "schema_version": 1,
+    "task_id": "stage2-dev-001",
+    "split": "dev",
+    "scenario": "hard_negative",
+    "protocol": "query_delayed",
+    "future_query": "Which organization owns the Atlas research archive?",
+    "future_answer": "Northstar Institute",
+    "max_context_tokens": 12,
+    "messages": [
+      {
+        "message_id": "s2d001-m01",
+        "kind": "hard_negative",
+        "shared_terms": ["Atlas", "research", "archive"],
+        "segments": [
+          {
+            "segment_id": "s2d001-u01",
+            "text": "The Atlas Cafe near the research archive serves seasonal lunches.",
+            "oracle_role": "distractor"
+          }
+        ]
+      },
+      {
+        "message_id": "s2d001-m02",
+        "kind": "delayed_relevance",
+        "segments": [
+          {
+            "segment_id": "s2d001-u02",
+            "text": "Northstar Institute owns the Atlas research archive.",
+            "oracle_role": "future_support"
+          }
+        ]
+      },
+      {
+        "message_id": "s2d001-m03",
+        "kind": "simple_distractor",
+        "segments": [
+          {
+            "segment_id": "s2d001-u03",
+            "text": "The lobby plants are watered every Tuesday.",
+            "oracle_role": "distractor"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "task_id": "stage2-dev-002",
+    "split": "dev",
+    "scenario": "partial_relevance",
+    "protocol": "query_delayed",
+    "future_query": "Which city hosts the Meridian climate lab?",
+    "future_answer": "Delft",
+    "max_context_tokens": 12,
+    "messages": [
+      {
+        "message_id": "s2d002-m01",
+        "kind": "partial_relevance",
+        "segments": [
+          {
+            "segment_id": "s2d002-u01",
+            "text": "The Meridian climate lab operates in Delft.",
+            "oracle_role": "future_support"
+          },
+          {
+            "segment_id": "s2d002-u02",
+            "text": "Its cafeteria introduced a seafood menu.",
+            "oracle_role": "distractor"
+          }
+        ]
+      },
+      {
+        "message_id": "s2d002-m02",
+        "kind": "simple_distractor",
+        "segments": [
+          {
+            "segment_id": "s2d002-u03",
+            "text": "Weekend buses use a temporary painted stop.",
+            "oracle_role": "distractor"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "task_id": "stage2-dev-003",
+    "split": "dev",
+    "scenario": "delayed_relevance",
+    "protocol": "query_delayed",
+    "future_query": "What material protects the Orion probe during reentry?",
+    "future_answer": "carbon ceramic",
+    "max_context_tokens": 12,
+    "messages": [
+      {
+        "message_id": "s2d003-m01",
+        "kind": "delayed_relevance",
+        "segments": [
+          {
+            "segment_id": "s2d003-u01",
+            "text": "Carbon ceramic shields protect the Orion probe during reentry.",
+            "oracle_role": "future_support"
+          }
+        ]
+      },
+      {
+        "message_id": "s2d003-m02",
+        "kind": "simple_distractor",
+        "segments": [
+          {
+            "segment_id": "s2d003-u02",
+            "text": "The control room ordered new blue desk lamps.",
+            "oracle_role": "distractor"
+          }
+        ]
+      },
+      {
+        "message_id": "s2d003-m03",
+        "kind": "simple_distractor",
+        "segments": [
+          {
+            "segment_id": "s2d003-u03",
+            "text": "A documentary crew arrives after lunch tomorrow.",
+            "oracle_role": "distractor"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "task_id": "stage2-test-001",
+    "split": "test",
+    "scenario": "hard_negative",
+    "protocol": "query_delayed",
+    "future_query": "Which university maintains the Beacon language corpus?",
+    "future_answer": "Redwood University",
+    "max_context_tokens": 12,
+    "messages": [
+      {
+        "message_id": "s2t001-m01",
+        "kind": "hard_negative",
+        "shared_terms": ["Beacon", "university", "language"],
+        "segments": [
+          {
+            "segment_id": "s2t001-u01",
+            "text": "The Beacon bookstore beside the university library sells language textbooks.",
+            "oracle_role": "distractor"
+          }
+        ]
+      },
+      {
+        "message_id": "s2t001-m02",
+        "kind": "delayed_relevance",
+        "segments": [
+          {
+            "segment_id": "s2t001-u02",
+            "text": "Redwood University maintains the Beacon language corpus.",
+            "oracle_role": "future_support"
+          }
+        ]
+      },
+      {
+        "message_id": "s2t001-m03",
+        "kind": "simple_distractor",
+        "segments": [
+          {
+            "segment_id": "s2t001-u03",
+            "text": "A campus shuttle receives new tires next month.",
+            "oracle_role": "distractor"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "task_id": "stage2-test-002",
+    "split": "test",
+    "scenario": "partial_relevance",
+    "protocol": "query_delayed",
+    "future_query": "Which river powers the Helios station?",
+    "future_answer": "Nera River",
+    "max_context_tokens": 12,
+    "messages": [
+      {
+        "message_id": "s2t002-m01",
+        "kind": "partial_relevance",
+        "segments": [
+          {
+            "segment_id": "s2t002-u01",
+            "text": "The Helios station is powered by the Nera River.",
+            "oracle_role": "future_support"
+          },
+          {
+            "segment_id": "s2t002-u02",
+            "text": "Visitors can buy yellow station postcards.",
+            "oracle_role": "distractor"
+          }
+        ]
+      },
+      {
+        "message_id": "s2t002-m02",
+        "kind": "simple_distractor",
+        "segments": [
+          {
+            "segment_id": "s2t002-u03",
+            "text": "The parking office closes early on Fridays.",
+            "oracle_role": "distractor"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "task_id": "stage2-test-003",
+    "split": "test",
+    "scenario": "delayed_relevance",
+    "protocol": "query_delayed",
+    "future_query": "Which alloy is used in the Vega bridge joints?",
+    "future_answer": "maraging steel",
+    "max_context_tokens": 12,
+    "messages": [
+      {
+        "message_id": "s2t003-m01",
+        "kind": "delayed_relevance",
+        "segments": [
+          {
+            "segment_id": "s2t003-u01",
+            "text": "Vega bridge joints use maraging steel.",
+            "oracle_role": "future_support"
+          }
+        ]
+      },
+      {
+        "message_id": "s2t003-m02",
+        "kind": "simple_distractor",
+        "segments": [
+          {
+            "segment_id": "s2t003-u02",
+            "text": "The bridge gift shop stocks canvas bags.",
+            "oracle_role": "distractor"
+          }
+        ]
+      },
+      {
+        "message_id": "s2t003-m03",
+        "kind": "simple_distractor",
+        "segments": [
+          {
+            "segment_id": "s2t003-u03",
+            "text": "Local musicians rehearse beside the river each evening.",
+            "oracle_role": "distractor"
+          }
+        ]
+      }
+    ]
+  }
+]

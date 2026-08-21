@@ -16,11 +16,24 @@ class M8APackagingContractTest(unittest.TestCase):
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         self.assertIn('include = ["trinity*", "AgeMem_code_agentscope*"]', pyproject)
         self.assertIn('"pydantic>=2.0,<3"', pyproject)
+        self.assertIn(
+            '"AgeMem_code_agentscope.toy_hotpotqa" = ["data/*.json"]',
+            pyproject,
+        )
 
         discovered = set(find_packages(where=str(ROOT)))
         self.assertIn("trinity.common", discovered)
         self.assertIn("AgeMem_code_agentscope", discovered)
         self.assertIn("AgeMem_code_agentscope.action_schema", discovered)
+        packaged_fixture = (
+            ROOT
+            / "AgeMem_code_agentscope"
+            / "toy_hotpotqa"
+            / "data"
+            / "stage2_context_challenges.json"
+        )
+        source_fixture = ROOT / "data" / "toy" / "stage2_context_challenges.json"
+        self.assertEqual(packaged_fixture.read_bytes(), source_fixture.read_bytes())
 
 
 if __name__ == "__main__":

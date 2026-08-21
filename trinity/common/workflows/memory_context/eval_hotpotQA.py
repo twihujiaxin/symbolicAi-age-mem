@@ -601,7 +601,11 @@ Please provide a concise and direct answer to the question. Only output the answ
             
             # Compute total reward.
             tool_usage_stats = extract_tool_usage_stats(self.context_messages)
-            context_stats = extract_context_stats(self.context_messages, self.max_context_tokens)
+            context_stats = extract_context_stats(
+                self.context_messages,
+                self.max_context_tokens,
+                target_question=self.question,
+            )
             memory_stats = extract_memory_stats(self.context_messages, self.memory_manager)
             
             task_score = stage3_metrics.get("task_score", stage3_metrics.get("answer_llm_judge", 0.0))

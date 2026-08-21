@@ -1035,7 +1035,9 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 "unknown_tool_calls": tool_attempt_stats["unknown_tool_calls"],
             }
             context_stats = extract_context_stats(
-                self.context_messages, self.max_context_tokens
+                self.context_messages,
+                self.max_context_tokens,
+                target_question=self.question,
             )
             if self.tool_reward_stats_source == "trace":
                 context_stats["effective_context_management_call"] = (

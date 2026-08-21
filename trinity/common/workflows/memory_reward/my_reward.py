@@ -280,7 +280,12 @@ def extract_tool_attempt_stats(tool_events: List[Dict]) -> Dict:
     }
 
 
-def extract_context_stats(context_messages: List[Dict], max_tokens: int) -> Dict:
+def extract_context_stats(
+    context_messages: List[Dict],
+    max_tokens: int,
+    *,
+    target_question: Optional[str] = None,
+) -> Dict:
     """提取 STM 指标。
 
     注意：这里用“字符数 / 4”近似 token 数，适合轻量反馈但不是精确计数。
@@ -288,21 +293,29 @@ def extract_context_stats(context_messages: List[Dict], max_tokens: int) -> Dict
     total_chars = sum(len(m.get("content", "")) for m in context_messages)
     approx_tokens = total_chars / 4
 
-    # Find the first real user message (not a tool/bracket-prefixed injection).
-    first_user_query = ""
-    preserved_user_query = False
-    for m in context_messages:
-        if m.get("role") == "user" and not m.get("content", "").startswith("["):
-            preserved_user_query = True
-            if not first_user_query:
-                first_user_query = m.get("content", "")
+    user_messages = [
+        m.get("content", "")
+        for m in context_messages
+        if m.get("role") == "user"
+        and not m.get("content", "").startswith("[")
+    ]
+    if target_question is not None:
+        question = target_question.strip()
+        preserved_user_query = bool(question) and any(
+            content.strip() == question for content in user_messages
+        )
+    else:
+        # Backwards-compatible fallback for callers that do not know the task
+        # question. Training and evaluation pass it explicitly.
+        question = user_messages[0] if user_messages else ""
+        preserved_user_query = bool(user_messages)
 
     # R_preservation (Eq. 21): check whether key tokens from the original query
     # are still present somewhere in the current context.
     preserved_key_info = True
-    if first_user_query:
+    if question:
         key_tokens = [
-            w.lower() for w in re.findall(r"\b\w+\b", first_user_query) if len(w) > 3
+            w.lower() for w in re.findall(r"\b\w+\b", question) if len(w) > 3
         ]
         if key_tokens:
             context_text = " ".join(

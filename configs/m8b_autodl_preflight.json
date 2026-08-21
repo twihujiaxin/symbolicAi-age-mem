@@ -264,8 +264,8 @@
   },
   "runtime": {
     "expected_test_counts": {
-      "all": 280,
-      "m8a": 107
+      "all": 308,
+      "m8a": 133
     },
     "packages": [
       {

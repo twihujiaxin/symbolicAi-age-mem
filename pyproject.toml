@@ -105,6 +105,7 @@ exclude = ["tests*", "docs*", "scripts*"]
 
 [tool.setuptools.package-data]
 my_package = ["*.md", "*.rst"]
+"AgeMem_code_agentscope.toy_hotpotqa" = ["data/*.json"]
 
 [tool.black]
 line-length = 100

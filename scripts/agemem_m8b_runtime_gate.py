@@ -35,6 +35,9 @@ M8A_MODULES = (
     "tests.common.m8b_runtime_gate_test",
     "tests.common.m8b_runtime_fail_closed_test",
     "tests.common.m8b_postflight_test",
+    "tests.common.stage1_storage_baseline_test",
+    "tests.common.stage2_context_challenge_test",
+    "tests.common.anti_shortcut_benchmark_test",
 )
 
 M1_TO_M7_MODULES = (

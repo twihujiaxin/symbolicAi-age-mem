@@ -715,6 +715,38 @@ class ToolEventStatsTest(unittest.TestCase):
 
 
 class RewardRoundSemanticsTest(unittest.TestCase):
+    def test_context_preservation_uses_explicit_question_after_distractors(self):
+        messages = [
+            {"role": "user", "content": "Can you recommend a cake recipe?"},
+            {
+                "role": "user",
+                "content": "Which country contains the city where the Eiffel Tower is located?",
+            },
+        ]
+
+        stats = memory_reward.extract_context_stats(
+            messages,
+            4096,
+            target_question=(
+                "Which country contains the city where the Eiffel Tower is located?"
+            ),
+        )
+
+        self.assertTrue(stats["preserved_user_query"])
+        self.assertTrue(stats["preserved_key_info"])
+
+    def test_context_preservation_detects_removed_explicit_question(self):
+        stats = memory_reward.extract_context_stats(
+            [{"role": "user", "content": "Can you recommend a cake recipe?"}],
+            4096,
+            target_question=(
+                "Which country contains the city where the Eiffel Tower is located?"
+            ),
+        )
+
+        self.assertFalse(stats["preserved_user_query"])
+        self.assertFalse(stats["preserved_key_info"])
+
     def test_stage3_termination_penalty_is_independent_of_tool_rounds(self):
         calculator = memory_reward.ThreeStageRewardCalculator(
             task_completion_weight=0.0,
