@@ -1,6 +1,6 @@
 # M8a Terminal-only 上卡前门禁
 
-更新时间：2026-08-19
+更新时间：2026-08-26
 
 ## 结论
 
@@ -34,7 +34,7 @@ M8a 已建立 E1 terminal-only 的本地静态/离线契约，但尚未执行真
 ## 本地验证
 
 ```text
-历史 M8a 初始 subset：46 discovered，43 PASS，3 SKIP；当前 M8b lock scope：133 discovered，130 PASS，3 SKIP
+历史 M8a 初始 subset：46 discovered，43 PASS，3 SKIP；当前 M8b lock scope：141 discovered，138 PASS，3 SKIP
 M1～M7 related regression：145/145 PASS
 existing tool-trace regression：30/30 PASS
 Ruff check：PASS
@@ -69,7 +69,7 @@ M8a 也尚未把 M6 Extracted AP/DFA reward 写回在线 ActionCreditRecord；�
 5. 设置持久目录：
 
    ```bash
-   export TRINITY_MODEL_PATH=/root/autodl-tmp/models/Qwen2.5-7B-Instruct
+   export TRINITY_MODEL_PATH=/root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
    export HOTPOTQA_PATH=/root/autodl-tmp/data/hotpot_qa/fullwiki
    export TRINITY_CHECKPOINT_ROOT_DIR=/root/autodl-tmp/checkpoints
    ```

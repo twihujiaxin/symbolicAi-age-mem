@@ -93,11 +93,15 @@ class RuntimeGateCountTest(unittest.TestCase):
             "tests.common.anti_shortcut_benchmark_test",
             runtime_gate.M8A_MODULES,
         )
+        self.assertIn(
+            "tests.common.anti_shortcut_stress_test",
+            runtime_gate.M8A_MODULES,
+        )
         self.assertEqual(
             runtime_gate.load_expected_test_counts(
                 runtime_gate.DEFAULT_LOCK_PATH
             ),
-            {"m8a": 133, "all": 308},
+            {"m8a": 141, "all": 316},
         )
         lock = json.loads(
             runtime_gate.DEFAULT_LOCK_PATH.read_text(encoding="utf-8")

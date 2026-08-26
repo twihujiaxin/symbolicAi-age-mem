@@ -1,0 +1,212 @@
+[
+  {
+    "schema_version": 1,
+    "pair_id": "cf-dev-entity-001",
+    "split": "dev",
+    "scenario": "matched_entity",
+    "max_context_tokens": 18,
+    "segments": [
+      {
+        "segment_key": "aurora",
+        "text": "Northstar Lab assigned archive code RAVEN-41 to the Aurora sample."
+      },
+      {
+        "segment_key": "borealis",
+        "text": "Northstar Lab assigned archive code COBALT-73 to the Borealis sample."
+      },
+      {
+        "segment_key": "cirrus",
+        "text": "Northstar Lab assigned archive code EMBER-52 to the Cirrus sample."
+      }
+    ],
+    "futures": [
+      {
+        "variant_id": "aurora-query",
+        "future_query": "What archive code did Northstar Lab assign to the Aurora sample?",
+        "future_answer": "RAVEN-41",
+        "support_segment_keys": ["aurora"]
+      },
+      {
+        "variant_id": "borealis-query",
+        "future_query": "What archive code did Northstar Lab assign to the Borealis sample?",
+        "future_answer": "COBALT-73",
+        "support_segment_keys": ["borealis"]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "pair_id": "cf-dev-style-001",
+    "split": "dev",
+    "scenario": "matched_style",
+    "max_context_tokens": 18,
+    "segments": [
+      {
+        "segment_key": "vaccine",
+        "text": "Cedar Clinic schedules the vaccine shipment for Wednesday morning."
+      },
+      {
+        "segment_key": "insulin",
+        "text": "Cedar Clinic schedules the insulin shipment for Thursday morning."
+      },
+      {
+        "segment_key": "linen",
+        "text": "Cedar Clinic schedules the linen shipment for Friday morning."
+      }
+    ],
+    "futures": [
+      {
+        "variant_id": "vaccine-query",
+        "future_query": "When does Cedar Clinic schedule the vaccine shipment?",
+        "future_answer": "Wednesday morning",
+        "support_segment_keys": ["vaccine"]
+      },
+      {
+        "variant_id": "insulin-query",
+        "future_query": "When does Cedar Clinic schedule the insulin shipment?",
+        "future_answer": "Thursday morning",
+        "support_segment_keys": ["insulin"]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "pair_id": "cf-dev-length-001",
+    "split": "dev",
+    "scenario": "matched_length",
+    "max_context_tokens": 18,
+    "segments": [
+      {
+        "segment_key": "eastern",
+        "text": "Harbor Control logged the eastern beacon frequency as 118.3 MHz."
+      },
+      {
+        "segment_key": "western",
+        "text": "Harbor Control logged the western beacon frequency as 121.7 MHz."
+      },
+      {
+        "segment_key": "northern",
+        "text": "Harbor Control logged the northern beacon frequency as 109.5 MHz."
+      }
+    ],
+    "futures": [
+      {
+        "variant_id": "eastern-query",
+        "future_query": "Which frequency did Harbor Control log for the eastern beacon?",
+        "future_answer": "118.3 MHz",
+        "support_segment_keys": ["eastern"]
+      },
+      {
+        "variant_id": "western-query",
+        "future_query": "Which frequency did Harbor Control log for the western beacon?",
+        "future_answer": "121.7 MHz",
+        "support_segment_keys": ["western"]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "pair_id": "cf-test-entity-001",
+    "split": "test",
+    "scenario": "matched_entity",
+    "max_context_tokens": 18,
+    "segments": [
+      {
+        "segment_key": "lyra",
+        "text": "Meridian Observatory labeled the Lyra lens calibration as SILVER-28."
+      },
+      {
+        "segment_key": "orion",
+        "text": "Meridian Observatory labeled the Orion lens calibration as GOLDEN-64."
+      },
+      {
+        "segment_key": "draco",
+        "text": "Meridian Observatory labeled the Draco lens calibration as COPPER-19."
+      }
+    ],
+    "futures": [
+      {
+        "variant_id": "lyra-query",
+        "future_query": "What calibration label belongs to the Lyra lens at Meridian Observatory?",
+        "future_answer": "SILVER-28",
+        "support_segment_keys": ["lyra"]
+      },
+      {
+        "variant_id": "orion-query",
+        "future_query": "What calibration label belongs to the Orion lens at Meridian Observatory?",
+        "future_answer": "GOLDEN-64",
+        "support_segment_keys": ["orion"]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "pair_id": "cf-test-style-001",
+    "split": "test",
+    "scenario": "matched_style",
+    "max_context_tokens": 18,
+    "segments": [
+      {
+        "segment_key": "alpine",
+        "text": "Summit Transit assigns the Alpine service to platform seven."
+      },
+      {
+        "segment_key": "coastal",
+        "text": "Summit Transit assigns the Coastal service to platform four."
+      },
+      {
+        "segment_key": "valley",
+        "text": "Summit Transit assigns the Valley service to platform nine."
+      }
+    ],
+    "futures": [
+      {
+        "variant_id": "alpine-query",
+        "future_query": "Which platform is assigned to the Alpine service by Summit Transit?",
+        "future_answer": "platform seven",
+        "support_segment_keys": ["alpine"]
+      },
+      {
+        "variant_id": "coastal-query",
+        "future_query": "Which platform is assigned to the Coastal service by Summit Transit?",
+        "future_answer": "platform four",
+        "support_segment_keys": ["coastal"]
+      }
+    ]
+  },
+  {
+    "schema_version": 1,
+    "pair_id": "cf-test-length-001",
+    "split": "test",
+    "scenario": "matched_length",
+    "max_context_tokens": 18,
+    "segments": [
+      {
+        "segment_key": "maple",
+        "text": "Atlas Archive stores the Maple expedition record in vault C-17."
+      },
+      {
+        "segment_key": "cedar",
+        "text": "Atlas Archive stores the Cedar expedition record in vault F-22."
+      },
+      {
+        "segment_key": "willow",
+        "text": "Atlas Archive stores the Willow expedition record in vault H-31."
+      }
+    ],
+    "futures": [
+      {
+        "variant_id": "maple-query",
+        "future_query": "Which vault holds the Maple expedition record in Atlas Archive?",
+        "future_answer": "vault C-17",
+        "support_segment_keys": ["maple"]
+      },
+      {
+        "variant_id": "cedar-query",
+        "future_query": "Which vault holds the Cedar expedition record in Atlas Archive?",
+        "future_answer": "vault F-22",
+        "support_segment_keys": ["cedar"]
+      }
+    ]
+  }
+]

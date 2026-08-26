@@ -39,14 +39,14 @@ class ModelManifestTest(unittest.TestCase):
 
             first = build_model_manifest(
                 model,
-                repository_id="Qwen/Qwen2.5-7B-Instruct",
+                repository_id="Qwen/Qwen2.5-1.5B-Instruct",
                 revision=revision,
                 output_path=output,
             )
             write_model_manifest(first, output)
             second = build_model_manifest(
                 model,
-                repository_id="Qwen/Qwen2.5-7B-Instruct",
+                repository_id="Qwen/Qwen2.5-1.5B-Instruct",
                 revision=revision,
                 output_path=output,
             )
@@ -68,13 +68,13 @@ class ModelManifestTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "revision"):
                 build_model_manifest(
                     model,
-                    repository_id="Qwen/Qwen2.5-7B-Instruct",
+                    repository_id="Qwen/Qwen2.5-1.5B-Instruct",
                     revision="main",
                 )
             with self.assertRaisesRegex(ValueError, "empty"):
                 build_model_manifest(
                     model,
-                    repository_id="Qwen/Qwen2.5-7B-Instruct",
+                    repository_id="Qwen/Qwen2.5-1.5B-Instruct",
                     revision="b" * 40,
                 )
 

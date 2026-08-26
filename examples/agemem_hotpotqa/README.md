@@ -17,7 +17,7 @@
 ### 1. 设置环境变量
 
 ```bash
-export TRINITY_MODEL_PATH=/path/to/Qwen2.5-7B-Instruct
+export TRINITY_MODEL_PATH=/path/to/Qwen2.5-1.5B-Instruct
 export TRINITY_CHECKPOINT_ROOT_DIR=/path/to/checkpoints
 export HOTPOTQA_PATH=/path/to/dataset/hotpot_qa/fullwiki
 export TRINITY_MODEL_REVISION=<完整40位模型revision>

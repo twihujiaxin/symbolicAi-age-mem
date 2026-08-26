@@ -12,7 +12,7 @@ algorithm:
   repeat_times: 2  # K=2: the minimum useful grouped smoke rollout.
 
 model:
-  model_path: ${oc.env:TRINITY_MODEL_PATH,/root/autodl-tmp/models/Qwen2.5-7B-Instruct}
+  model_path: ${oc.env:TRINITY_MODEL_PATH,/root/autodl-tmp/models/Qwen2.5-1.5B-Instruct}
   max_model_len: 4608
   max_prompt_tokens: 4096
   max_response_tokens: 512

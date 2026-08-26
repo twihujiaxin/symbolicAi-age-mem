@@ -38,6 +38,7 @@ M8A_MODULES = (
     "tests.common.stage1_storage_baseline_test",
     "tests.common.stage2_context_challenge_test",
     "tests.common.anti_shortcut_benchmark_test",
+    "tests.common.anti_shortcut_stress_test",
 )
 
 M1_TO_M7_MODULES = (

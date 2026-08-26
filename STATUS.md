@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-M8b：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
+M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 
-状态：本地上卡前准备、Stage 1/2 反捷径 benchmark 与 308 项锁定回归已完成；真实 AutoDL E0/E1/checkpoint 尚未执行
+状态：1.5B 本地上卡前锁迁移、Stage 1/2 反捷径 canary/stress benchmark 与 316 项锁定回归已完成；真实 AutoDL E0/E1/checkpoint 尚未执行
 
 ## Completed
 
@@ -159,7 +159,7 @@ M8b：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 - [x] ActionEvent 与 Experience task/rollout/stage/timestep/EID 精确对齐；最终 buffer 边界重算 character→token span 并重查 ToolTrace join；同一 task 混合 policy version 时拒绝
 - [x] 规则/oracle/random/error-injector 轨迹禁止进入 on-policy buffer；AgeMem ExperiencePipeline 在 operator 前后均强制契约存在，删除或篡改契约时 fail closed
 - [x] `AgeMem_code_agentscope*` 已纳入 Trinity wheel，Pydantic 作为显式依赖；非 repo cwd 的 wheel 内 ActionEvent/M2 store import smoke 通过
-- [x] M8a 初始范围为 46 项测试：43 PASS、3 SKIP；当前已由 M8b 锁扩展为 133 项 `m8a` scope（本地 130 PASS、3 SKIP）
+- [x] M8a 初始范围为 46 项测试：43 PASS、3 SKIP；当前已由 M8b 锁扩展为 141 项 `m8a` scope（本地 138 PASS、3 SKIP）
 - [x] M1～M7 相关回归 145/145、tool-trace 30/30 均通过
 - [x] 本阶段未调用真实 LLM/embedding/网络，未运行模型、GPU、优化器或 checkpoint
 - [ ] **未关闭项 1：** AutoDL Linux 上的 3 个 runtime tests、完整 Config/Ray/vLLM/veRL、E1 单次更新和 checkpoint 新进程重载尚未执行（对应 M8b 真实 smoke）
@@ -167,9 +167,9 @@ M8b：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 
 ### M8b 上卡前准备
 
-- [x] `configs/m8b_autodl_preflight.json` 锁定三份 YAML 的规范 LF SHA-256、M5 manifest、37 项 E1 契约、`m8a=133/all=308` 精确测试数和 `experience_buffer.path=null`
+- [x] `configs/m8b_autodl_preflight.json` 锁定三份 YAML 的规范 LF SHA-256、M5 manifest、37 项 E1 契约、`m8a=141/all=316` 精确测试数和 `experience_buffer.path=null`
 - [x] 跨平台 preflight 核对完整 40 位 commit、dirty state、递归 `.env`/ignored credential、非空 key、持久路径、空 job、依赖版本与 Trinity Config schema
-- [x] 模型门禁固定 `Qwen/Qwen2.5-7B-Instruct`、完整 revision、Qwen2.5-7B 结构、必需文件、最小权重体积及逐文件 SHA-256 manifest，不伪造模型来源
+- [x] 模型门禁固定 `Qwen/Qwen2.5-1.5B-Instruct`、完整 revision、Qwen2.5-1.5B 结构、单文件权重、最小 3 GB 权重体积及逐文件 SHA-256 manifest，不伪造模型来源
 - [x] 数据门禁核对 fullwiki 三个 split 的规模/fingerprint，以及 6 条 train + 2 条 held-out 的 Hotpot ID 和规范内容 hash
 - [x] AutoDL GPU 门禁要求恰好 2 张卡、每张总显存至少 76,000 MiB、空闲显存至少 74,000 MiB，并交叉核对 `nvidia-smi` 与 PyTorch device UUID
 - [x] 严格 runtime gate 对 suite 发现数和执行数同时比对 lock；任意 `FAIL/ERROR/SKIP/unexpected success` 均失败，不能把本地 3 个 runtime SKIP 当通过
@@ -197,6 +197,10 @@ M8b：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 - [x] E2 context preservation 显式使用真实 `target_question`，避免把 Stage 2 第一条干扰消息误当目标问题；保留旧调用兼容回退
 - [x] 新增 26 项测试与 2 项 E2 对齐回归通过；未调用真实 LLM、外部 embedding 服务、网络、GPU 或训练
 - [x] E1 `terminal_only` 配置和 M3～M7 既有轨迹/报告未改写；两个 Oracle 策略只作为私有标签离线上界，不是可部署策略
+- [x] 保留 v2 7/7 CI canary 不变，另建 `agemem.anti_shortcut_stress.v1`：Stage 1 覆盖 16 个含噪任务 × 50 seeds × 3 个全局预算，每个策略 2400 arms，并加入顺序、长短、opaque-ID、random-hash 与 entity-chain 基线
+- [x] Stage 2 新增 6 个 dev/test 反事实 pair（12 个 future variants）× 50 seeds；同一 pair 的两个 future 复用同一公开输入和同一 query-blind decision，互斥 support 各自可放入预算但并集不可放入
+- [x] Stage 2 query-blind Oracle safe success 精确为 `0.5`，query-aware Oracle 为 `1.0`；公开策略最高 `0.372`，random-hash 为 `0.350`，未超过理论上界
+- [x] stress 11/11 integrity gates PASS，lexical-token checksum `385753c1d4d9b0aa8d9398622492e0632618077e921846dc90b88704d3c87b50`；8/8 新增测试 PASS，CLI 支持冻结本地 Qwen tokenizer/revision 重跑
 
 ## Environment
 
@@ -207,7 +211,7 @@ M8b：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 - Pydantic: 2.13.4
 - Datasets: 4.8.5
 - PyArrow: 25.0.0
-- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；锁定 308 项 suite 中 3 个 runtime 接线测试因此 SKIP
+- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；锁定 316 项 suite 中 3 个 runtime 接线测试因此 SKIP
 - Ruff: 0.15.9；pytest/Flake8 未安装；测试使用标准库 `unittest`
 
 ## Git state
@@ -280,6 +284,7 @@ M8b：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 - 统一报告：`shortcut_benchmark.py`、`anti_shortcut_benchmark_test.py`、`artifacts/anti_shortcut_benchmark/`、`docs/anti_shortcut_benchmark.md`
 - E2 对齐：`my_reward.py`、train/eval workflow 与 `tool_trace_test.py`
 - 冻结门禁：`scripts/agemem_m8b_runtime_gate.py`、`configs/m8b_autodl_preflight.json`、`m8b_runtime_gate_test.py`
+- stress 扩展：`shortcut_stress.py`、`scripts/agemem_anti_shortcut_stress.py`、`configs/anti_shortcut_stress.json`、成对反事实 fixture、`anti_shortcut_stress_test.py`、`artifacts/anti_shortcut_stress/` 与 `docs/anti_shortcut_stress.md`
 
 ## Presentation artifact
 
@@ -328,15 +333,15 @@ M8b：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 - Stage 1 budget/store baselines：13/13 PASS；Stage 2 challenge：9/9 PASS；统一报告：4/4 PASS；合计 26/26 PASS
 - E2 显式 target-question 对齐回归：2/2 PASS
 - 反捷径统一报告：7/7 gates PASS，real LLM / external embedding service / network calls 0，schema v2 checksum `b5ced8e688194d3d9e7cb3a6b4bd8d256d7cc38610fcb56a1d8c37987a7b952c`
-- M8b lock 精确测试数：`m8a=133`、`all=308`；suite discovery 与 lock 完全一致
-- M8b 最终本地 all scope：308 RUN，305 PASS，0 FAIL，0 ERROR，3 SKIP，0 unexpected success
-- M8b 当前 m8a scope 组成：原 M8a 46 项 + M8b 新增 61 项 + 反捷径 26 项 = 133；本地 130 PASS、3 SKIP
+- 反捷径 stress：8/8 tests、11/11 integrity gates PASS；Stage 1 每策略 2400 arms，Stage 2 每策略 600 arms，checksum `385753c1d4d9b0aa8d9398622492e0632618077e921846dc90b88704d3c87b50`
+- M8b lock 精确测试数：`m8a=141`、`all=316`；suite discovery 与 lock 完全一致
+- M8b 最终本地 all scope：316 RUN，313 PASS，0 FAIL，0 ERROR，3 SKIP，0 unexpected success
+- M8b 当前 m8a scope 组成：原 M8a 46 项 + M8b 新增 61 项 + 反捷径 canary 26 项 + stress 8 项 = 141；本地 138 PASS、3 SKIP
 - M8b 新增 61 项：provider 16、preflight 16、model manifest 2、runtime gate 5、runtime fail-closed 12、postflight 10，全部 PASS
 - M8b strict runtime gate 本地结果必须为 FAIL：仅有的 3 个 SKIP 都因缺 Ray，且门禁按设计不放行 SKIP
-- M8b 干净提交后的本地 preflight（最新 lock、`--no-write`）：18 PASS、0 FAIL、2 WARN、11 SKIP；两个 WARN 为未注入云端 key 与本地 ignored 凭据文件，整体状态 PASS，但不代表 AutoDL runtime/GPU 通过
-- 反捷径扩展提交前的本地 preflight（`--no-write`）：17 PASS、0 FAIL、3 WARN、11 SKIP；相对干净提交新增的 WARN 仅为当时预期的 dirty worktree
+- 1.5B 锁干净提交后的本地 preflight（`--no-write`）：18 PASS、0 FAIL、2 WARN、11 SKIP；两个 WARN 为未注入云端 key 与本地 ignored 凭据文件，11 个 SKIP 包含尚未配置本地 1.5B 模型路径以及只能在 AutoDL 验证的 GPU/runtime 项
 - M8b 本地真实 fullwiki：90,447/7,405/7,405、三个 fingerprint、6 条 train + 2 条 held-out 的 ID/内容 hash 精确一致
-- M8b 三份 YAML 规范 LF digest、37 项 E1 assertion、`experience_buffer.path=null` 与 lock 一致
+- M8b 三份 1.5B YAML 规范 LF digest、37 项 E1 assertion、`experience_buffer.path=null` 与 lock 一致
 - M8b real LLM / embedding / network / GPU / optimizer/checkpoint calls：0
 - M8b Ruff、compileall、YAML/JSON parse 与 scoped diff check：PASS
 - M7 report digest：`6d78f7984f3f64cc57863f84d6250d2f6fa3ee65418f2a054723e0d2229642df`
@@ -374,13 +379,13 @@ M8b：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
 - E5 的 DFA-state bucket、RTG、action-token mask 与动作级 loss 尚未实现
 - `agemem_e1_dry_run.yaml` 仅含固定 6 条数据、K=2 和 1 个 trainer step，不代表 E1 统计复现或正式结果
-- Stage 1 反捷径结果只来自 1 个固定 toy task/seed，默认 `unicode-lexical-v1` 计数器不是生产模型 tokenizer；正式实验必须换成同一冻结 tokenizer 并扩展多任务、多 seed
-- Stage 2 反捷径结果只来自 6 条合成 case；预算只计 retained segment text；Oracle-Safe-Store/Compress 使用私有 labels，只证明固定预算下存在可行上界
-- 当前 sidecar 只证明 benchmark 能区分 Store-All、Always-Keep、Always-Clear 与当前 min-ID control 固定捷径，不证明穷尽所有 ID-only 策略、真实模型已学会未来相关性、真实 HotpotQA 泛化或 DFA 优于 terminal-only
+- v2 CI canary 的 Stage 1 结果仍只来自 1 个固定 toy task/seed；stress 已扩展到 16 个含噪任务、50 seeds 和三个全局预算，但当前规范 artifact 仍使用 `unicode-lexical-v1`，上卡后必须用同一冻结 Qwen tokenizer/revision 重跑
+- v2 Stage 2 仍是 6 条独立合成 case；stress 另有 6 个成对反事实 context/12 future variants，并严格给出 query-blind `0.5` 上界，但这些仍是合成模板，不代表真实 HotpotQA 分布
+- 当前 canary/stress 证明固定公开基线受预算和反事实边界约束，不证明已训练模型学会未来相关性、真实 HotpotQA 泛化、DFA 优于 terminal-only，或端到端 Answer EM/F1 已提升
 
 ## Failures and blockers
 
-- 无未解决的本地可执行测试失败；308 项中有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此严格 runtime gate 当前按设计为 FAIL
+- 无未解决的本地可执行测试失败；316 项中有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此严格 runtime gate 当前按设计为 FAIL
 - DashScope provider 已冻结并接入调用/错误/延迟/usage 记录；货币成本仍须在实际 smoke 后与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL、GPU 资源分配、LoRA 初始化、optimizer update 或 checkpoint 重载
 - 本地 postflight 只验证人工 fixture；尚无真实 E0/E1 receipt、`global_step_1` shard、训练后 LoRA 或新进程 model-version-1 eval 证据
@@ -388,4 +393,4 @@ M8b：AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 
 ## Next recommended action
 
-先推送已验证并在本地提交的 M8b-prep 与 Stage 1/2 反捷径扩展，用最终推送的完整 commit 设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在 AutoDL `2 x 80GB` 持久盘准备固定模型 revision、模型 manifest 与 fullwiki 后，安装 `.[m8b,dev]`，先对两个 shell 脚本执行 `bash -n`，再按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 308/308 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启 Ray 后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止，真实报告通过前不进入 E3/E4/E5 或全量训练。
+先推送已验证并在本地提交的 1.5B M8b-prep 与 Stage 1/2 反捷径扩展，用最终推送的完整 commit 设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在 AutoDL `2 x 80GB` 持久盘准备固定 `Qwen/Qwen2.5-1.5B-Instruct` revision、模型 manifest 与 fullwiki 后，先用该冻结 tokenizer 重跑 stress，再安装 `.[m8b,dev]`，对两个 shell 脚本执行 `bash -n`，并按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 316/316 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止，真实报告通过前不进入 E3/E4/E5 或全量训练。

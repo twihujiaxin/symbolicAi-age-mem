@@ -236,22 +236,25 @@
   "model": {
     "config_assertions": {
       "architectures.0": "Qwen2ForCausalLM",
-      "hidden_size": 3584,
-      "intermediate_size": 18944,
+      "hidden_size": 1536,
+      "intermediate_size": 8960,
       "model_type": "qwen2",
-      "num_attention_heads": 28,
+      "num_attention_heads": 12,
       "num_hidden_layers": 28,
-      "num_key_value_heads": 4,
-      "vocab_size": 152064
+      "num_key_value_heads": 2,
+      "vocab_size": 151936
     },
     "manifest_filename": ".agemem_model_manifest.json",
-    "minimum_weight_bytes": 13000000000,
-    "repository_id": "Qwen/Qwen2.5-7B-Instruct",
+    "minimum_weight_bytes": 3000000000,
+    "repository_id": "Qwen/Qwen2.5-1.5B-Instruct",
     "required_files": [
       "config.json",
+      "generation_config.json",
+      "merges.txt",
+      "model.safetensors",
       "tokenizer.json",
       "tokenizer_config.json",
-      "model.safetensors.index.json"
+      "vocab.json"
     ]
   },
   "paths": {
@@ -264,8 +267,8 @@
   },
   "runtime": {
     "expected_test_counts": {
-      "all": 308,
-      "m8a": 133
+      "all": 316,
+      "m8a": 141
     },
     "packages": [
       {
@@ -346,15 +349,15 @@
   "source_files": {
     "config": {
       "path": "examples/agemem_hotpotqa/agemem_e1_dry_run.yaml",
-      "sha256": "28709f26cf33b33fff40c5b363d9600825218d340a7081570441d2ad6d492141"
+      "sha256": "8332b12238137a1b80a8f3ef8ec69dd3ad645e9dc6487e85d9d65e68c08be498"
     },
     "e0_config": {
       "path": "examples/agemem_hotpotqa/agemem_e0_frozen_eval.yaml",
-      "sha256": "1cb7873cc802ac3a9f59e3c86ef98dbc1cd699ae9dffc7b07bb01f1ddd178ff1"
+      "sha256": "758fae4c176d02d8c59732e1979ed83abe94dab272894845b24fb6bbc17aa62c"
     },
     "checkpoint_eval_config": {
       "path": "examples/agemem_hotpotqa/agemem_e1_checkpoint_eval.yaml",
-      "sha256": "30fb79f297d571aa25269ff1442966e4671350f88f2a6a7f6a089cf223147ae3"
+      "sha256": "a27b8deee6c7c801e9737c7790df6390921c697e4826cc22e34b50264850365a"
     },
     "smoke_manifest": {
       "path": "data/splits/hotpotqa_smoke_manifest.json",

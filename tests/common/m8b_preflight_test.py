@@ -45,8 +45,42 @@ class PreflightLockTest(unittest.TestCase):
         gates = m8b_preflight.GateBook()
         lock = m8b_preflight._check_lock(LOCK, CONFIG, ROOT, gates)
         self.assertIsNotNone(lock)
+        self.assertEqual(
+            lock["model"]["repository_id"],
+            "Qwen/Qwen2.5-1.5B-Instruct",
+        )
+        self.assertEqual(
+            lock["model"]["config_assertions"],
+            {
+                "architectures.0": "Qwen2ForCausalLM",
+                "hidden_size": 1536,
+                "intermediate_size": 8960,
+                "model_type": "qwen2",
+                "num_attention_heads": 12,
+                "num_hidden_layers": 28,
+                "num_key_value_heads": 2,
+                "vocab_size": 151936,
+            },
+        )
+        self.assertEqual(lock["model"]["minimum_weight_bytes"], 3_000_000_000)
+        self.assertEqual(
+            lock["model"]["required_files"],
+            [
+                "config.json",
+                "generation_config.json",
+                "merges.txt",
+                "model.safetensors",
+                "tokenizer.json",
+                "tokenizer_config.json",
+                "vocab.json",
+            ],
+        )
         config = m8b_preflight._check_config(CONFIG, lock, gates)
         self.assertIsNotNone(config)
+        self.assertIn(
+            "Qwen2.5-1.5B-Instruct",
+            config["model"]["model_path"],
+        )
         manifest = m8b_preflight._check_manifest_consistency(
             ROOT, lock, config, gates
         )
@@ -458,15 +492,11 @@ class ModelIdentityTest(unittest.TestCase):
             json.dumps({"chat_template": "{{ messages }}"}), encoding="utf-8"
         )
         (root / "tokenizer.json").write_text("{}", encoding="utf-8")
-        shard = "model-00001-of-00001.safetensors"
-        (root / shard).write_bytes(b"weights")
-        (root / "model.safetensors.index.json").write_text(
-            json.dumps({"weight_map": {"weight": shard}}), encoding="utf-8"
-        )
+        (root / "model.safetensors").write_bytes(b"weights")
         output = root / ".agemem_model_manifest.json"
         manifest = build_model_manifest(
             root,
-            repository_id="Qwen/Qwen2.5-7B-Instruct",
+            repository_id="Qwen/Qwen2.5-1.5B-Instruct",
             revision=revision,
             output_path=output,
         )
@@ -476,14 +506,14 @@ class ModelIdentityTest(unittest.TestCase):
     def _lock():
         return {
             "model": {
-                "repository_id": "Qwen/Qwen2.5-7B-Instruct",
+                "repository_id": "Qwen/Qwen2.5-1.5B-Instruct",
                 "manifest_filename": ".agemem_model_manifest.json",
                 "minimum_weight_bytes": 1,
                 "required_files": [
                     "config.json",
                     "tokenizer.json",
                     "tokenizer_config.json",
-                    "model.safetensors.index.json",
+                    "model.safetensors",
                 ],
                 "config_assertions": {
                     "architectures.0": "Qwen2ForCausalLM",

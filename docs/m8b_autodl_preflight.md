@@ -1,6 +1,6 @@
 # M8b AutoDL 上卡前执行包
 
-更新时间：2026-08-18
+更新时间：2026-08-26
 
 ## 当前结论
 
@@ -35,12 +35,14 @@ terminal-only reward、固定 Stage-2 干扰和同一个 DashScope provider prof
 依赖检查。没有 GPU、Ray、PyTorch、vLLM、veRL、模型目录或云端 key 会显示为
 `WARN/SKIP`，不会被误记成 AutoDL 已通过。
 
-干净提交后的本地只读预检结果为 `18 PASS / 0 FAIL / 2 WARN / 11 SKIP`。两项
-WARN 是未注入云端 key 和仓库根部存在本地 ignored 凭据文件；11 项 SKIP 均为
-仅能在 AutoDL 完整环境验证的模型/GPU/runtime 项。严格 runtime suite 已冻结
-发现数为 `m8a=133`、`all=308`，少跑、漏跑、FAIL、ERROR 或 SKIP 都会失败。
+1.5B 锁干净提交后的本地只读预检结果为 `18 PASS / 0 FAIL / 2 WARN / 11 SKIP`。
+两项 WARN 是未注入云端 key 和仓库根部存在本地 ignored 凭据文件；11 项 SKIP
+包含尚未配置本地 1.5B 模型路径，以及只能在 AutoDL 完整环境验证的
+GPU/runtime 项。严格 runtime suite 已冻结
+发现数为 `m8a=141`、`all=316`，少跑、漏跑、FAIL、ERROR 或 SKIP 都会失败。
 其中 `m8a` scope 已纳入 Stage 1 storage budget、Stage 2 query-delayed challenge
-和统一 anti-shortcut report 三个模块，共 26 项测试；这些测试不改动 E1 YAML 或
+和统一 anti-shortcut canary 三个模块，共 26 项测试；另有 8 项独立 stress
+协议/反事实回归。这些测试不改动 E1 YAML 或
 `terminal_only` reward profile。
 
 本地 `config` 是 ignored 凭据文件，门禁会明确警告。迁移代码必须使用 Git，不得
@@ -52,7 +54,7 @@ WARN 是未注入云端 key 和仓库根部存在本地 ignored 凭据文件；1
 使用同机 `2 x 80GB`，并把模型、数据和 checkpoint 放在持久盘：
 
 ```bash
-export TRINITY_MODEL_PATH=/root/autodl-tmp/models/Qwen2.5-7B-Instruct
+export TRINITY_MODEL_PATH=/root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
 export HOTPOTQA_PATH=/root/autodl-tmp/data/hotpot_qa/fullwiki
 export TRINITY_CHECKPOINT_ROOT_DIR=/root/autodl-tmp/checkpoints
 export AGEMEM_EXPECTED_COMMIT=<本地已提交的完整40位commit>
@@ -76,19 +78,37 @@ python -m pip install -e ".[m8b,dev]"
 Ray `>=2.48.0`、vLLM `0.9.1..0.10.2`、Transformers `4.53..4.57` 及其他关键
 包；若上游安装得到不兼容组合，应停止并记录，不要临时放宽锁。
 
-模型必须是 `Qwen/Qwen2.5-7B-Instruct` 的固定 40 位 revision。模型下载完成且内容
+模型必须是 `Qwen/Qwen2.5-1.5B-Instruct` 的固定 40 位 revision。模型下载完成且内容
 不再变化后，在模型目录旁生成一次离线 SHA-256 清单：
 
 ```bash
+huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct \
+  --revision "$TRINITY_MODEL_REVISION" \
+  --local-dir "$TRINITY_MODEL_PATH"
+
 python scripts/agemem_m8b_model_manifest.py \
   --model-path "$TRINITY_MODEL_PATH" \
-  --repository-id Qwen/Qwen2.5-7B-Instruct \
+  --repository-id Qwen/Qwen2.5-1.5B-Instruct \
   --revision "$TRINITY_MODEL_REVISION"
 ```
 
-预检会核对 Qwen2.5-7B 结构、tokenizer/chat template、weight index、全部物料文件
-清单、每个文件的大小与 SHA-256，以及总权重不少于 13 GB。不要使用 `--force`
+预检会核对 Qwen2.5-1.5B 结构、tokenizer/chat template、单文件
+`model.safetensors`、全部物料文件清单、每个文件的大小与 SHA-256，以及总权重
+不少于 3 GB。不要使用 `--force`
 掩盖模型目录漂移；目录变化时应重新确认来源和 revision 后再生成清单。
+
+随后使用冻结的 1.5B tokenizer 重跑 stress，并把证据写入持久盘而不是 Git
+工作树：
+
+```bash
+stress_dir="$TRINITY_CHECKPOINT_ROOT_DIR/anti_shortcut_stress/$AGEMEM_EXPECTED_COMMIT"
+python scripts/agemem_anti_shortcut_stress.py \
+  --tokenizer-path "$TRINITY_MODEL_PATH" \
+  --tokenizer-revision "$TRINITY_MODEL_REVISION" \
+  --tokenizer-repository-id Qwen/Qwen2.5-1.5B-Instruct \
+  --output-dir "$stress_dir" \
+  --docs-path "$stress_dir/report.md"
+```
 
 ## 一键门禁
 
@@ -108,7 +128,7 @@ bash scripts/autodl_m8b_preflight.sh
    和行内容 SHA-256，并用 Trinity structured Config 解析三份 YAML；
 3. 核对关键包版本、恰好两张可见 GPU、每张总显存至少 76,000 MiB、空闲显存至少
    74,000 MiB，以及 `nvidia-smi` 与 PyTorch 所见设备 UUID 对齐；
-4. 运行锁定的 308 项 M1～M8b/tool-trace/anti-shortcut 回归，并把数量漂移或任何
+4. 运行锁定的 316 项 M1～M8b/tool-trace/anti-shortcut 回归，并把数量漂移或任何
    `FAIL/ERROR/SKIP` 都视为失败。
 
 报告保存到：

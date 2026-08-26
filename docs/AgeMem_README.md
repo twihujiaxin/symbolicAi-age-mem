@@ -76,7 +76,7 @@ pip install -e ".[flash_attn]"
 
 ```bash
 # Base model path
-export TRINITY_MODEL_PATH=/path/to/Qwen2.5-7B-Instruct
+export TRINITY_MODEL_PATH=/path/to/Qwen2.5-1.5B-Instruct
 
 # Checkpoint root
 export TRINITY_CHECKPOINT_ROOT_DIR=/path/to/checkpoints
@@ -167,19 +167,19 @@ buffer:
 
 ```bash
 # HuggingFace
-huggingface-cli download Qwen/Qwen2.5-7B-Instruct \
-  --local-dir /path/to/model/Qwen2.5-7B-Instruct
+huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct \
+  --local-dir /path/to/model/Qwen2.5-1.5B-Instruct
 
 # Or ModelScope
-modelscope download Qwen/Qwen2.5-7B-Instruct \
-  --local_dir /path/to/model/Qwen2.5-7B-Instruct
+modelscope download Qwen/Qwen2.5-1.5B-Instruct \
+  --local_dir /path/to/model/Qwen2.5-1.5B-Instruct
 ```
 
 ### 5.2 Set model path in YAML
 
 ```yaml
 model:
-  model_path: ${oc.env:TRINITY_MODEL_PATH,/path/to/Qwen2.5-7B-Instruct}
+  model_path: ${oc.env:TRINITY_MODEL_PATH,/path/to/Qwen2.5-1.5B-Instruct}
 ```
 
 ---

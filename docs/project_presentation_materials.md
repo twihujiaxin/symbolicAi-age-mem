@@ -2,9 +2,9 @@
 
 > 用途：供后续会话生成项目汇报、开题答辩或阶段性进展 PPT。<br>
 > 建议版本：15 分钟、15 页；可压缩为 10 页。<br>
-> 更新时间：2026-08-19<br>
+> 更新时间：2026-08-26<br>
 > 当前代码分支：`feat/m6-extracted-ap-state-tracker`<br>
-> 当前阶段：M8b-prep；真实 AutoDL E0/E1/checkpoint 尚未执行。
+> 当前阶段：M8b-prep 已迁移到 `Qwen2.5-1.5B-Instruct`，反捷径离线 stress 已完成；真实 AutoDL E0/E1/checkpoint 尚未执行。
 
 ## 1. 汇报定位
 
@@ -18,7 +18,7 @@
 
 ### 一句话主线
 
-本项目把 Agent 的记忆操作转化为可审计的动作、状态和自动机转移，先用确定性离线链路验证奖励正确性，再进入真实模型训练；当前已完成 M0-M7 与 M8b 上卡前准备，但尚未宣称 GPU 训练结果。
+本项目把 Agent 的记忆操作转化为可审计的动作、状态和自动机转移，先用确定性离线链路验证奖励正确性，再用多任务固定预算与成对反事实 future 排除显式捷径，最后进入真实模型训练；当前已完成 M0-M7、反捷径 stress 与 M8b 上卡前准备，但尚未宣称 GPU 训练结果。
 
 ### 目标听众
 
@@ -31,7 +31,7 @@
 - “已完成”指代码、数据适配、离线报告或门禁已经完成，不等于真实 GPU 训练成功；
 - M3-M7 主要是 Toy/Oracle/mock/controlled-error 验证，不代表真实 LLM 的最终效果；
 - M8a 的 terminal-only baseline 保持 DFA milestone 关闭，避免把后续 E3/E4 功能混入首轮训练对照；
-- 所有真实 LLM、embedding、GPU、optimizer、checkpoint 调用数量，当前均为 0。
+- 本轮离线报告中的真实 LLM、external embedding service、GPU、optimizer、checkpoint 调用数量均为 0。
 
 ## 2. 核心叙事
 
@@ -43,6 +43,8 @@
 从事实/状态生成 AP，使用手工 DFA 产生 once-only milestone reward
                  ↓
 在 Toy 与真实 HotpotQA smoke 上验证数据、奖励和错误传播
+                 ↓
+用固定容量、多任务/多 seed 与成对反事实 future 检验显式捷径
                  ↓
 用 mock Group Critic 做离线 shadow 与显式回退验证
                  ↓
@@ -71,7 +73,7 @@
 
 - 主标题：Logic-Guided Agent Memory；
 - 副标题：可重放轨迹、Oracle AP 与 DFA 里程碑奖励；
-- 页脚：M0-M7 已完成，M8b-prep 已完成，真实 AutoDL smoke 待执行；
+- 页脚：M0-M7、反捷径 stress、M8b-prep 已完成，真实 AutoDL smoke 待执行；
 - 作者、日期、实验分支。
 
 **建议图示**
@@ -143,9 +145,10 @@ Stage 3：问题公开 → RETRIEVE / ANSWER
 - 真实 Group Critic、GRPO 全量训练；
 - 开放式 LTLf 自动生成。
 
-Stage 1/2 sidecar 中的 KEEP/CLEAR/COMPRESS 是固定离线诊断策略；在线
-SUMMARY/CLEAR 已存在于 E1 工具与 Experience 路径，可能调用冻结的 `qwen-max`，
-但其 AP/DFA 奖励尚未接入主实验。
+Stage 1/2 v2 sidecar 中的 KEEP/CLEAR/COMPRESS 是低成本 CI canary；formal stress
+进一步加入多任务、多 seed、固定全局预算、公开启发式与成对反事实 future。
+两者都属于离线诊断，不代表在线策略已学会相关性。在线 SUMMARY/CLEAR 已存在于
+E1 工具与 Experience 路径，可能调用冻结的 `qwen-max`，但其 AP/DFA 奖励尚未接入主实验。
 
 **建议图示**
 
@@ -277,44 +280,54 @@ RewardBreakdown / ActionCreditRecord
 
 **页面结论**
 
-固定容量与查询延迟挑战能排除 Store-All、Always-Keep、Always-Clear 和当前 min-ID control，但只证明 benchmark 对这些固定策略有区分力，不代表模型已学会泛化相关性。
+在公开输入完全相同、未来需求互斥且等权计分的成对反事实任务中，任何 query-blind 决策的理论上界都是 0.5；若后续结果显著越过该上界，就必须解释其使用的 future-correlated 信息，或优先排查协议泄漏。
 
-**Stage 1：LTM 存储预算**
+**页面正文：只保留三个数字**
 
-固定 `toy-train-005`、seed 7、15 个 `unicode-lexical-v1` active-content tokens：
+- `0.372`：Stage 2 最强公开 query-blind 基线的 safe success；
+- `0.500`：信息受限的 pair-blind 理论上界；
+- `1.000`：读取私有 future label 的 hindsight Oracle，仅作不可部署上界。
 
-| Policy | Support recall | Memory precision | Budget rejects |
+**左图：Stage 1 固定容量下的公开策略—Oracle 差距**
+
+16 个含噪任务 × 50 seeds × 3 个全局 active-content token budget，共 2400 arms/策略：
+
+| Policy | Support recall | Memory precision | Oracle equivalent |
 |---|---:|---:|---:|
-| Store-All | 0.500 | 0.500 | 1 |
-| Store-None | 0.000 | 0.000 | 0 |
-| Oracle-Safe-Store | 1.000 | 1.000 | 0 |
+| Store-All | 0.670 | 0.671 | 0.217 |
+| Entity-chain | 0.694 | 0.702 | 0.387 |
+| Oracle-Support | 0.833 | 1.000 | 1.000 |
 
-**Stage 2：query-delayed context challenge**
+图中优先显示 Store-All 与 Oracle-Support 的 recall gap；Entity-chain 作为次级基线淡化显示。补充讲解：预算为 20 时 Store-All recall 为 0.671，而 Oracle 为 1.000；预算放宽到 28 后 Store-All 虽能保留全部 support，但会同时保留噪声，因此仍非 oracle-equivalent。
 
-6 条 dev/test case 覆盖 hard negative、partial relevance、delayed relevance；公开输入不含 `task_id`、split、原始消息/segment ID、`future_query` / `future_answer` 字段、scenario 或 Oracle role，每个 seed 使用与角色无关的不透明句柄。Supporting message 可以包含未来答案事实，但当时没有查询可用于判断相关性。
+**右图：Stage 2 成对反事实上界**
+
+6 个 dev/test counterfactual pair、12 个 future variants、50 seeds，共 600 arms/策略。每对样本共享完全相同的公开输入和 query-blind decision，但未来需要互斥 support；两组 support 各自可放入预算、并集不可放入，因此等权 safe-success 上界严格为 0.5。
 
 | Policy | Support | Budget | Safe success |
 |---|---:|---:|---:|
 | Always-Keep | 1.000 | 0.000 | 0.000 |
-| Always-Clear | 0.000 | 1.000 | 0.000 |
-| Opaque-ID control | 0.667 | 1.000 | 0.667 |
-| Oracle-Safe-Compress | 1.000 | 1.000 | 1.000 |
+| Random-hash | 0.350 | 1.000 | 0.350 |
+| 最强公开 query-blind 基线 | 0.372 | 1.000 | 0.372 |
+| Pair-blind ceiling | 0.500 | 1.000 | 0.500 |
+| Hindsight Oracle | 1.000 | 1.000 | 1.000 |
 
-**证据边界**
+**讲解备注 / 证据边界（不全部上屏）**
 
-- 两个 Oracle 策略使用私有 labels，只是不可部署的离线上界；
-- 7/7 gates PASS，真实 LLM / external embedding service / network calls 为 0；报告 schema v2 checksum 为 `b5ced8e688194d3d9e7cb3a6b4bd8d256d7cc38610fcb56a1d8c37987a7b952c`；
-- Stage 2 budget scope 为 `retained_segment_text_only`，句柄、格式和控制提示不计入 payload budget；
+- v2 7/7 CI canary 保持不变；stress 11/11 integrity gates PASS，真实 LLM / external embedding service / network calls 为 0；
+- stress checksum 为 `385753c1d4d9b0aa8d9398622492e0632618077e921846dc90b88704d3c87b50`；
+- Pair-blind ceiling 与 hindsight Oracle 使用私有 labels，只是不可部署的离线上界；
 - E1 `terminal_only` 配置与 M3-M7 artifacts 未改写；
-- 当前结果不证明真实 LLM、真实 HotpotQA 泛化或 DFA 优于 terminal-only。
+- 当前 artifact 使用 `unicode-lexical-v1` 计量；冻结 Qwen tokenizer 的上卡复跑仍待执行；
+- 当前结果只证明协议能暴露显式捷径，不证明真实 LLM、真实 HotpotQA 泛化或 DFA 优于 terminal-only。
 
 **建议图示**
 
-左右放两张策略对照图：左图显示 Store-All 在固定 LTM budget 下丢 support，右图显示 Always-Keep、Always-Clear 与 min-ID control 均未达到 Oracle。Oracle 柱使用虚线并标“privileged upper bound”。
+左右放两张策略对照图。左图显示 Stage 1 公开基线与 Oracle 的 recall gap；右图以水平虚线标出 0.5 query-blind ceiling，并将 1.0 hindsight Oracle 画成空心虚线柱、标注 `privileged / not deployable`。页脚只放 `Toy/Oracle offline · 0 real model calls · Qwen-tokenizer rerun pending`。
 
 **来源**
 
-`docs/anti_shortcut_benchmark.md`，checksum：`b5ced8e688194d3d9e7cb3a6b4bd8d256d7cc38610fcb56a1d8c37987a7b952c`。
+`docs/anti_shortcut_stress.md`（formal stress）与 `docs/anti_shortcut_benchmark.md`（v2 canary）。
 
 ---
 
@@ -534,7 +547,7 @@ M8a 将首轮 GPU smoke 收缩为可控的 terminal-only baseline，确保奖励
 **本地证据**
 
 - M8a 原始历史 subset：46 项，43 PASS、3 SKIP；
-- M8b 锁定后 m8a scope：133 项，130 PASS、3 个缺 Ray 的环境性 SKIP；
+- M8b 锁定后 m8a scope：141 项，138 PASS、3 个缺 Ray 的环境性 SKIP；
 - M1-M7 相关回归：145/145；tool-trace：30/30；
 - 本阶段真实 LLM/embedding/network/GPU/optimizer/checkpoint：0。
 
@@ -571,9 +584,9 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 
 **本地结果**
 
-- 定向 M8b tests：61/61 PASS；反捷径 tests：26/26 PASS；另有 2 项 E2 target-question 对齐回归；
-- 全量锁定 suite：308 discovered/executed，305 PASS、3 SKIP、0 FAIL、0 ERROR；
-- 本地 preflight：18 PASS、0 FAIL、2 WARN、11 SKIP；
+- 定向 M8b tests：61/61 PASS；反捷径 canary tests：26/26 PASS；stress tests：8/8 PASS；另有 2 项 E2 target-question 对齐回归；
+- 全量锁定 suite：316 discovered/executed，313 PASS、3 SKIP、0 FAIL、0 ERROR；
+- 1.5B 锁干净提交后的本地 preflight：18 PASS、0 FAIL、2 WARN、11 SKIP；WARN 来自未注入云端 key 与本地 ignored 凭据，SKIP 包含尚未配置本地 1.5B 模型路径及 AutoDL-only 项；
 - 严格 runtime gate 对 SKIP fail closed；
 - 真实 GPU/LLM/optimizer/checkpoint：0。
 
@@ -598,6 +611,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 - rollout memory 隔离与版本历史可审计；
 - Oracle AP → 手工 DFA → once-only reward 链路稳定；
 - 真实 HotpotQA smoke 数据适配与 label-blind 检查通过；
+- 多任务固定容量与成对反事实 stress 已给出公开策略差距和 0.5 query-blind 上界；
 - 5 条 controlled-error FR 全部可解释；
 - Group Critic 无效输出显式回退，不静默污染奖励。
 
@@ -605,14 +619,14 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 
 - 不能声称 DFA 已优于 terminal-only 训练：尚无真实 E1/E3/E4 训练结果；
 - 不能声称真实 LLM AP/Group Critic 性能：当前使用 mock/fake client；
-- 不能声称真实模型已摆脱 Store-All 或主题偏移捷径：当前只有确定性 sidecar；
+- 不能声称真实模型已摆脱 Store-All 或主题偏移捷径：当前只有离线 sidecar 与确定性公开基线；
 - 不能声称 GPU/checkpoint smoke 通过：AutoDL 尚未执行；
 - 不能声称在线 `ActionCreditRecord` 已接入：当前仍是 schema/join/validation。
 
 **推荐下一步**
 
-1. 推送当前已验证的本地提交，轮换本地凭据；
-2. AutoDL 上执行 `bash -n`、严格 preflight 和 `308/308` runtime gate；
+1. 提交并推送当前已验证改动，固定最终完整 commit，并轮换本地凭据；
+2. AutoDL 上用冻结 Qwen tokenizer 重跑 stress，并执行 `bash -n`、严格 preflight 和 `316/316` runtime gate；
 3. 依次完成 E0 frozen eval、E1 单次 update、checkpoint 保存、重启后 eval、postflight；
 4. 只有 M8b smoke 通过后，设计 E3/E4 在线 `ActionCreditRecord` 生成与 terminal-only 对照；
 5. 最后才进入多 seed、扩大数据和正式 DFA-vs-terminal 研究。
@@ -628,13 +642,13 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 | M1 | TrajectoryRecorder / Replay | JSONL 可重放、查询、确定性 digest | 无真实模型 |
 | M2 | MemoryStore / rollout registry | 版本化、snapshot/restore、隔离 | CPU/内存实现 |
 | M3 | 三阶段 Toy Environment | 30 tasks；gold 30/30 | 规则 policy |
-| Anti-shortcut | Stage 1/2 固定策略压力测试 | 26/26 tests；7/7 gates | Toy/Oracle sidecar |
+| Anti-shortcut | v2 canary + multi-seed counterfactual stress | 34/34 tests；7/7 + 11/11 gates | Toy/Oracle sidecar |
 | M4 | Oracle AP + hand DFA | gold 30/30；failure 全拒绝；once-only | Oracle 上界 |
 | M5 | HotpotQA smoke adapter | 90,447/7,405/7,405；30 trajectories | 确定性策略 |
 | M6 | Extracted AP / StateTracker | mock AP F1 .976；controlled FR 5/10 可解释 | fake/mock extractor |
 | M7 | Critic offline validation | 90/90 replay；30 fallback；20/20 farming | deterministic mock |
-| M8a | Terminal-only contract | 133 scope；130 PASS、3 local SKIP | 尚未上卡 |
-| M8b-prep | AutoDL evidence gates | 61/61 targeted；308 all scope | 尚未真实执行 |
+| M8a | Terminal-only contract | 141 scope；138 PASS、3 local SKIP | 尚未上卡 |
+| M8b-prep | AutoDL evidence gates | 61/61 targeted；316 all scope | 尚未真实执行 |
 
 ## 5. 图表与素材清单
 
@@ -642,7 +656,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 
 1. **研究路线图**：M0 → M1 → M2 → M3/M4 → M5 → M6 → M7 → M8a/M8b；
 2. **三阶段环境时间轴**：Stage 1 记忆写入、Stage 2 干扰、Stage 3 检索回答；
-3. **反捷径双对照图**：Store-All/None/Oracle-Safe-Store 与 Always-Keep/Clear/Opaque-ID-Control/Oracle-Safe-Compress；
+3. **反捷径双对照图**：Stage 1 对比 Store-All、Entity-chain 与 Oracle-Support；Stage 2 对比公开 query-blind 策略、0.5 信息上界与 1.0 hindsight Oracle；
 4. **系统数据流图**：ActionEvent → MemoryStore delta → Triple/StateFact → AP → DFA → Reward；
 5. **DFA 状态图**：`q0/q1/q2/q3/q4/q_reject/q_timeout`，标注 once-only edges；
 6. **M5 策略对比柱状图**：gold 10/10 success，wrong-answer 0/10，missing-support 0/10；
@@ -674,7 +688,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 不要把 mock、Oracle 或 controlled-error 指标写成真实 LLM/训练结果；
 不要声称 AutoDL、GPU、optimizer、checkpoint 或在线 ActionCreditRecord 已完成。
 
-优先制作：研究问题、系统数据流、三阶段环境、反捷径双对照、DFA 状态图、M5/M6/M7 结果图、
+优先制作：研究问题、系统数据流、三阶段环境、固定预算与成对反事实上界图、DFA 状态图、M5/M6/M7 结果图、
 M8b 闸门流程和未完成项。每页一个结论，图表优先于代码截图，保留数据来源和免责声明。
 ```
 
@@ -688,7 +702,7 @@ M8b 闸门流程和未完成项。每页一个结论，图表优先于代码截�
 | M6 抽取指标 | `docs/m6_extraction_benchmark.md` |
 | M6 五条 False Reject 审计 | `docs/m6_false_reject_audit.md` |
 | M7 Critic 离线验证 | `docs/m7_group_critic_offline_validation.md` |
-| Stage 1/2 反捷径报告 | `docs/anti_shortcut_benchmark.md`、`artifacts/anti_shortcut_benchmark/anti_shortcut_benchmark.json` |
+| Stage 1/2 反捷径报告 | `docs/anti_shortcut_stress.md`、`artifacts/anti_shortcut_stress/anti_shortcut_stress.json`；v2 canary 仍保留 |
 | M8a terminal-only 契约 | `docs/m8a_terminal_only_preflight.md` |
 | M8b AutoDL 门禁与 smoke 顺序 | `docs/m8b_autodl_preflight.md` |
 | 固定数据清单 | `data/splits/hotpotqa_smoke_manifest.json` |

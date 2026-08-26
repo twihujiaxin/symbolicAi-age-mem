@@ -11,6 +11,7 @@
 - [7. Training](#7-training)
 - [8. Evaluation](#8-evaluation)
 - [9. Standalone AgentScope Example](#9-standalone-agentscope-example)
+- [10. Offline Anti-Shortcut Experiments](#10-offline-anti-shortcut-experiments)
 
 ---
 
@@ -76,7 +77,7 @@ pip install -e ".[flash_attn]"
 
 ```bash
 # Base model path
-export TRINITY_MODEL_PATH=/path/to/Qwen2.5-7B-Instruct
+export TRINITY_MODEL_PATH=/path/to/Qwen2.5-1.5B-Instruct
 
 # Checkpoint root
 export TRINITY_CHECKPOINT_ROOT_DIR=/path/to/checkpoints
@@ -167,19 +168,19 @@ buffer:
 
 ```bash
 # HuggingFace
-huggingface-cli download Qwen/Qwen2.5-7B-Instruct \
-  --local-dir /path/to/model/Qwen2.5-7B-Instruct
+huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct \
+  --local-dir /path/to/model/Qwen2.5-1.5B-Instruct
 
 # Or ModelScope
-modelscope download Qwen/Qwen2.5-7B-Instruct \
-  --local_dir /path/to/model/Qwen2.5-7B-Instruct
+modelscope download Qwen/Qwen2.5-1.5B-Instruct \
+  --local_dir /path/to/model/Qwen2.5-1.5B-Instruct
 ```
 
 ### 5.2 Set model path in YAML
 
 ```yaml
 model:
-  model_path: ${oc.env:TRINITY_MODEL_PATH,/path/to/Qwen2.5-7B-Instruct}
+  model_path: ${oc.env:TRINITY_MODEL_PATH,/path/to/Qwen2.5-1.5B-Instruct}
 ```
 
 ---
@@ -281,6 +282,39 @@ python -m AgeMem_code_agentscope.main
 ```
 
 See `AgeMem_code_agentscope/README.md` for details.
+
+---
+
+## 10. Offline Anti-Shortcut Experiments
+
+The small v2 benchmark remains a deterministic CI canary. The separate stress
+experiment adds 16 noisy Stage 1 tasks, 50 order seeds, three global token
+budgets, stronger public baselines, and six paired Stage 2 counterfactual
+contexts whose two future queries share the same public input.
+
+Run the local lexical-token protocol:
+
+```bash
+python scripts/agemem_anti_shortcut_stress.py
+```
+
+Rerun with the frozen production tokenizer after the Qwen model manifest is
+available locally:
+
+```bash
+stress_dir="$TRINITY_CHECKPOINT_ROOT_DIR/anti_shortcut_stress/$AGEMEM_EXPECTED_COMMIT"
+python scripts/agemem_anti_shortcut_stress.py \
+  --tokenizer-path "$TRINITY_MODEL_PATH" \
+  --tokenizer-revision "$TRINITY_MODEL_REVISION" \
+  --tokenizer-repository-id Qwen/Qwen2.5-1.5B-Instruct \
+  --output-dir "$stress_dir" \
+  --docs-path "$stress_dir/report.md"
+```
+
+The canonical local result is documented in
+[`docs/anti_shortcut_stress.md`](docs/anti_shortcut_stress.md). It is an
+offline protocol/baseline result, not evidence that a trained model has learned
+future relevance or generalized to HotpotQA.
 
 ---
 
