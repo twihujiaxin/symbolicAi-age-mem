@@ -5,6 +5,8 @@ set -euo pipefail
 # intentionally separate from autodl_m8b_preflight.sh, which never starts Ray.
 required_names=(
   AGEMEM_EXPECTED_COMMIT
+  CUDA_DEVICE_ORDER
+  CUDA_VISIBLE_DEVICES
   TRINITY_MODEL_PATH
   TRINITY_MODEL_REVISION
   HOTPOTQA_PATH

@@ -349,9 +349,14 @@ explicit fallback, with zero silent adoption. Evidence coverage is 451/451;
 farming audit passes 10 duplicate-ADD and 10 two-step RETRIEVE-loop scenarios;
 it does not claim Critic-DFA farming coverage.
 
+Each critic group is bound to exactly one complete current-task HotpotQA row,
+including the answer, full context, and official supporting-fact pointers. This
+record is marked `critic_only_privileged/current_task_only`, participates in the
+prompt and cache digest, and is not exposed through the policy observation.
+
 Outputs are under `artifacts/m7_group_critic/` and the readable report is
 `docs/m7_group_critic_offline_validation.md`. The report digest is
-`6d78f7984f3f64cc57863f84d6250d2f6fa3ee65418f2a054723e0d2229642df`.
+`87e41a0ccee6dc0dc24dfa18c898853b6530a42efdde5badbd3d0013accbac75`.
 No real LLM, GRPO, or training is used.
 
 ## Install

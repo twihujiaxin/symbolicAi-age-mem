@@ -1261,6 +1261,45 @@ def _query_nvidia_smi(repository_root: Path) -> list[dict[str, Any]]:
     return gpus
 
 
+def _filter_cuda_visible_devices(
+    gpus: Sequence[Mapping[str, Any]],
+    environment: Mapping[str, str],
+) -> tuple[list[dict[str, Any]], Optional[str]]:
+    """Select the physical NVIDIA devices exposed to CUDA by index or UUID."""
+
+    raw = environment.get("CUDA_VISIBLE_DEVICES")
+    if raw is None:
+        return [dict(gpu) for gpu in gpus], None
+    selector = raw.strip()
+    if not selector:
+        raise ValueError("CUDA_VISIBLE_DEVICES must not be empty")
+    tokens = [token.strip() for token in selector.split(",")]
+    normalized = [token.lower() for token in tokens]
+    if any(not token for token in tokens) or len(normalized) != len(set(normalized)):
+        raise ValueError("CUDA_VISIBLE_DEVICES must contain unique non-empty selectors")
+    if any(token.isdigit() for token in tokens) and environment.get(
+        "CUDA_DEVICE_ORDER"
+    ) != "PCI_BUS_ID":
+        raise ValueError(
+            "numeric CUDA_VISIBLE_DEVICES requires CUDA_DEVICE_ORDER=PCI_BUS_ID"
+        )
+
+    by_index = {str(gpu.get("index")): dict(gpu) for gpu in gpus}
+    by_uuid = {str(gpu.get("uuid", "")).lower(): dict(gpu) for gpu in gpus}
+    selected: list[dict[str, Any]] = []
+    for token, normalized_token in zip(tokens, normalized):
+        if token.isdigit():
+            gpu = by_index.get(str(int(token)))
+        elif normalized_token.startswith("gpu-"):
+            gpu = by_uuid.get(normalized_token)
+        else:
+            gpu = None
+        if gpu is None:
+            raise ValueError("CUDA_VISIBLE_DEVICES references an unknown GPU")
+        selected.append(gpu)
+    return selected, selector
+
+
 def _query_torch_cuda(repository_root: Path) -> dict[str, Any]:
     code = (
         "import json,torch; "
@@ -1297,6 +1336,7 @@ def _check_gpu(
     *,
     mode: str,
     gates: GateBook,
+    environment: Optional[Mapping[str, str]] = None,
 ) -> dict[str, Any]:
     if mode != "autodl":
         gates.add("gpu.topology", SKIP, "GPU checks are deferred to AutoDL mode")
@@ -1309,8 +1349,15 @@ def _check_gpu(
         gpu_lock.get("minimum_free_memory_mib", 0)
     )
     exact_count = bool(gpu_lock.get("require_exact_count", True))
+    env = os.environ if environment is None else environment
+    physical_gpus: list[dict[str, Any]] = []
+    visible_selector: Optional[str] = None
     try:
-        gpus = _query_nvidia_smi(repository_root)
+        physical_gpus = _query_nvidia_smi(repository_root)
+        gpus, visible_selector = _filter_cuda_visible_devices(
+            physical_gpus,
+            env,
+        )
     except Exception as exc:
         gates.add("gpu.nvidia_smi", FAIL, f"GPU inventory failed: {type(exc).__name__}")
         gpus = []
@@ -1331,6 +1378,10 @@ def _check_gpu(
             minimum_count=minimum_count,
             minimum_memory_mib=minimum_memory_mib,
             minimum_free_memory_mib=minimum_free_memory_mib,
+            cuda_visible_devices=visible_selector,
+            physical_gpu_count=len(physical_gpus),
+            selected_physical_indices=[gpu["index"] for gpu in gpus],
+            selected_physical_uuids=[gpu["uuid"] for gpu in gpus],
         )
 
     try:
@@ -1376,7 +1427,12 @@ def _check_gpu(
                 for _device, gpu in mapped_devices
             ],
         )
-    return {"nvidia_smi": gpus, "torch_cuda": torch_cuda}
+    return {
+        "physical_nvidia_smi": physical_gpus,
+        "nvidia_smi": gpus,
+        "cuda_visible_devices": visible_selector,
+        "torch_cuda": torch_cuda,
+    }
 
 
 def build_preflight_report(
@@ -1449,7 +1505,13 @@ def build_preflight_report(
         mode=mode,
         gates=gates,
     )
-    inventory["gpu"] = _check_gpu(root, lock, mode=mode, gates=gates)
+    inventory["gpu"] = _check_gpu(
+        root,
+        lock,
+        mode=mode,
+        gates=gates,
+        environment=env,
+    )
 
     return {
         "schema_version": PREFLIGHT_SCHEMA_VERSION,

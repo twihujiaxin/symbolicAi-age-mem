@@ -2,9 +2,9 @@
 
 > 用途：供后续会话生成项目汇报、开题答辩或阶段性进展 PPT。<br>
 > 建议版本：15 分钟、15 页；可压缩为 10 页。<br>
-> 更新时间：2026-08-26<br>
+> 更新时间：2026-09-02<br>
 > 当前代码分支：`feat/m6-extracted-ap-state-tracker`<br>
-> 当前阶段：M8b-prep 已迁移到 `Qwen2.5-1.5B-Instruct`，反捷径离线 stress 已完成；真实 AutoDL E0/E1/checkpoint 尚未执行。
+> 当前阶段：目标模型为 1.5B 与 4B（暂不考虑 7B）；M8b-prep 当前锁定 `Qwen2.5-1.5B-Instruct`，4B 将使用独立配置锁；真实 AutoDL E0/E1/checkpoint 尚未执行。
 
 ## 1. 汇报定位
 
@@ -492,7 +492,7 @@ DFA 未从 q1 进入 q3/q4
 ### Slide 12｜M7：Group Critic 与手工 DFA 的离线验证
 
 **页面结论**
-在不调用真实 LLM 的前提下，Critic 只作为 deterministic mock shadow；无效输出显式回退到手工 DFA，且 replay 结果保持一致。
+在不调用真实 LLM 的前提下，Critic 只作为 deterministic mock shadow；每个 group 可读取当前 HotpotQA 样本的完整私有 Oracle 记录（answer、context、supporting facts），无效输出显式回退到手工 DFA，且 replay 结果保持一致。
 
 **验证结果**
 
@@ -519,7 +519,7 @@ DFA 未从 q1 进入 q3/q4
 
 **讲解要点**
 
-M7 验证的是离线管线的稳定性与回退安全，不是证明真实 LLM Critic 已经有效。
+完整样本仅标记为 `critic_only_privileged/current_task_only` 并绑定 prompt/cache digest，不进入 policy observation。M7 验证的是离线管线的稳定性与回退安全，不是证明真实 LLM Critic 已经有效。
 
 **来源**
 
@@ -577,7 +577,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 - 固定完整 Git commit、模型 40 位 revision、逐文件模型 SHA-256 manifest；
 - fullwiki 三 split fingerprint、6 train + 2 held-out 行内容 hash；
 - 依赖版本与 Trinity structured Config；
-- 恰好 2 张 GPU、每卡总显存 ≥76,000 MiB、空闲显存 ≥74,000 MiB、UUID 对齐；
+- 四卡宿主机显式选择 2 张 RTX A6000；每卡总显存 ≥48,000 MiB、空闲显存 ≥47,000 MiB、UUID 对齐；
 - provider metadata-only JSONL：`task_id / rollout_id / execution_id / call_index`，立即写入并 `fsync`；
 - receipt：model version、process execution ID、有限 loss/KL/reward、actor update sentinel；
 - postflight：E0、E1 step 1、checkpoint shards、LoRA 差异、新进程 eval。
@@ -585,7 +585,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 **本地结果**
 
 - 定向 M8b tests：61/61 PASS；反捷径 canary tests：26/26 PASS；stress tests：8/8 PASS；另有 2 项 E2 target-question 对齐回归；
-- 全量锁定 suite：316 discovered/executed，313 PASS、3 SKIP、0 FAIL、0 ERROR；
+- 全量锁定 suite：317 discovered/executed，314 PASS、3 SKIP、0 FAIL、0 ERROR；
 - 1.5B 锁干净提交后的本地 preflight：18 PASS、0 FAIL、2 WARN、11 SKIP；WARN 来自未注入云端 key 与本地 ignored 凭据，SKIP 包含尚未配置本地 1.5B 模型路径及 AutoDL-only 项；
 - 严格 runtime gate 对 SKIP fail closed；
 - 真实 GPU/LLM/optimizer/checkpoint：0。
@@ -626,7 +626,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 **推荐下一步**
 
 1. 提交并推送当前已验证改动，固定最终完整 commit，并轮换本地凭据；
-2. AutoDL 上用冻结 Qwen tokenizer 重跑 stress，并执行 `bash -n`、严格 preflight 和 `316/316` runtime gate；
+2. AutoDL 上用冻结 Qwen tokenizer 重跑 stress，并执行 `bash -n`、严格 preflight 和 `317/317` runtime gate；
 3. 依次完成 E0 frozen eval、E1 单次 update、checkpoint 保存、重启后 eval、postflight；
 4. 只有 M8b smoke 通过后，设计 E3/E4 在线 `ActionCreditRecord` 生成与 terminal-only 对照；
 5. 最后才进入多 seed、扩大数据和正式 DFA-vs-terminal 研究。
@@ -648,7 +648,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 | M6 | Extracted AP / StateTracker | mock AP F1 .976；controlled FR 5/10 可解释 | fake/mock extractor |
 | M7 | Critic offline validation | 90/90 replay；30 fallback；20/20 farming | deterministic mock |
 | M8a | Terminal-only contract | 141 scope；138 PASS、3 local SKIP | 尚未上卡 |
-| M8b-prep | AutoDL evidence gates | 61/61 targeted；316 all scope | 尚未真实执行 |
+| M8b-prep | AutoDL evidence gates | 61/61 targeted；317 all scope | 尚未真实执行 |
 
 ## 5. 图表与素材清单
 

@@ -14,6 +14,7 @@ from AgeMem_code_agentscope.group_critic import (
     CounterfactualSuggestion,
     CriticCallUsage,
     CriticGroupInput,
+    CriticHotpotQAPrivateReference,
     CriticInvocationResult,
     CriticOutput,
     CriticRolloutTrace,
@@ -24,6 +25,14 @@ from AgeMem_code_agentscope.group_critic import (
     select_critic_automaton,
     validate_critic_output,
 )
+from AgeMem_code_agentscope.hotpotqa_benchmark.models import (
+    HotpotContext,
+    HotpotSupportingFacts,
+)
+
+
+TASK_ID = "hotpot-task-1"
+TASK_QUESTION = "Find and retain two-hop evidence, then answer."
 
 
 def _action(
@@ -36,7 +45,7 @@ def _action(
     ids = evidence_ids if evidence_ids is not None else (f"ap-{rollout_id}-{timestep}",)
     return ActionAPTrace(
         evidence=EvidenceStepRef(
-            task_id="task-1",
+            task_id=TASK_ID,
             rollout_id=rollout_id,
             stage_id=min(timestep + 1, 3),
             timestep=timestep,
@@ -57,7 +66,7 @@ def _rollout(
     propositions: tuple[str, ...],
 ) -> CriticRolloutTrace:
     return CriticRolloutTrace(
-        task_id="task-1",
+        task_id=TASK_ID,
         rollout_id=rollout_id,
         terminal_outcome=outcome,
         actions=tuple(
@@ -90,10 +99,27 @@ def make_group(
     if not all_failed:
         rollouts = (_rollout("success", "success", chain), *rollouts)
     return CriticGroupInput(
-        task_id="task-1",
+        task_id=TASK_ID,
         group_id="group-1",
-        split_id="smoke-train",
-        task_description="Find and retain two-hop evidence, then answer.",
+        split_id="train",
+        task_description=TASK_QUESTION,
+        critic_only_reference=CriticHotpotQAPrivateReference(
+            hotpot_id="task-1",
+            source_split="train",
+            source_index=7,
+            question=TASK_QUESTION,
+            answer="Example answer",
+            hotpot_type="bridge",
+            level="medium",
+            context=HotpotContext(
+                title=("Document A", "Document B"),
+                sentences=(("First supporting sentence.",), ("Second support.",)),
+            ),
+            supporting_facts=HotpotSupportingFacts(
+                title=("Document A", "Document B"),
+                sent_id=(0, 0),
+            ),
+        ),
         ap_profile=profile,
         rollouts=rollouts,
         source_report_digests=("e" * 64, "f" * 64),
@@ -118,7 +144,7 @@ class _MeteredFakeCritic:
     critic_kind = "mock"
     critic_version = "agemem.group_critic.metered_fake.v1"
     model_version = "fake-provider-model"
-    prompt_version = "agemem.group_critic.prompt.v1"
+    prompt_version = "agemem.group_critic.prompt.v2"
 
     def critique(self, group_input: CriticGroupInput) -> CriticInvocationResult:
         source = MockGroupCritic(
@@ -166,6 +192,36 @@ class M7GroupCriticSchemaTest(unittest.TestCase):
                 confidence=0.5,
                 reward_eligible=True,
             )
+
+    def test_private_hotpotqa_reference_is_complete_and_task_bound(self) -> None:
+        group = make_group()
+        payload = group.model_dump(mode="python")
+        payload["critic_only_reference"]["answer"] = " "
+        with self.assertRaisesRegex(ValidationError, "question and answer"):
+            CriticGroupInput.model_validate(payload)
+
+        payload = group.model_dump(mode="python")
+        payload["critic_only_reference"]["supporting_facts"] = {
+            "title": (),
+            "sent_id": (),
+        }
+        with self.assertRaisesRegex(ValidationError, "requires supporting facts"):
+            CriticGroupInput.model_validate(payload)
+
+        payload = group.model_dump(mode="python")
+        payload["critic_only_reference"]["hotpot_id"] = "another-task"
+        with self.assertRaisesRegex(ValidationError, "must match group task_id"):
+            CriticGroupInput.model_validate(payload)
+
+        payload = group.model_dump(mode="python")
+        payload["critic_only_reference"]["supporting_facts"]["sent_id"] = (9, 0)
+        with self.assertRaisesRegex(ValidationError, "outside the context"):
+            CriticGroupInput.model_validate(payload)
+
+        payload = group.model_dump(mode="python")
+        payload["critic_only_reference"]["source_split"] = "validation"
+        with self.assertRaisesRegex(ValidationError, "source split"):
+            CriticGroupInput.model_validate(payload)
 
     def test_answer_ap_allows_empty_record_ids_without_fabricating_provenance(
         self,
@@ -227,6 +283,13 @@ class M7GroupCriticSchemaTest(unittest.TestCase):
         changed_source = group.model_copy(
             update={"source_report_digests": ("e" * 64, "1" * 64)}
         )
+        changed_reference = group.model_copy(
+            update={
+                "critic_only_reference": group.critic_only_reference.model_copy(
+                    update={"answer": "Different gold answer"}
+                )
+            }
+        )
         self.assertNotEqual(
             cache.key_for(changed_profile, critic).digest,
             cold.cache_key_digest,
@@ -237,6 +300,10 @@ class M7GroupCriticSchemaTest(unittest.TestCase):
         )
         self.assertNotEqual(
             cache.key_for(changed_source, critic).digest,
+            cold.cache_key_digest,
+        )
+        self.assertNotEqual(
+            cache.key_for(changed_reference, critic).digest,
             cold.cache_key_digest,
         )
 
@@ -267,6 +334,11 @@ class M7GroupCriticSchemaTest(unittest.TestCase):
             critic_version="agemem.group_critic.llm_adapter.v1",
             model_version="fake-model",
         )
+        prompt = critic._prompt(group)
+        self.assertIn('"visibility":"critic_only_privileged"', prompt)
+        self.assertIn('"answer":"Example answer"', prompt)
+        self.assertIn('"supporting_facts"', prompt)
+        self.assertIn("First supporting sentence.", prompt)
         invocation = critic.critique(group)
         self.assertEqual(client.calls, 1)
         self.assertEqual(invocation.output, expected)

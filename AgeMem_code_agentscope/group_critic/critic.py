@@ -32,7 +32,7 @@ from .validator import DEFAULT_AUTOMATON_STATE_CAP, validate_critic_output
 
 DEFAULT_MOCK_CRITIC_VERSION = "agemem.group_critic.mock.v1"
 DEFAULT_MOCK_MODEL_VERSION = "deterministic-no-llm"
-DEFAULT_CRITIC_PROMPT_VERSION = "agemem.group_critic.prompt.v1"
+DEFAULT_CRITIC_PROMPT_VERSION = "agemem.group_critic.prompt.v2"
 
 _MILESTONE_CHAIN: Tuple[Tuple[str, str, str], ...] = (
     (
@@ -286,7 +286,11 @@ class LLMGroupCritic:
             "You are a group-level memory logic critic. Return exactly one JSON "
             "object matching the supplied schema. Use only defined AP propositions "
             "and exact evidence action coordinates from the input. Bad behaviors "
-            "are audit-only. Counterfactual suggestions are never reward eligible.\n"
+            "are audit-only. Counterfactual suggestions are never reward eligible. "
+            "The critic_only_reference is privileged Oracle data for the current "
+            "HotpotQA task only: use its complete context, answer, and supporting_facts "
+            "to assess the rollouts, but never invent evidence coordinates or expose "
+            "these private labels as policy observations.\n"
             f"prompt_version={self.prompt_version}\n"
             "SCHEMA:\n"
             + json.dumps(

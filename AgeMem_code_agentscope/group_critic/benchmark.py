@@ -49,6 +49,7 @@ from .metrics import (
 from .models import (
     ActionAPTrace,
     CriticGroupInput,
+    CriticHotpotQAPrivateReference,
     CriticRolloutTrace,
     CriticInvocationResult,
     CriticOutput,
@@ -533,7 +534,7 @@ def build_group_inputs(
     repository: Optional[str | Path] = None,
     config: Optional[M7GroupCriticConfig] = None,
 ) -> Tuple[CriticGroupInput, ...]:
-    """Build exactly 10 x 3 provenance-safe groups without source sentences."""
+    """Build 10 x 3 groups with one complete critic-only HotpotQA row each."""
 
     root = Path(repository or repository_root()).resolve()
     cfg = config or M7GroupCriticConfig.from_json(root / "configs/m7_group_critic.json")
@@ -557,14 +558,25 @@ def build_group_inputs(
     adapter.verify_manifest(smoke_manifest, m5.smoke_config)
     if smoke_manifest_digest(smoke_manifest) != m5.manifest_digest:
         raise M7BenchmarkError("smoke manifest digest does not match M5 report")
-    question_by_task = {
-        f"hotpot-{selection.hotpot_id}": adapter.row(
-            selection.source_split, selection.source_index
-        ).question
-        for selection in smoke_manifest.selections
-    }
-    if set(question_by_task) != {item.task_id for item in manifest.files}:
-        raise M7BenchmarkError("smoke manifest questions do not cover M6 tasks")
+    reference_by_task: Dict[str, CriticHotpotQAPrivateReference] = {}
+    for selection in smoke_manifest.selections:
+        row = adapter.row(selection.source_split, selection.source_index)
+        if row.answer is None or row.type is None or row.level is None:
+            raise M7BenchmarkError("critic input requires a complete labeled HotpotQA row")
+        task_id = f"hotpot-{selection.hotpot_id}"
+        reference_by_task[task_id] = CriticHotpotQAPrivateReference(
+            hotpot_id=row.id,
+            source_split=selection.source_split,
+            source_index=selection.source_index,
+            question=row.question,
+            answer=row.answer,
+            hotpot_type=row.type,
+            level=row.level,
+            context=row.context,
+            supporting_facts=row.supporting_facts,
+        )
+    if set(reference_by_task) != {item.task_id for item in manifest.files}:
+        raise M7BenchmarkError("smoke manifest references do not cover M6 tasks")
     record_by_trajectory = {item.trajectory_path: item for item in m5.records}
     groups: List[CriticGroupInput] = []
     for profile in cfg.profiles:
@@ -659,7 +671,8 @@ def build_group_inputs(
                     task_id=task_id,
                     group_id=f"m7:{profile}:{task_id}",
                     split_id=split_by_task[task_id],
-                    task_description=question_by_task[task_id],
+                    task_description=reference_by_task[task_id].question,
+                    critic_only_reference=reference_by_task[task_id],
                     ap_profile=profile,
                     rollouts=ordered,
                     source_report_digests=(m5.digest, m6.digest, manifest.digest),
@@ -1506,6 +1519,11 @@ def _markdown(report: M7OfflineBenchmarkReport) -> str:
             "Reward-farming checks use replay-valid duplicate ADD and two-step "
             "RETRIEVE-loop perturbations against the hand-authored DFA only; they do "
             "not claim Critic-DFA farming coverage.",
+            "",
+            "Each critic group is bound to exactly one `critic_only_privileged` "
+            "HotpotQA fullwiki row containing its question, answer, complete context, "
+            "and official supporting-fact pointers. This Oracle reference is part of "
+            "the critic input/cache digest and is never a policy observation.",
             "",
             "The LLM critic is an injected-client adapter only. This benchmark uses the "
             "deterministic mock critic, does not call a provider, and does not implement "

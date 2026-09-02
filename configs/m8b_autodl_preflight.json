@@ -229,8 +229,8 @@
   "experiment_id": "e1_terminal_only_single_update",
   "gpu": {
     "minimum_count": 2,
-    "minimum_free_memory_mib": 74000,
-    "minimum_memory_mib": 76000,
+    "minimum_free_memory_mib": 47000,
+    "minimum_memory_mib": 48000,
     "require_exact_count": true
   },
   "model": {
@@ -267,7 +267,7 @@
   },
   "runtime": {
     "expected_test_counts": {
-      "all": 316,
+      "all": 317,
       "m8a": 141
     },
     "packages": [

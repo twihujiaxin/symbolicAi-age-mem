@@ -77,6 +77,8 @@ pip install -e ".[flash_attn]"
 
 ```bash
 # Base model path
+export CUDA_DEVICE_ORDER=PCI_BUS_ID
+export CUDA_VISIBLE_DEVICES=1,2
 export TRINITY_MODEL_PATH=/path/to/Qwen2.5-1.5B-Instruct
 
 # Checkpoint root

@@ -1,6 +1,6 @@
 # M8a Terminal-only 上卡前门禁
 
-更新时间：2026-08-26
+更新时间：2026-09-02
 
 ## 结论
 
@@ -64,7 +64,7 @@ M8a 也尚未把 M6 Extracted AP/DFA reward 写回在线 ActionCreditRecord；�
 
 1. 整理并提交当前 M6/M7/M8a 工作区；迁移前检查 ignored 文件。仓库根目录现有本地凭据文件不得上传，相关 key 应先轮换，云端只使用环境变量或 AutoDL 密钥配置。
 2. 将 HotpotQA `fullwiki` 单独传到持久盘，核对目录、DatasetDict split、90,447 条 train 数量及 M5 manifest 的 6 个 Hotpot ID。
-3. 首轮使用同机 `2 x 80GB`：1 张 rollout、1 张 trainer。不要直接按 8 卡正式模板启动。
+3. 首轮使用两张 RTX A6000 48GB：1 张 rollout、1 张 trainer；四卡宿主机通过 `CUDA_DEVICE_ORDER=PCI_BUS_ID` 与 `CUDA_VISIBLE_DEVICES=1,2` 显式选择两张空闲卡。
 4. 固定代码 commit、Python 3.10、CUDA/driver、PyTorch、Ray、vLLM、Transformers、Trinity 本地 editable 版本，并保存 `pip freeze` 与 GPU 信息。
 5. 设置持久目录：
 
@@ -78,7 +78,7 @@ M8a 也尚未把 M6 Extracted AP/DFA reward 写回在线 ActionCreditRecord；�
 7. 执行 Trinity config validation 和数据读取 smoke，确认 6 条固定样本、2-GPU 资源公式、LoRA 初始化目录、buffer 路径和 checkpoint 路径。
 8. 依次执行：E0 冻结评测 → E1 单 batch/单次参数更新 → checkpoint 保存 → 新进程重载 → 同一冻结 split 评测。任何一步失败都不扩大数据或步数。
 9. E1 重复运行稳定后，按 E3 → E4 → E5 推进；E2 只作为独立 heuristic dense reward 对照，M7 Critic/E6 暂不进入主训练。
-10. 正式实验再扩大到 `4 x 80GB`、多个 seed，并保存每个实验臂的 commit、config、split digest、provider 配置、训练日志和冻结评测结果。
+10. 1.5B smoke 稳定后再增加样本、step 与 seed；4B 使用独立模型/config lock 复跑同一证据链。当前不规划 7B，也不默认扩大 GPU 数量。
 
 ## 首次 GPU smoke 停止条件
 

@@ -14,6 +14,7 @@ from typing import Dict, Literal, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..hotpotqa_benchmark.models import HotpotContext, HotpotSupportingFacts
 from ..memory_oracle.models import APName, AP_ORDER, AutomatonSpec
 
 
@@ -21,7 +22,8 @@ EVIDENCE_STEP_REF_SCHEMA_VERSION = "agemem.critic_evidence_step_ref.v1"
 MEMORY_EVENT_SCHEMA_VERSION = "agemem.critic_memory_event.v1"
 ACTION_AP_TRACE_SCHEMA_VERSION = "agemem.critic_action_ap_trace.v1"
 ROLLOUT_TRACE_SCHEMA_VERSION = "agemem.critic_rollout_trace.v1"
-GROUP_INPUT_SCHEMA_VERSION = "agemem.critic_group_input.v1"
+CRITIC_HOTPOTQA_REFERENCE_SCHEMA_VERSION = "agemem.critic_hotpotqa_reference.v1"
+GROUP_INPUT_SCHEMA_VERSION = "agemem.critic_group_input.v2"
 MILESTONE_SCHEMA_VERSION = "agemem.critic_milestone.v1"
 DEPENDENCY_SCHEMA_VERSION = "agemem.critic_dependency.v1"
 BAD_BEHAVIOR_SCHEMA_VERSION = "agemem.critic_bad_behavior.v1"
@@ -220,6 +222,51 @@ class CriticRolloutTrace(_StrictFrozenModel):
         return self
 
 
+class CriticHotpotQAPrivateReference(_StrictFrozenModel):
+    """One complete labeled HotpotQA row visible only to the group critic."""
+
+    schema_version: Literal[CRITIC_HOTPOTQA_REFERENCE_SCHEMA_VERSION] = (
+        CRITIC_HOTPOTQA_REFERENCE_SCHEMA_VERSION
+    )
+    visibility: Literal["critic_only_privileged"] = "critic_only_privileged"
+    scope: Literal["current_task_only"] = "current_task_only"
+    dataset_name: Literal["hotpot_qa"] = "hotpot_qa"
+    dataset_config: Literal["fullwiki"] = "fullwiki"
+    hotpot_id: str = Field(min_length=1)
+    source_split: Literal["train", "validation"]
+    source_index: int = Field(ge=0)
+    question: str = Field(min_length=1)
+    answer: str = Field(min_length=1)
+    hotpot_type: Literal["bridge", "comparison"]
+    level: Literal["easy", "medium", "hard"]
+    context: HotpotContext
+    supporting_facts: HotpotSupportingFacts
+
+    @model_validator(mode="after")
+    def validate_complete_labeled_row(self) -> "CriticHotpotQAPrivateReference":
+        if not self.question.strip() or not self.answer.strip():
+            raise ValueError("critic HotpotQA question and answer must be non-blank")
+        if not self.supporting_facts.title:
+            raise ValueError("critic HotpotQA reference requires supporting facts")
+
+        def canonical_title(value: str) -> str:
+            return " ".join(value.split()).casefold()
+
+        context_indices: Dict[str, Tuple[int, ...]] = {}
+        for index, title in enumerate(self.context.title):
+            key = canonical_title(title)
+            context_indices[key] = (*context_indices.get(key, ()), index)
+        for title, sent_id in self.supporting_facts.pairs():
+            indices = context_indices.get(canonical_title(title), ())
+            if len(indices) != 1:
+                raise ValueError(
+                    "each supporting-fact title must resolve to exactly one context"
+                )
+            if sent_id >= len(self.context.sentences[indices[0]]):
+                raise ValueError("supporting-fact sentence ID is outside the context")
+        return self
+
+
 class CriticGroupInput(_StrictFrozenModel):
     """Complete K-rollout input used to derive one critic cache key."""
 
@@ -228,6 +275,7 @@ class CriticGroupInput(_StrictFrozenModel):
     group_id: str = Field(min_length=1)
     split_id: str = Field(min_length=1)
     task_description: str = Field(min_length=1)
+    critic_only_reference: CriticHotpotQAPrivateReference
     ap_profile: APProfile
     rollouts: Tuple[CriticRolloutTrace, ...] = Field(min_length=1)
     source_report_digests: Tuple[str, ...] = Field(min_length=1)
@@ -239,6 +287,16 @@ class CriticGroupInput(_StrictFrozenModel):
             raise ValueError("rollout IDs must be unique within a critic group")
         if any(item.task_id != self.task_id for item in self.rollouts):
             raise ValueError("all rollouts must belong to group task_id")
+        reference = self.critic_only_reference
+        if self.task_id != f"hotpot-{reference.hotpot_id}":
+            raise ValueError("critic reference Hotpot ID must match group task_id")
+        if self.task_description != reference.question:
+            raise ValueError("task_description must match the private HotpotQA question")
+        expected_source_split = "train" if self.split_id == "train" else "validation"
+        if self.split_id in {"train", "dev", "test"} and (
+            reference.source_split != expected_source_split
+        ):
+            raise ValueError("critic reference source split must match benchmark split")
         if len(self.source_report_digests) != len(set(self.source_report_digests)):
             raise ValueError("source report digests must be unique")
         if any(
@@ -583,12 +641,14 @@ __all__ = [
     "CACHE_KEY_SCHEMA_VERSION",
     "CACHE_LOOKUP_SCHEMA_VERSION",
     "CALL_USAGE_SCHEMA_VERSION",
+    "CRITIC_HOTPOTQA_REFERENCE_SCHEMA_VERSION",
     "COUNTERFACTUAL_SCHEMA_VERSION",
     "CRITIC_OUTPUT_SCHEMA_VERSION",
     "CounterfactualSuggestion",
     "CriticCallUsage",
     "CriticDecision",
     "CriticGroupInput",
+    "CriticHotpotQAPrivateReference",
     "CriticInvocationResult",
     "CriticKind",
     "CriticOutput",

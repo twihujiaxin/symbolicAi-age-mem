@@ -4,6 +4,8 @@ set -euo pipefail
 # This gate never starts Ray or training. It only validates the uploaded run.
 required_names=(
   AGEMEM_EXPECTED_COMMIT
+  CUDA_DEVICE_ORDER
+  CUDA_VISIBLE_DEVICES
   TRINITY_MODEL_PATH
   TRINITY_MODEL_REVISION
   HOTPOTQA_PATH

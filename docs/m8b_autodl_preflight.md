@@ -1,6 +1,6 @@
 # M8b AutoDL 上卡前执行包
 
-更新时间：2026-08-26
+更新时间：2026-09-02
 
 ## 当前结论
 
@@ -39,7 +39,7 @@ terminal-only reward、固定 Stage-2 干扰和同一个 DashScope provider prof
 两项 WARN 是未注入云端 key 和仓库根部存在本地 ignored 凭据文件；11 项 SKIP
 包含尚未配置本地 1.5B 模型路径，以及只能在 AutoDL 完整环境验证的
 GPU/runtime 项。严格 runtime suite 已冻结
-发现数为 `m8a=141`、`all=316`，少跑、漏跑、FAIL、ERROR 或 SKIP 都会失败。
+发现数为 `m8a=141`、`all=317`，少跑、漏跑、FAIL、ERROR 或 SKIP 都会失败。
 其中 `m8a` scope 已纳入 Stage 1 storage budget、Stage 2 query-delayed challenge
 和统一 anti-shortcut canary 三个模块，共 26 项测试；另有 8 项独立 stress
 协议/反事实回归。这些测试不改动 E1 YAML 或
@@ -51,9 +51,13 @@ GPU/runtime 项。严格 runtime suite 已冻结
 
 ## AutoDL 路径与环境
 
-使用同机 `2 x 80GB`，并把模型、数据和 checkpoint 放在持久盘：
+当前模型目标限定为 1.5B 与 4B，不再考虑 7B。M8b 先执行锁定的 1.5B smoke；
+4B 后续使用独立模型 manifest 与配置锁。使用同机两张 RTX A6000 48GB（允许
+四卡宿主机显式选择两张），并把模型、数据和 checkpoint 放在持久盘：
 
 ```bash
+export CUDA_DEVICE_ORDER=PCI_BUS_ID
+export CUDA_VISIBLE_DEVICES=1,2
 export TRINITY_MODEL_PATH=/root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
 export HOTPOTQA_PATH=/root/autodl-tmp/data/hotpot_qa/fullwiki
 export TRINITY_CHECKPOINT_ROOT_DIR=/root/autodl-tmp/checkpoints
@@ -126,9 +130,11 @@ bash scripts/autodl_m8b_preflight.sh
    ignored 凭据隔离、模型 provenance、持久盘剩余空间和干净 job 目录；
 2. 核对 fullwiki 三个 split/fingerprint、6 条 train 与 2 条 held-out 的 Hotpot ID
    和行内容 SHA-256，并用 Trinity structured Config 解析三份 YAML；
-3. 核对关键包版本、恰好两张可见 GPU、每张总显存至少 76,000 MiB、空闲显存至少
-   74,000 MiB，以及 `nvidia-smi` 与 PyTorch 所见设备 UUID 对齐；
-4. 运行锁定的 316 项 M1～M8b/tool-trace/anti-shortcut 回归，并把数量漂移或任何
+3. 核对关键包版本；保留完整物理 GPU 清单，但只按 `CUDA_VISIBLE_DEVICES` 选择的
+   两张卡执行门禁。每张总显存至少 48,000 MiB、空闲显存至少 47,000 MiB，并要求
+   `nvidia-smi` 物理 UUID 与 PyTorch 重映射设备 UUID 对齐；数值选择器必须配合
+   `CUDA_DEVICE_ORDER=PCI_BUS_ID`；
+4. 运行锁定的 317 项 M1～M8b/tool-trace/anti-shortcut 回归，并把数量漂移或任何
    `FAIL/ERROR/SKIP` 都视为失败。
 
 报告保存到：
@@ -196,8 +202,9 @@ $TRINITY_CHECKPOINT_ROOT_DIR/m8b_logs/$AGEMEM_EXPECTED_COMMIT/
 - commit、配置 digest、fullwiki fingerprint 或固定 ID 不一致；
 - 模型、数据或 checkpoint 不在 `/root/autodl-tmp`；
 - E0/E1 smoke job 目录已含旧文件，可能触发 Trinity 隐式改名或加载陈旧状态；
-- 不是恰好两张可见 GPU、任一张总显存少于 76,000 MiB、空闲显存少于
-  74,000 MiB，或 PyTorch/NVIDIA UUID 不一致；
+- `CUDA_VISIBLE_DEVICES` 未能唯一选择恰好两张 GPU、数值选择器未配合
+  `CUDA_DEVICE_ORDER=PCI_BUS_ID`、任一选中卡总显存少于 48,000 MiB、空闲显存
+  少于 47,000 MiB，或 PyTorch/NVIDIA UUID 不一致；
 - E1 reward breakdown 出现 terminal/total 之外的训练奖励；
 - K=2 组内 policy version 改变；
 - action ID、token span、old logprobs 或 ToolTrace join 失败；

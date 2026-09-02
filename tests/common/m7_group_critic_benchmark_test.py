@@ -258,7 +258,7 @@ class M7GroupCriticBaselineIntegrationTest(unittest.TestCase):
                             "retrieved_supporting_fact", credit.atomic_propositions
                         )
 
-    def test_k3_groups_hide_answers_and_preserve_action_provenance(self):
+    def test_k3_groups_bind_complete_current_task_reference_and_provenance(self):
         groups = build_group_inputs(repository=ROOT)
         self.assertEqual(len(groups), 30)
         for profile in ("oracle", "human_backed_mock", "controlled_error"):
@@ -278,12 +278,20 @@ class M7GroupCriticBaselineIntegrationTest(unittest.TestCase):
             )
             for selection in manifest.selections
         }
-        # Task descriptions are adapter questions, never answers/support labels.
         for group in groups:
-            self.assertEqual(group.task_description, expected[group.task_id].question)
-            self.assertNotEqual(group.task_description, expected[group.task_id].answer)
-            self.assertNotIn("supporting_fact_ids", group.task_description)
-            self.assertNotIn("oracle_labels", group.task_description)
+            row = expected[group.task_id]
+            reference = group.critic_only_reference
+            self.assertEqual(reference.visibility, "critic_only_privileged")
+            self.assertEqual(reference.scope, "current_task_only")
+            self.assertEqual(reference.hotpot_id, row.id)
+            self.assertEqual(reference.question, row.question)
+            self.assertEqual(reference.answer, row.answer)
+            self.assertEqual(reference.hotpot_type, row.type)
+            self.assertEqual(reference.level, row.level)
+            self.assertEqual(reference.context, row.context)
+            self.assertEqual(reference.supporting_facts, row.supporting_facts)
+            self.assertEqual(group.task_description, reference.question)
+            self.assertEqual(group.task_id, f"hotpot-{reference.hotpot_id}")
             action_ids = [
                 action.evidence.action_id
                 for rollout in group.rollouts

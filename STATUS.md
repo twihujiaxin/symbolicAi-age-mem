@@ -4,7 +4,7 @@
 
 M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 
-状态：1.5B 本地上卡前锁迁移、Stage 1/2 反捷径 canary/stress benchmark 与 316 项锁定回归已完成；真实 AutoDL E0/E1/checkpoint 尚未执行
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）；当前 1.5B 上卡前锁、Stage 1/2 反捷径 canary/stress benchmark 与 317 项锁定回归已完成，4B 将使用独立模型/config lock；真实 AutoDL E0/E1/checkpoint 尚未执行
 
 ## Completed
 
@@ -128,6 +128,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 ### M7
 
 - [x] 保留 M4 手工 DFA 为主基线；实现严格 Group Critic 输入/输出、mock critic 与 injected-client LLM adapter
+- [x] Critic 输入升级为每个 group 仅绑定当前一条 `critic_only_privileged` HotpotQA fullwiki 完整记录，包含 question、answer、完整 context 与官方 `supporting_facts`；该私有 Oracle 记录进入 prompt/cache digest，但不进入 policy observation
 - [x] validator 校验完整 action 坐标、AP evidence、命题定义域、依赖 DAG、可达接受状态、非接受初态及 state cap
 - [x] 将合法 milestone DAG 确定性编译为正向 DFA；bad behavior 只审计，不实现负自动机
 - [x] 无效/不可用 Critic 输出显式回退到手工 DFA 或 terminal-only；25 个 cyclic-invalid + 5 个 unavailable，共 30 次显式回退、静默采用 0 次
@@ -140,7 +141,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - [x] hand-DFA 上 10 个重复 ADD + 10 个两步检索循环场景无 reward farming，once-only 和 progress cap 均通过；不外推为 Critic-DFA farming 结论
 - [x] 调用成本只报告 mock 输入/输出与启发式 token：cold/cache hit/miss 为 360/30/30；provider token/cost 为 `None`，真实 LLM 调用为 0
 - [x] 按 HotpotQA question type、精确 action count 和唯一真实干扰配置（Stage 1=6、Stage 2=3）报告结果
-- [x] 保存 `artifacts/m7_group_critic/` 与 `docs/m7_group_critic_offline_validation.md`；report digest 为 `6d78f7984f3f64cc57863f84d6250d2f6fa3ee65418f2a054723e0d2229642df`
+- [x] 保存 `artifacts/m7_group_critic/` 与 `docs/m7_group_critic_offline_validation.md`；加入当前任务完整私有参考后的 report digest 为 `87e41a0ccee6dc0dc24dfa18c898853b6530a42efdde5badbd3d0013accbac75`
 - [x] 未实现 GRPO、模型训练、负自动机、LTLf 或真实 LLM 评测
 
 ### M8a
@@ -167,11 +168,11 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 
 ### M8b 上卡前准备
 
-- [x] `configs/m8b_autodl_preflight.json` 锁定三份 YAML 的规范 LF SHA-256、M5 manifest、37 项 E1 契约、`m8a=141/all=316` 精确测试数和 `experience_buffer.path=null`
+- [x] `configs/m8b_autodl_preflight.json` 锁定三份 YAML 的规范 LF SHA-256、M5 manifest、37 项 E1 契约、`m8a=141/all=317` 精确测试数和 `experience_buffer.path=null`
 - [x] 跨平台 preflight 核对完整 40 位 commit、dirty state、递归 `.env`/ignored credential、非空 key、持久路径、空 job、依赖版本与 Trinity Config schema
 - [x] 模型门禁固定 `Qwen/Qwen2.5-1.5B-Instruct`、完整 revision、Qwen2.5-1.5B 结构、单文件权重、最小 3 GB 权重体积及逐文件 SHA-256 manifest，不伪造模型来源
 - [x] 数据门禁核对 fullwiki 三个 split 的规模/fingerprint，以及 6 条 train + 2 条 held-out 的 Hotpot ID 和规范内容 hash
-- [x] AutoDL GPU 门禁要求恰好 2 张卡、每张总显存至少 76,000 MiB、空闲显存至少 74,000 MiB，并交叉核对 `nvidia-smi` 与 PyTorch device UUID
+- [x] AutoDL GPU 门禁支持四卡宿主机通过 `CUDA_DEVICE_ORDER=PCI_BUS_ID` 与 `CUDA_VISIBLE_DEVICES` 唯一选择 2 张 RTX A6000；保留完整物理清单，仅对选中卡要求总显存至少 48,000 MiB、空闲显存至少 47,000 MiB，并交叉核对 `nvidia-smi` 与 PyTorch device UUID
 - [x] 严格 runtime gate 对 suite 发现数和执行数同时比对 lock；任意 `FAIL/ERROR/SKIP/unexpected success` 均失败，不能把本地 3 个 runtime SKIP 当通过
 - [x] 冻结 DashScope endpoint、`text-embedding-v4` 256 维和 `qwen-max`；provider SDK 禁用隐式重试，成功/失败/eval 调用立即写入独立 fsync 元数据 JSONL
 - [x] provider 记录包含 task/rollout/execution/call index、延迟、错误类型与真实 token usage，不保存 prompt/response/header/key；异常文本脱敏，usage 持久化失败时 fail closed，未报告金额保持 `None`
@@ -211,7 +212,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - Pydantic: 2.13.4
 - Datasets: 4.8.5
 - PyArrow: 25.0.0
-- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；锁定 316 项 suite 中 3 个 runtime 接线测试因此 SKIP
+- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；锁定 317 项 suite 中 3 个 runtime 接线测试因此 SKIP
 - Ruff: 0.15.9；pytest/Flake8 未安装；测试使用标准库 `unittest`
 
 ## Git state
@@ -334,8 +335,8 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - E2 显式 target-question 对齐回归：2/2 PASS
 - 反捷径统一报告：7/7 gates PASS，real LLM / external embedding service / network calls 0，schema v2 checksum `b5ced8e688194d3d9e7cb3a6b4bd8d256d7cc38610fcb56a1d8c37987a7b952c`
 - 反捷径 stress：8/8 tests、11/11 integrity gates PASS；Stage 1 每策略 2400 arms，Stage 2 每策略 600 arms，checksum `385753c1d4d9b0aa8d9398622492e0632618077e921846dc90b88704d3c87b50`
-- M8b lock 精确测试数：`m8a=141`、`all=316`；suite discovery 与 lock 完全一致
-- M8b 最终本地 all scope：316 RUN，313 PASS，0 FAIL，0 ERROR，3 SKIP，0 unexpected success
+- M8b lock 精确测试数：`m8a=141`、`all=317`；suite discovery 与 lock 完全一致
+- M8b 最终本地 all scope：317 RUN，314 PASS，0 FAIL，0 ERROR，3 SKIP，0 unexpected success
 - M8b 当前 m8a scope 组成：原 M8a 46 项 + M8b 新增 61 项 + 反捷径 canary 26 项 + stress 8 项 = 141；本地 138 PASS、3 SKIP
 - M8b 新增 61 项：provider 16、preflight 16、model manifest 2、runtime gate 5、runtime fail-closed 12、postflight 10，全部 PASS
 - M8b strict runtime gate 本地结果必须为 FAIL：仅有的 3 个 SKIP 都因缺 Ray，且门禁按设计不放行 SKIP
@@ -344,7 +345,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - M8b 三份 1.5B YAML 规范 LF digest、37 项 E1 assertion、`experience_buffer.path=null` 与 lock 一致
 - M8b real LLM / embedding / network / GPU / optimizer/checkpoint calls：0
 - M8b Ruff、compileall、YAML/JSON parse 与 scoped diff check：PASS
-- M7 report digest：`6d78f7984f3f64cc57863f84d6250d2f6fa3ee65418f2a054723e0d2229642df`
+- M7 report digest：`87e41a0ccee6dc0dc24dfa18c898853b6530a42efdde5badbd3d0013accbac75`
 
 ## Known constraints
 
@@ -385,7 +386,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 
 ## Failures and blockers
 
-- 无未解决的本地可执行测试失败；316 项中有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此严格 runtime gate 当前按设计为 FAIL
+- 无未解决的本地可执行测试失败；317 项中有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此严格 runtime gate 当前按设计为 FAIL
 - DashScope provider 已冻结并接入调用/错误/延迟/usage 记录；货币成本仍须在实际 smoke 后与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL、GPU 资源分配、LoRA 初始化、optimizer update 或 checkpoint 重载
 - 本地 postflight 只验证人工 fixture；尚无真实 E0/E1 receipt、`global_step_1` shard、训练后 LoRA 或新进程 model-version-1 eval 证据
@@ -393,4 +394,4 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 
 ## Next recommended action
 
-先推送已验证并在本地提交的 1.5B M8b-prep 与 Stage 1/2 反捷径扩展，用最终推送的完整 commit 设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在 AutoDL `2 x 80GB` 持久盘准备固定 `Qwen/Qwen2.5-1.5B-Instruct` revision、模型 manifest 与 fullwiki 后，先用该冻结 tokenizer 重跑 stress，再安装 `.[m8b,dev]`，对两个 shell 脚本执行 `bash -n`，并按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 316/316 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止，真实报告通过前不进入 E3/E4/E5 或全量训练。
+先推送已验证并在本地提交的 1.5B M8b-prep 与 Stage 1/2 反捷径扩展，用最终推送的完整 commit 设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在四卡 RTX A6000 宿主机设置 `CUDA_DEVICE_ORDER=PCI_BUS_ID`、`CUDA_VISIBLE_DEVICES=1,2`，只使用两张空闲 48GB 卡；准备固定 `Qwen/Qwen2.5-1.5B-Instruct` revision、模型 manifest 与 fullwiki 后，先用该冻结 tokenizer 重跑 stress，再安装 `.[m8b,dev]`，对两个 shell 脚本执行 `bash -n`，并按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 317/317 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止。1.5B smoke 稳定后再建立独立 4B lock；当前不进入 7B、E3/E4/E5 或全量训练。

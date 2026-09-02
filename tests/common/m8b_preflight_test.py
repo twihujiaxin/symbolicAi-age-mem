@@ -587,12 +587,12 @@ class ModelIdentityTest(unittest.TestCase):
 
 
 class GpuGateTest(unittest.TestCase):
-    def test_busy_gpu_fails_even_when_total_memory_is_large(self):
+    def test_four_gpu_host_filters_two_a6000_devices_and_fails_closed(self):
         lock = {
             "gpu": {
                 "minimum_count": 2,
-                "minimum_memory_mib": 76000,
-                "minimum_free_memory_mib": 74000,
+                "minimum_memory_mib": 48000,
+                "minimum_free_memory_mib": 47000,
                 "require_exact_count": True,
             }
         }
@@ -600,11 +600,11 @@ class GpuGateTest(unittest.TestCase):
             {
                 "index": index,
                 "uuid": f"GPU-{index}",
-                "name": "A100",
-                "memory_mib": 81920,
-                "free_memory_mib": 1000 if index == 0 else 80000,
+                "name": "NVIDIA RTX A6000",
+                "memory_mib": 49140,
+                "free_memory_mib": 1000 if index in {0, 3} else 49100,
             }
-            for index in range(2)
+            for index in range(4)
         ]
         torch_cuda = {
             "torch_version": "2.6.0",
@@ -614,16 +614,54 @@ class GpuGateTest(unittest.TestCase):
             "devices": [
                 {
                     "index": index,
-                    "uuid": f"GPU-{index}",
-                    "name": "A100",
-                    "memory_mib": 81920,
+                    "uuid": f"GPU-{physical_index}",
+                    "name": "NVIDIA RTX A6000",
+                    "memory_mib": 49140,
                 }
-                for index in range(2)
+                for index, physical_index in enumerate((1, 2))
             ],
         }
-        gates = m8b_preflight.GateBook()
+
+        passing_gates = m8b_preflight.GateBook()
         with patch.object(
             m8b_preflight, "_query_nvidia_smi", return_value=nvidia
+        ), patch.object(
+            m8b_preflight, "_query_torch_cuda", return_value=torch_cuda
+        ):
+            inventory = m8b_preflight._check_gpu(
+                ROOT,
+                lock,
+                mode="autodl",
+                gates=passing_gates,
+                environment={
+                    "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+                    "CUDA_VISIBLE_DEVICES": "1,2",
+                },
+            )
+        self.assertTrue(passing_gates.passed)
+        self.assertEqual(inventory["cuda_visible_devices"], "1,2")
+        self.assertEqual(
+            [gpu["index"] for gpu in inventory["nvidia_smi"]],
+            [1, 2],
+        )
+        self.assertEqual(len(inventory["physical_nvidia_smi"]), 4)
+        uuid_selected, uuid_selector = (
+            m8b_preflight._filter_cuda_visible_devices(
+                nvidia,
+                {"CUDA_VISIBLE_DEVICES": "GPU-2,GPU-1"},
+            )
+        )
+        self.assertEqual(uuid_selector, "GPU-2,GPU-1")
+        self.assertEqual(
+            [gpu["index"] for gpu in uuid_selected],
+            [2, 1],
+        )
+
+        busy_nvidia = [dict(gpu) for gpu in nvidia]
+        busy_nvidia[1]["free_memory_mib"] = 1000
+        busy_gates = m8b_preflight.GateBook()
+        with patch.object(
+            m8b_preflight, "_query_nvidia_smi", return_value=busy_nvidia
         ), patch.object(
             m8b_preflight, "_query_torch_cuda", return_value=torch_cuda
         ):
@@ -631,9 +669,36 @@ class GpuGateTest(unittest.TestCase):
                 ROOT,
                 lock,
                 mode="autodl",
-                gates=gates,
+                gates=busy_gates,
+                environment={
+                    "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+                    "CUDA_VISIBLE_DEVICES": "1,2",
+                },
             )
-        self.assertFalse(gates.passed)
+        self.assertFalse(busy_gates.passed)
+
+        for invalid_environment in (
+            {"CUDA_DEVICE_ORDER": "PCI_BUS_ID"},
+            {"CUDA_VISIBLE_DEVICES": "1,2"},
+            {
+                "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+                "CUDA_VISIBLE_DEVICES": "1,1",
+            },
+        ):
+            invalid_gates = m8b_preflight.GateBook()
+            with patch.object(
+                m8b_preflight, "_query_nvidia_smi", return_value=nvidia
+            ), patch.object(
+                m8b_preflight, "_query_torch_cuda", return_value=torch_cuda
+            ):
+                m8b_preflight._check_gpu(
+                    ROOT,
+                    lock,
+                    mode="autodl",
+                    gates=invalid_gates,
+                    environment=invalid_environment,
+                )
+            self.assertFalse(invalid_gates.passed)
 
 
 class RuntimeGateReportTest(unittest.TestCase):
