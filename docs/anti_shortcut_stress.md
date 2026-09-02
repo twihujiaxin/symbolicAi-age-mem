@@ -19,7 +19,7 @@
 ```bash
 python scripts/agemem_anti_shortcut_stress.py
 
-# AutoDL: rerun with the frozen production tokenizer.
+# Remote GPU server: rerun with the frozen production tokenizer.
 stress_dir="$TRINITY_CHECKPOINT_ROOT_DIR/anti_shortcut_stress/$AGEMEM_EXPECTED_COMMIT"
 python scripts/agemem_anti_shortcut_stress.py \
   --tokenizer-path "$TRINITY_MODEL_PATH" \

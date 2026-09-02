@@ -1,4 +1,4 @@
-"""Fail-closed preflight checks for the M8b AutoDL smoke run.
+"""Fail-closed preflight checks for the M8b remote GPU smoke run.
 
 The checker is deliberately read-only apart from its JSON report.  It never
 starts Ray, imports a model, contacts a provider, or launches training.
@@ -487,7 +487,7 @@ def _check_git(
         gates.add(
             "git.commit",
             FAIL if mode == "autodl" else SKIP,
-            "an expected commit is required on AutoDL" if mode == "autodl" else "no expected commit supplied for local audit",
+            "an expected commit is required in strict remote mode" if mode == "autodl" else "no expected commit supplied for local audit",
             actual=commit,
         )
     elif not _FULL_COMMIT_PATTERN.fullmatch(expected_commit):
@@ -574,7 +574,7 @@ def _check_credential_isolation(
         gates.add(
             "credentials.repository",
             FAIL if mode == "autodl" else WARN,
-            "local credential files exist and must not be transferred to AutoDL",
+            "local credential files exist and must not be transferred to the remote server",
             paths=existing,
         )
     else:
@@ -841,7 +841,7 @@ def _check_paths(
             gates.add(
                 f"path.{name}",
                 FAIL,
-                f"{name} path is outside the frozen AutoDL persistent root",
+                f"{name} path is outside the frozen remote persistent root",
                 path=str(resolved),
                 persistent_prefix=str(persistent_prefix),
             )
@@ -1124,7 +1124,7 @@ def _check_packages(
             gates.add(
                 f"runtime.package.{distribution}",
                 FAIL if required else SKIP,
-                "required distribution is not installed" if required else "AutoDL-only distribution is not installed locally",
+                "required distribution is not installed" if required else "remote-only distribution is not installed locally",
                 specifier=specifier,
             )
             continue
@@ -1339,7 +1339,7 @@ def _check_gpu(
     environment: Optional[Mapping[str, str]] = None,
 ) -> dict[str, Any]:
     if mode != "autodl":
-        gates.add("gpu.topology", SKIP, "GPU checks are deferred to AutoDL mode")
+        gates.add("gpu.topology", SKIP, "GPU checks are deferred to strict remote mode")
         return {"nvidia_smi": [], "torch_cuda": None}
 
     gpu_lock = lock.get("gpu") if isinstance(lock.get("gpu"), dict) else {}

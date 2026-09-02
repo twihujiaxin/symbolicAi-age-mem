@@ -4,7 +4,7 @@
 > 建议版本：15 分钟、15 页；可压缩为 10 页。<br>
 > 更新时间：2026-09-02<br>
 > 当前代码分支：`feat/m6-extracted-ap-state-tracker`<br>
-> 当前阶段：目标模型为 1.5B 与 4B（暂不考虑 7B）；M8b-prep 当前锁定 `Qwen2.5-1.5B-Instruct`，4B 将使用独立配置锁；真实 AutoDL E0/E1/checkpoint 尚未执行。
+> 当前阶段：目标模型为 1.5B 与 4B（暂不考虑 7B）；M8b-prep 当前锁定 `Qwen2.5-1.5B-Instruct`，4B 将使用独立配置锁；部署目标已从 AutoDL 改为组内远程 GPU 服务器 `/data/hjx/Age_mem`，真实 E0/E1/checkpoint 尚未执行。
 
 ## 1. 汇报定位
 
@@ -48,7 +48,7 @@
                  ↓
 用 mock Group Critic 做离线 shadow 与显式回退验证
                  ↓
-完成 AutoDL 上卡前门禁，再比较 terminal-only 与 terminal+DFA 训练
+完成组内远程 GPU 上卡前门禁，再比较 terminal-only 与 terminal+DFA 训练
 ```
 
 ### 研究问题
@@ -73,7 +73,7 @@
 
 - 主标题：Logic-Guided Agent Memory；
 - 副标题：可重放轨迹、Oracle AP 与 DFA 里程碑奖励；
-- 页脚：M0-M7、反捷径 stress、M8b-prep 已完成，真实 AutoDL smoke 待执行；
+- 页脚：M0-M7、反捷径 stress、M8b-prep 已完成，组内远程 GPU smoke 待执行；
 - 作者、日期、实验分支。
 
 **建议图示**
@@ -553,7 +553,7 @@ M8a 将首轮 GPU smoke 收缩为可控的 terminal-only baseline，确保奖励
 
 **两项未关闭**
 
-1. AutoDL Linux runtime 与 E1/checkpoint 真实执行；
+1. 组内远程 Linux/GPU runtime 与 E1/checkpoint 真实执行；
 2. 在线 `ActionCreditRecord` 生成器（留到 E3/E4）。
 
 **建议图示**
@@ -586,7 +586,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 
 - 定向 M8b tests：61/61 PASS；反捷径 canary tests：26/26 PASS；stress tests：8/8 PASS；另有 2 项 E2 target-question 对齐回归；
 - 全量锁定 suite：317 discovered/executed，314 PASS、3 SKIP、0 FAIL、0 ERROR；
-- 1.5B 锁干净提交后的本地 preflight：18 PASS、0 FAIL、2 WARN、11 SKIP；WARN 来自未注入云端 key 与本地 ignored 凭据，SKIP 包含尚未配置本地 1.5B 模型路径及 AutoDL-only 项；
+- 1.5B 锁干净提交后的本地 preflight：18 PASS、0 FAIL、2 WARN、11 SKIP；WARN 来自未注入远程 key 与本地 ignored 凭据，SKIP 包含尚未配置本地 1.5B 模型路径及 remote-only 项；
 - 严格 runtime gate 对 SKIP fail closed；
 - 真实 GPU/LLM/optimizer/checkpoint：0。
 
@@ -620,13 +620,13 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 - 不能声称 DFA 已优于 terminal-only 训练：尚无真实 E1/E3/E4 训练结果；
 - 不能声称真实 LLM AP/Group Critic 性能：当前使用 mock/fake client；
 - 不能声称真实模型已摆脱 Store-All 或主题偏移捷径：当前只有离线 sidecar 与确定性公开基线；
-- 不能声称 GPU/checkpoint smoke 通过：AutoDL 尚未执行；
+- 不能声称 GPU/checkpoint smoke 通过：组内远程服务器尚未执行；
 - 不能声称在线 `ActionCreditRecord` 已接入：当前仍是 schema/join/validation。
 
 **推荐下一步**
 
 1. 提交并推送当前已验证改动，固定最终完整 commit，并轮换本地凭据；
-2. AutoDL 上用冻结 Qwen tokenizer 重跑 stress，并执行 `bash -n`、严格 preflight 和 `317/317` runtime gate；
+2. 组内远程服务器上用冻结 Qwen tokenizer 重跑 stress，并执行 `bash -n`、严格 preflight 和 `317/317` runtime gate；
 3. 依次完成 E0 frozen eval、E1 单次 update、checkpoint 保存、重启后 eval、postflight；
 4. 只有 M8b smoke 通过后，设计 E3/E4 在线 `ActionCreditRecord` 生成与 terminal-only 对照；
 5. 最后才进入多 seed、扩大数据和正式 DFA-vs-terminal 研究。
@@ -648,7 +648,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 | M6 | Extracted AP / StateTracker | mock AP F1 .976；controlled FR 5/10 可解释 | fake/mock extractor |
 | M7 | Critic offline validation | 90/90 replay；30 fallback；20/20 farming | deterministic mock |
 | M8a | Terminal-only contract | 141 scope；138 PASS、3 local SKIP | 尚未上卡 |
-| M8b-prep | AutoDL evidence gates | 61/61 targeted；317 all scope | 尚未真实执行 |
+| M8b-prep | Remote GPU evidence gates | 61/61 targeted；317 all scope | 尚未真实执行 |
 
 ## 5. 图表与素材清单
 
@@ -664,7 +664,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 8. **M6 错误传播因果链**：注入漏抽 → AP 缺失 → DFA 转移失败；
 9. **M7 fallback 流程图**：valid critic / invalid critic / unavailable critic；
 10. **M8b 闸门流程图**：preflight → runtime gate → E0 → E1 → checkpoint eval → postflight；
-11. **证据边界矩阵**：已验证、mock/Oracle、待 AutoDL、待 E3/E4。
+11. **证据边界矩阵**：已验证、mock/Oracle、待远程 GPU、待 E3/E4。
 
 ## 6. 视觉与排版建议
 
@@ -673,7 +673,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 - 每页只保留一个主结论，指标不超过 5 个；
 - 用实线表示已验证链路，用虚线表示尚未执行链路；
 - 代码只展示短接口名或 JSON 字段，不贴大段源代码；
-- 所有指标标注数据类型：`Oracle`、`mock`、`controlled-error`、`local preflight` 或 `AutoDL pending`；
+- 所有指标标注数据类型：`Oracle`、`mock`、`controlled-error`、`local preflight` 或 `remote GPU pending`；
 - 不展示 API key、完整轨迹正文、完整上下文、模型目录内容或 ignored `config`；
 - 结论页必须保留“当前没有真实 GPU/LLM 训练结果”的免责声明。
 
@@ -686,7 +686,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 
 严格遵守素材文档中的阶段边界：M0-M7 与 M8b-prep 只按已验证证据呈现；
 不要把 mock、Oracle 或 controlled-error 指标写成真实 LLM/训练结果；
-不要声称 AutoDL、GPU、optimizer、checkpoint 或在线 ActionCreditRecord 已完成。
+不要声称远程 GPU、optimizer、checkpoint 或在线 ActionCreditRecord 已完成。
 
 优先制作：研究问题、系统数据流、三阶段环境、固定预算与成对反事实上界图、DFA 状态图、M5/M6/M7 结果图、
 M8b 闸门流程和未完成项。每页一个结论，图表优先于代码截图，保留数据来源和免责声明。
@@ -704,6 +704,6 @@ M8b 闸门流程和未完成项。每页一个结论，图表优先于代码截�
 | M7 Critic 离线验证 | `docs/m7_group_critic_offline_validation.md` |
 | Stage 1/2 反捷径报告 | `docs/anti_shortcut_stress.md`、`artifacts/anti_shortcut_stress/anti_shortcut_stress.json`；v2 canary 仍保留 |
 | M8a terminal-only 契约 | `docs/m8a_terminal_only_preflight.md` |
-| M8b AutoDL 门禁与 smoke 顺序 | `docs/m8b_autodl_preflight.md` |
+| M8b 远程 GPU 门禁与 smoke 顺序 | `docs/m8b_autodl_preflight.md` |
 | 固定数据清单 | `data/splits/hotpotqa_smoke_manifest.json` |
 | M8b 版本锁 | `configs/m8b_autodl_preflight.json` |

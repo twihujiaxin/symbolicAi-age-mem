@@ -258,7 +258,7 @@
     ]
   },
   "paths": {
-    "autodl_persistent_prefix": "/root/autodl-tmp",
+    "autodl_persistent_prefix": "/data/hjx/Age_mem",
     "clean_job_relative_paths": [
       "Trinity-RFT-AgeMem-M8/agemem-e0-terminal-only-frozen-eval",
       "Trinity-RFT-AgeMem-M8/agemem-e1-terminal-only-dry-run"

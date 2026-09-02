@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
+M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 
-状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）；当前 1.5B 上卡前锁、Stage 1/2 反捷径 canary/stress benchmark 与 317 项锁定回归已完成，4B 将使用独立模型/config lock；真实 AutoDL E0/E1/checkpoint 尚未执行
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）；当前 1.5B 上卡前锁、Stage 1/2 反捷径 canary/stress benchmark 与 317 项锁定回归已完成，4B 将使用独立模型/config lock；部署目标已从 AutoDL 改为组内远程 GPU 服务器，持久根目录冻结为 `/data/hjx/Age_mem`，真实 E0/E1/checkpoint 尚未执行
 
 ## Completed
 
@@ -146,7 +146,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 
 ### M8a
 
-> 状态说明：M8a 的本地静态/离线门禁实现已完成，但阶段验收仍有两项未关闭：真实 AutoDL runtime/E1 smoke，以及在线 `ActionCreditRecord` 自动生成。前者由 M8b smoke 执行，后者属于 E3/E4，不能在 terminal-only 基线中伪记为完成。
+> 状态说明：M8a 的本地静态/离线门禁实现已完成，但阶段验收仍有两项未关闭：组内远程服务器 runtime/E1 smoke，以及在线 `ActionCreditRecord` 自动生成。前者由 M8b smoke 执行，后者属于 E3/E4，不能在 terminal-only 基线中伪记为完成。
 
 - [x] `TaskFileReader` 支持本地 Hugging Face `save_to_disk` Dataset/DatasetDict，并对 split、subset 与 row index fail closed
 - [x] E1 dry-run 固定复用 M5 manifest 的 6 条 source-train 样本；运行时校验 train fingerprint、source index 顺序与 Hotpot ID，真实 fullwiki 90,447→6 已核对
@@ -163,7 +163,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - [x] M8a 初始范围为 46 项测试：43 PASS、3 SKIP；当前已由 M8b 锁扩展为 141 项 `m8a` scope（本地 138 PASS、3 SKIP）
 - [x] M1～M7 相关回归 145/145、tool-trace 30/30 均通过
 - [x] 本阶段未调用真实 LLM/embedding/网络，未运行模型、GPU、优化器或 checkpoint
-- [ ] **未关闭项 1：** AutoDL Linux 上的 3 个 runtime tests、完整 Config/Ray/vLLM/veRL、E1 单次更新和 checkpoint 新进程重载尚未执行（对应 M8b 真实 smoke）
+- [ ] **未关闭项 1：** 组内远程 Linux/GPU 服务器上的 3 个 runtime tests、完整 Config/Ray/vLLM/veRL、E1 单次更新和 checkpoint 新进程重载尚未执行（对应 M8b 真实 smoke）
 - [ ] **未关闭项 2：** 在线 `ActionCreditRecord` 自动生成器尚未实现；当前只有严格 schema、join 和 buffer validation（对应 E3/E4）
 
 ### M8b 上卡前准备
@@ -172,7 +172,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - [x] 跨平台 preflight 核对完整 40 位 commit、dirty state、递归 `.env`/ignored credential、非空 key、持久路径、空 job、依赖版本与 Trinity Config schema
 - [x] 模型门禁固定 `Qwen/Qwen2.5-1.5B-Instruct`、完整 revision、Qwen2.5-1.5B 结构、单文件权重、最小 3 GB 权重体积及逐文件 SHA-256 manifest，不伪造模型来源
 - [x] 数据门禁核对 fullwiki 三个 split 的规模/fingerprint，以及 6 条 train + 2 条 held-out 的 Hotpot ID 和规范内容 hash
-- [x] AutoDL GPU 门禁支持四卡宿主机通过 `CUDA_DEVICE_ORDER=PCI_BUS_ID` 与 `CUDA_VISIBLE_DEVICES` 唯一选择 2 张 RTX A6000；保留完整物理清单，仅对选中卡要求总显存至少 48,000 MiB、空闲显存至少 47,000 MiB，并交叉核对 `nvidia-smi` 与 PyTorch device UUID
+- [x] 远程 GPU 门禁支持四卡宿主机通过 `CUDA_DEVICE_ORDER=PCI_BUS_ID` 与 `CUDA_VISIBLE_DEVICES` 唯一选择 2 张 RTX A6000；保留完整物理清单，仅对选中卡要求总显存至少 48,000 MiB、空闲显存至少 47,000 MiB，并交叉核对 `nvidia-smi` 与 PyTorch device UUID
 - [x] 严格 runtime gate 对 suite 发现数和执行数同时比对 lock；任意 `FAIL/ERROR/SKIP/unexpected success` 均失败，不能把本地 3 个 runtime SKIP 当通过
 - [x] 冻结 DashScope endpoint、`text-embedding-v4` 256 维和 `qwen-max`；provider SDK 禁用隐式重试，成功/失败/eval 调用立即写入独立 fsync 元数据 JSONL
 - [x] provider 记录包含 task/rollout/execution/call index、延迟、错误类型与真实 token usage，不保存 prompt/response/header/key；异常文本脱敏，usage 持久化失败时 fail closed，未报告金额保持 `None`
@@ -183,7 +183,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - [x] 将 M8a `save_to_disk` 测试改为只读 marker fixture + 内存 DatasetDict，消除 Windows 沙箱临时目录 ACL 假失败
 - [x] 新增 model-manifest、preflight、runtime-gate、postflight CLI，以及分阶段 fail-closed 的 `scripts/autodl_m8b_smoke.sh`
 - [x] `pyproject.toml` 新增 `m8b` extra（AgentScope + Datasets）；完整安装、运行顺序、停止条件与 provider 对账口径记录于 `docs/m8b_autodl_preflight.md`
-- [ ] AutoDL 上的 E0、E1 单 optimizer update、`global_step_1`、新进程 checkpoint eval 尚未执行
+- [ ] 组内远程服务器上的 E0、E1 单 optimizer update、`global_step_1`、新进程 checkpoint eval 尚未执行
 
 ### Stage 1/2 反捷径 benchmark
 
@@ -228,7 +228,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - M8b 上卡前执行包已完成本地验证与本地提交
 - Stage 1/2 反捷径 benchmark commit：`7d3c45d feat(agemem): add stage 1/2 anti-shortcut gates`
 - Git scratch-directory cleanup commit：`c26ecb8 chore(git): ignore local verification scratch directories`
-- 当前本地提交尚未推送远程；真实 AutoDL 执行仍未开始
+- 已推送基线 commit：`fe1bff9040796ee0e92f7e3624a807fd5b8437e5`；本轮“AutoDL → 组内服务器 `/data/hjx/Age_mem`”路径迁移改动尚未提交或推送，真实 GPU 执行仍未开始
 
 ## Files changed in M6/M7/M8a
 
@@ -340,7 +340,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - M8b 当前 m8a scope 组成：原 M8a 46 项 + M8b 新增 61 项 + 反捷径 canary 26 项 + stress 8 项 = 141；本地 138 PASS、3 SKIP
 - M8b 新增 61 项：provider 16、preflight 16、model manifest 2、runtime gate 5、runtime fail-closed 12、postflight 10，全部 PASS
 - M8b strict runtime gate 本地结果必须为 FAIL：仅有的 3 个 SKIP 都因缺 Ray，且门禁按设计不放行 SKIP
-- 1.5B 锁干净提交后的本地 preflight（`--no-write`）：18 PASS、0 FAIL、2 WARN、11 SKIP；两个 WARN 为未注入云端 key 与本地 ignored 凭据文件，11 个 SKIP 包含尚未配置本地 1.5B 模型路径以及只能在 AutoDL 验证的 GPU/runtime 项
+- 1.5B 锁干净提交后的本地 preflight（`--no-write`）：18 PASS、0 FAIL、2 WARN、11 SKIP；两个 WARN 为未注入远程 key 与本地 ignored 凭据文件，11 个 SKIP 包含尚未配置本地 1.5B 模型路径以及只能在远程 Linux/GPU 环境验证的 GPU/runtime 项
 - M8b 本地真实 fullwiki：90,447/7,405/7,405、三个 fingerprint、6 条 train + 2 条 held-out 的 ID/内容 hash 精确一致
 - M8b 三份 1.5B YAML 规范 LF digest、37 项 E1 assertion、`experience_buffer.path=null` 与 lock 一致
 - M8b real LLM / embedding / network / GPU / optimizer/checkpoint calls：0
@@ -375,8 +375,8 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - M8b 只完成本地静态/离线门禁和模拟 artifact 的 postflight 单测；未执行真实模型 rollout、GPU、optimizer、checkpoint 或端到端 Trinity Config
 - E1 terminal reward 与固定 distractor 不调用辅助 LLM，但 memory embedding 仍访问已冻结的 DashScope，SUMMARY/CLEAR 仍可能调用已冻结的 `qwen-max`
 - provider usage 记录不含请求/响应正文；OpenAI-compatible API 不报告货币金额时为 `None`，必须另与 DashScope 账单对账
-- 锁定 suite 的 3 个 WorkflowRunner/ExperiencePipeline runtime tests 因本机缺 Ray 而 SKIP，必须在 AutoDL 变为 PASS
-- 当前 Windows 已发现 `C:\\Program Files\\WSL\\wsl.exe`，但本地 WSL 服务枚举返回 `E_ACCESSDENIED`，因此两个 `.sh` 已通过单元测试与人工审查，`bash -n` 仍须在 AutoDL 作为首个只读检查执行
+- 锁定 suite 的 3 个 WorkflowRunner/ExperiencePipeline runtime tests 因本机缺 Ray 而 SKIP，必须在组内远程服务器变为 PASS
+- 当前 Windows 已发现 `C:\\Program Files\\WSL\\wsl.exe`，但本地 WSL 服务枚举返回 `E_ACCESSDENIED`，因此两个 `.sh` 已通过单元测试与人工审查，`bash -n` 仍须在组内远程服务器作为首个只读检查执行
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
 - E5 的 DFA-state bucket、RTG、action-token mask 与动作级 loss 尚未实现
 - `agemem_e1_dry_run.yaml` 仅含固定 6 条数据、K=2 和 1 个 trainer step，不代表 E1 统计复现或正式结果
@@ -390,8 +390,8 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` AutoDL E0/E1 单次更新、checkpoint 重载
 - DashScope provider 已冻结并接入调用/错误/延迟/usage 记录；货币成本仍须在实际 smoke 后与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL、GPU 资源分配、LoRA 初始化、optimizer update 或 checkpoint 重载
 - 本地 postflight 只验证人工 fixture；尚无真实 E0/E1 receipt、`global_step_1` shard、训练后 LoRA 或新进程 model-version-1 eval 证据
-- 本地 HotpotQA fullwiki 已可用；上传 AutoDL 持久盘后仍需重新校验三个 fingerprint、8 条固定样本内容 hash 与模型 manifest/revision
+- 本地 HotpotQA fullwiki 已可用；上传 `/data/hjx/Age_mem/data/hotpot_qa/fullwiki` 后仍需重新校验三个 fingerprint、8 条固定样本内容 hash 与模型 manifest/revision
 
 ## Next recommended action
 
-先推送已验证并在本地提交的 1.5B M8b-prep 与 Stage 1/2 反捷径扩展，用最终推送的完整 commit 设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在四卡 RTX A6000 宿主机设置 `CUDA_DEVICE_ORDER=PCI_BUS_ID`、`CUDA_VISIBLE_DEVICES=1,2`，只使用两张空闲 48GB 卡；准备固定 `Qwen/Qwen2.5-1.5B-Instruct` revision、模型 manifest 与 fullwiki 后，先用该冻结 tokenizer 重跑 stress，再安装 `.[m8b,dev]`，对两个 shell 脚本执行 `bash -n`，并按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 317/317 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止。1.5B smoke 稳定后再建立独立 4B lock；当前不进入 7B、E3/E4/E5 或全量训练。
+先推送已验证并在本地提交的 1.5B M8b-prep 与 Stage 1/2 反捷径扩展，用最终推送的完整 commit 设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在 `/data/hjx/Age_mem/AgeMem` 使用四卡 RTX A6000 宿主机，设置 `CUDA_DEVICE_ORDER=PCI_BUS_ID`、`CUDA_VISIBLE_DEVICES=1,2`，只使用两张实时空闲 48GB 卡；模型、fullwiki 与 checkpoint 分别放在 `/data/hjx/Age_mem/models`、`/data/hjx/Age_mem/data` 与 `/data/hjx/Age_mem/checkpoints`。准备固定 `Qwen/Qwen2.5-1.5B-Instruct` revision、模型 manifest 与 fullwiki 后，先用该冻结 tokenizer 重跑 stress，再安装 `.[m8b,dev]`，对两个 shell 脚本执行 `bash -n`，并按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 317/317 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止。1.5B smoke 稳定后再建立独立 4B lock；当前不进入 7B、E3/E4/E5 或全量训练。

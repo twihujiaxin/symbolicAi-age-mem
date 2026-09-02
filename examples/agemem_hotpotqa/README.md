@@ -54,7 +54,7 @@ ray start --head
 trinity run --config examples/agemem_hotpotqa/agemem_train.yaml
 ```
 
-**M8b 完整 smoke（只在 AutoDL 门禁通过后）：**
+**M8b 完整 smoke（只在组内远程 GPU 门禁通过后）：**
 
 ```bash
 bash scripts/autodl_m8b_preflight.sh
@@ -68,7 +68,7 @@ bash scripts/autodl_m8b_smoke.sh
 顺序执行，并验证 receipt、有限 loss/KL/reward、checkpoint shards、LoRA 变化和
 不同进程的 model-version-1 重载。当前本地尚未执行真实模型、GPU、优化器或
 checkpoint 重载；完整环境、模型 manifest、顺序和停止条件见
-[M8b AutoDL 上卡前执行包](../../docs/m8b_autodl_preflight.md)。
+[M8b 远程 GPU 服务器执行包](../../docs/m8b_autodl_preflight.md)。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

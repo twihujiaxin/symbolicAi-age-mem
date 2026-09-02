@@ -1,12 +1,18 @@
-# M8b AutoDL 上卡前执行包
+# M8b 远程 GPU 服务器执行包
 
 更新时间：2026-09-02
+
+> 部署更新：当前真实运行目标已从 AutoDL 改为组内远程 GPU 服务器，工作区根目录为
+> `/data/hjx/Age_mem`，Git 仓库目录为 `/data/hjx/Age_mem/AgeMem`。现有
+> `autodl_m8b_*.sh` 文件名、`configs/m8b_autodl_preflight.json` 和内部
+> `--mode autodl` 作为兼容入口保留；这里的 `autodl` 表示启用严格 Linux/GPU
+> fail-closed 门禁，不再表示云平台品牌。
 
 ## 当前结论
 
 上卡前的代码、数据、配置、provider、运行时失败传播和产物验收门禁已经可执行化。
 当前仍未运行真实 GPU、Ray、vLLM、模型 rollout、优化器或 checkpoint 重载，
-因此 M8b 仍是“待在 AutoDL 执行”，不是“已经通过”。
+因此 M8b 仍是“待在组内远程 GPU 服务器执行”，不是“已经通过”。
 
 门禁默认不访问网络、不启动 Ray、不调用 LLM/embedding，也不启动训练。
 
@@ -33,11 +39,11 @@ terminal-only reward、固定 Stage-2 干扰和同一个 DashScope provider prof
 
 本地模式必须通过配置、manifest、真实 fullwiki split/fingerprint/Hotpot ID 和轻量
 依赖检查。没有 GPU、Ray、PyTorch、vLLM、veRL、模型目录或云端 key 会显示为
-`WARN/SKIP`，不会被误记成 AutoDL 已通过。
+`WARN/SKIP`，不会被误记成远程 GPU 已通过。
 
 1.5B 锁干净提交后的本地只读预检结果为 `18 PASS / 0 FAIL / 2 WARN / 11 SKIP`。
 两项 WARN 是未注入云端 key 和仓库根部存在本地 ignored 凭据文件；11 项 SKIP
-包含尚未配置本地 1.5B 模型路径，以及只能在 AutoDL 完整环境验证的
+包含尚未配置本地 1.5B 模型路径，以及只能在远程 Linux/GPU 完整环境验证的
 GPU/runtime 项。严格 runtime suite 已冻结
 发现数为 `m8a=141`、`all=317`，少跑、漏跑、FAIL、ERROR 或 SKIP 都会失败。
 其中 `m8a` scope 已纳入 Stage 1 storage budget、Stage 2 query-delayed challenge
@@ -47,9 +53,9 @@ GPU/runtime 项。严格 runtime suite 已冻结
 
 本地 `config` 是 ignored 凭据文件，门禁会明确警告。迁移代码必须使用 Git，不得
 把该文件、`.env`、`runs/`、数据库、轨迹或历史日志整体复制到云端。现有 key 应先
-轮换；AutoDL 只通过密钥配置或环境变量注入。
+轮换；远程服务器只通过密钥配置或环境变量注入。
 
-## AutoDL 路径与环境
+## 组内远程服务器路径与环境
 
 当前模型目标限定为 1.5B 与 4B，不再考虑 7B。M8b 先执行锁定的 1.5B smoke；
 4B 后续使用独立模型 manifest 与配置锁。使用同机两张 RTX A6000 48GB（允许
@@ -58,12 +64,12 @@ GPU/runtime 项。严格 runtime suite 已冻结
 ```bash
 export CUDA_DEVICE_ORDER=PCI_BUS_ID
 export CUDA_VISIBLE_DEVICES=1,2
-export TRINITY_MODEL_PATH=/root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
-export HOTPOTQA_PATH=/root/autodl-tmp/data/hotpot_qa/fullwiki
-export TRINITY_CHECKPOINT_ROOT_DIR=/root/autodl-tmp/checkpoints
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen2.5-1.5B-Instruct
+export HOTPOTQA_PATH=/data/hjx/Age_mem/data/hotpot_qa/fullwiki
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints
 export AGEMEM_EXPECTED_COMMIT=<本地已提交的完整40位commit>
 export TRINITY_MODEL_REVISION=<Qwen模型的完整40位commit revision>
-export DASHSCOPE_API_KEY=<由AutoDL密钥配置注入>
+export DASHSCOPE_API_KEY=<由服务器密钥配置或隐藏输入注入>
 ```
 
 不要把 key 写进 shell history、YAML、JSON、命令参数或报告。预检只记录
@@ -200,7 +206,7 @@ $TRINITY_CHECKPOINT_ROOT_DIR/m8b_logs/$AGEMEM_EXPECTED_COMMIT/
 
 - strict runtime gate 仍有任意 SKIP；
 - commit、配置 digest、fullwiki fingerprint 或固定 ID 不一致；
-- 模型、数据或 checkpoint 不在 `/root/autodl-tmp`；
+- 模型、数据或 checkpoint 不在 `/data/hjx/Age_mem`；
 - E0/E1 smoke job 目录已含旧文件，可能触发 Trinity 隐式改名或加载陈旧状态；
 - `CUDA_VISIBLE_DEVICES` 未能唯一选择恰好两张 GPU、数值选择器未配合
   `CUDA_DEVICE_ORDER=PCI_BUS_ID`、任一选中卡总显存少于 48,000 MiB、空闲显存

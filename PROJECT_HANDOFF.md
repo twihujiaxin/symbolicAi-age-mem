@@ -5,7 +5,7 @@
 > 文档版本：v2.0<br>
 > 更新时间：2026-09-02<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7 已完成；目标模型限定为 1.5B 与 4B、暂不考虑 7B；M8a、1.5B M8b-prep 与 Stage 1/2 反捷径 canary/stress 离线门禁已实现，4B 将使用独立模型/config lock。真实 AutoDL 严格预检、E0、E1 单次更新和 checkpoint 新进程重载均尚未执行
+> 当前状态：M0～M7 已完成；目标模型限定为 1.5B 与 4B、暂不考虑 7B；M8a、1.5B M8b-prep 与 Stage 1/2 反捷径 canary/stress 离线门禁已实现，4B 将使用独立模型/config lock。部署目标已从 AutoDL 改为组内远程 GPU 服务器，工作区根目录为 `/data/hjx/Age_mem`；真实严格预检、E0、E1 单次更新和 checkpoint 新进程重载均尚未执行
 
 ---
 
@@ -169,12 +169,12 @@ M4 已完成：Memory Oracle AP + 手工 DFA + 离线奖励
 M5 已完成：真实 HotpotQA 数据适配与 Oracle Benchmark
 M6 已完成：自然语言三元组抽取、显式状态跟踪与 False Reject 收尾
 M7 已完成：Group Critic 与自动机离线验证；真实 LLM 调用为 0
-M8a 本地门禁实现已完成，但仍有两项未关闭：真实 AutoDL runtime/E1 smoke 尚未执行；在线 `ActionCreditRecord` 自动生成器尚未实现（后者属于 E3/E4）
+M8a 本地门禁实现已完成，但仍有两项未关闭：组内远程 GPU 服务器 runtime/E1 smoke 尚未执行；在线 `ActionCreditRecord` 自动生成器尚未实现（后者属于 E3/E4）
 M8b-prep 已完成：模型/数据/配置锁、严格预检、provider 遥测、运行时 receipt、E0/E1/checkpoint eval 与 fail-closed 一键脚本
 Stage 1/2 反捷径 sidecar 已完成：保留固定 v2 CI canary，并新增 16-task/50-seed/3-budget Stage 1 与成对反事实 Stage 2 stress；两套报告均不改写 E1 或 M3～M7 artifact
 ```
 
-“已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a/M8b-prep 只表示上卡前契约、门禁和执行编排已建立，不表示 AutoDL 预检、E0、E1、optimizer update 或 checkpoint 重载已通过。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
+“已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a/M8b-prep 只表示上卡前契约、门禁和执行编排已建立，不表示远程服务器预检、E0、E1、optimizer update 或 checkpoint 重载已通过。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
 
 ---
 
@@ -1060,11 +1060,11 @@ M8a 不执行模型训练，只关闭 E1 在租卡前可以用 CPU/静态检查�
 - 规则、Oracle、random 和 error-injector 轨迹禁止进入 on-policy buffer；AgeMem pipeline 在 operator 前后均强制契约存在，删除或篡改时 fail closed；
 - Trinity wheel 同时包含 `trinity*` 与复用的 `AgeMem_code_agentscope*` 契约包。
 
-原始 M8a scoped 结果已被 M8b 冻结 runtime gate 取代。当前锁定发现数为 `m8a=141`、`all=317`；少跑、漏跑、数量漂移、FAIL、ERROR、unexpected success 或任意 SKIP 都判失败。本地因缺 PyTorch/Ray/vLLM 仍有 3 个环境性 SKIP，只能作为诊断，必须在 AutoDL 完整 Linux 环境变为 PASS。
+原始 M8a scoped 结果已被 M8b 冻结 runtime gate 取代。当前锁定发现数为 `m8a=141`、`all=317`；少跑、漏跑、数量漂移、FAIL、ERROR、unexpected success 或任意 SKIP 都判失败。本地因缺 PyTorch/Ray/vLLM 仍有 3 个环境性 SKIP，只能作为诊断，必须在组内远程服务器完整 Linux 环境变为 PASS。
 
 当前 E1 仍使用 DashScope embedding，SUMMARY/CLEAR 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。M8b-prep 已为首轮 smoke 冻结 endpoint、embedding/chat model，并记录无正文的调用、错误、延迟和 usage；provider 不返回货币金额时保持 `None` 并在实验后与账单对账。M8a 也尚未在线生成 DFA `ActionCreditRecord`，E3/E4/E5 不得提前宣称完成。
 
-### M8b-prep：AutoDL 上卡前执行包（已完成）
+### M8b-prep：远程 GPU 上卡前执行包（已完成）
 
 M8b-prep 只完成可执行的上卡前约束与证据链，不表示任何真实 GPU 阶段成功。冻结输入和门禁如下：
 
@@ -1082,14 +1082,14 @@ python scripts/agemem_m8b_model_manifest.py \
 
 生成的 `$TRINITY_MODEL_PATH/.agemem_model_manifest.json` 保存 repository/revision、完整文件集合、大小和 SHA-256。严格预检会重新计算所有物料文件，核对 Qwen2.5-1.5B 结构、tokenizer/chat template、单文件 `model.safetensors` 和不少于 3 GB 的权重；模型目录漂移时不得用 `--force` 掩盖，须重新确认来源和 revision。
 
-- `scripts/agemem_m8b_preflight.py --mode autodl` 要求固定 40 位代码 commit、干净工作树、无嵌套 `.env`/云端 ignored 凭据、模型/数据/checkpoint 均位于 `/root/autodl-tmp`、至少 80 GiB checkpoint 空间，以及空的固定 E0/E1 job 路径；
+- `scripts/agemem_m8b_preflight.py --mode autodl` 要求固定 40 位代码 commit、干净工作树、无嵌套 `.env`/远程 ignored 凭据、模型/数据/checkpoint 均位于当前冻结的持久根目录 `/data/hjx/Age_mem`、至少 80 GiB checkpoint 空间，以及空的固定 E0/E1 job 路径；内部 mode 名 `autodl` 仅作为严格 Linux/GPU 模式的兼容名称保留；
 - GPU 门禁允许四卡宿主机通过 `CUDA_DEVICE_ORDER=PCI_BUS_ID` 与 `CUDA_VISIBLE_DEVICES` 显式选择两张 RTX A6000；报告保留完整物理清单，仅对选中卡要求总显存至少 48,000 MiB、执行前空闲显存至少 47,000 MiB，并要求 PyTorch 重映射设备与 `nvidia-smi` 物理 UUID 一致；
-- `scripts/agemem_m8b_runtime_gate.py --scope all` 锁定 `m8a=141`、`all=317`，任何测试数量漂移、FAIL、ERROR、unexpected success 或 SKIP 都 fail closed；本地仍有 3 个环境性 SKIP，必须在 AutoDL 变为 PASS；
+- `scripts/agemem_m8b_runtime_gate.py --scope all` 锁定 `m8a=141`、`all=317`，任何测试数量漂移、FAIL、ERROR、unexpected success 或 SKIP 都 fail closed；本地仍有 3 个环境性 SKIP，必须在组内远程服务器变为 PASS；
 - DashScope endpoint、`text-embedding-v4` 256 维和 `qwen-max` 已冻结。每次成功、失败、eval 或 malformed-response 调用立即写入独立、加锁、`fsync` 的 `<checkpoint_job_dir>/trajectories/auxiliary_provider_calls.jsonl`，键为 `task_id / rollout_id / execution_id / call_index`；只保存 provider/model/outcome/error type/latency/usage 等元数据，不保存 prompt、response、header 或 key。SDK retry 关闭，遥测无法持久化时调用本身失败；未返回货币成本时保持 `null`，不得估造；
 - launcher、Explorer、Trainer 和 NCCL 同步路径已改为失败向上传播；外围异常日志只记类型。训练和评测仅在真实步骤完成后写严格 JSON receipt，非有限指标、失败 rollout/eval、提前耗尽或写盘错误均不得生成成功证据；
 - E0 receipt 固定为 `bench_step_0_model_0.json`，E1 更新 receipt 固定为 `trainer_step_1.json`，checkpoint 新进程评测 receipt 固定为 `bench_step_1_model_1.json`。每份 receipt 记录 `process_id` 和每进程唯一的 `process_execution_id`；checkpoint eval 的执行 ID 必须与训练不同。
 
-AutoDL 环境、固定模型与凭据就绪后，唯一推荐的端到端 smoke 命令是：
+组内远程 GPU 环境、固定模型与凭据就绪后，唯一推荐的端到端 smoke 命令是：
 
 ```bash
 bash scripts/autodl_m8b_smoke.sh
@@ -1099,9 +1099,9 @@ bash scripts/autodl_m8b_smoke.sh
 
 postflight 必须同时证明：E0 是 step/model version `0/0` 且 2 条 held-out 无失败；E1 step 1 有有限 loss/KL/reward 和 `training/actor_update_completed=1`；`trainer_meta.json` 与 `latest_checkpointed_iteration.txt` 均指向 1；model/optimizer/extra-state shard 完整非空且 rank 集合闭合；训练后 LoRA 存在且与 `dummy_lora` 的权重 SHA-256 不同；checkpoint eval 是 step/model version `1/1`、held-out taskset/数量/分数完整，并且其 `process_execution_id` 与训练 receipt 不同。
 
-真实 AutoDL 验收状态如下，当前均未执行、不得勾选或宣称成功：
+真实远程 GPU 验收状态如下，当前均未执行、不得勾选或宣称成功：
 
-- [ ] AutoDL 严格 preflight 与 317 项 runtime gate 全通过且 0 SKIP；
+- [ ] 组内远程服务器严格 preflight 与 317 项 runtime gate 全通过且 0 SKIP；
 - [ ] E0 model-version-0 held-out 冻结评测通过；
 - [ ] E1 单次 optimizer update、step-1 receipt 和 `global_step_1` 通过；
 - [ ] 停止/重启 Ray 后，model-version-1 checkpoint 新进程评测通过；
@@ -1137,7 +1137,7 @@ lexical-token checksum 为
 - 非 Oracle Stage 1 输入只含 `budget_tokens` 与公开事实，隐藏 task ID、split、seed 和私有角色；加入 reverse-order、shortest/longest、opaque min/max、random-hash 和 entity-chain 强基线；
 - Stage 2 使用 6 个 dev/test counterfactual pair、12 个 future variants 和 50 seeds；同一 pair 的两个 future 共享完全相同的公开输入，并复用一次 query-blind decision；
 - 两 future support 互斥、各自可装入 18-token budget、并集不可装入，目标段 token/大写词差均为 0，因此 query-blind safe-success 上界严格为 `0.5`；pair-blind Oracle 正好 `0.5`，query-aware Oracle 为 `1.0`，公开策略最高 `0.372`；
-- stress 的 11/11 gate 是协议完整性/可证伪性门禁，不是模型能力门禁。当前 artifact 仍使用 `unicode-lexical-v1`；AutoDL 模型 manifest 就绪后，必须通过 CLI 注入冻结的 Qwen tokenizer、完整 40 位 revision 与 tokenizer assets digest 重跑。
+- stress 的 11/11 gate 是协议完整性/可证伪性门禁，不是模型能力门禁。当前 artifact 仍使用 `unicode-lexical-v1`；远程服务器模型 manifest 就绪后，必须通过 CLI 注入冻结的 Qwen tokenizer、完整 40 位 revision 与 tokenizer assets digest 重跑。
 
 ### 任务
 
@@ -1533,7 +1533,7 @@ D:\Project\Age-Mem\AgeMem
 请完整阅读 PROJECT_HANDOFF.md、STATUS.md、
 docs/m8a_terminal_only_preflight.md 和 docs/m8b_autodl_preflight.md。
 
-M0～M7、M8a 和 M8b-prep 已完成。只执行 AutoDL M8b GPU smoke，
+M0～M7、M8a 和 M8b-prep 已完成。只执行组内远程服务器 M8b GPU smoke，
 不要重做准备实现，不要开始 E3/E4/E5，也不要扩大到全量 HotpotQA。
 
 先核对固定代码 commit、`TRINITY_MODEL_REVISION` 和模型 SHA-256 manifest，
@@ -1642,7 +1642,7 @@ False Reject 和奖励误差传播。不要实现 Group Critic 或 GRPO。
 ```text
 请阅读 PROJECT_HANDOFF.md、STATUS.md、AgeMem、Trinity-RFT 文档和
 docs/m8b_autodl_preflight.md。
-只执行 AutoDL E1 terminal-only 单次更新 smoke。
+只执行组内远程服务器 E1 terminal-only 单次更新 smoke。
 
 先核对 `TRINITY_MODEL_REVISION` 与 `.agemem_model_manifest.json`，然后运行
 `bash scripts/autodl_m8b_smoke.sh`。不得绕过脚本内的严格 preflight、317 项
@@ -1844,10 +1844,10 @@ M0
 Codex 当前只应执行：
 
 ```text
-M8b：AutoDL 上的 E1 terminal-only 单次更新与 checkpoint 重载 smoke
+M8b：组内远程 GPU 服务器上的 E1 terminal-only 单次更新与 checkpoint 重载 smoke
 ```
 
-M0～M7、M8a 与 M8b-prep 已完成，不要重做或覆盖其实现。租卡前先推送本地已整理提交并轮换本地凭据；上卡后固定最终推送的代码 commit 和模型 revision，生成并核对模型 SHA-256 manifest，再按照 `docs/m8b_autodl_preflight.md` 由用户主动运行 `bash scripts/autodl_m8b_smoke.sh`。真实 AutoDL preflight、E0、E1 和 checkpoint eval 当前全部未执行。
+M0～M7、M8a 与 M8b-prep 已完成，不要重做或覆盖其实现。远程执行前先推送本地已整理提交并轮换本地凭据；进入 `/data/hjx/Age_mem/AgeMem` 后固定最终推送的代码 commit 和模型 revision，生成并核对模型 SHA-256 manifest，再按照 `docs/m8b_autodl_preflight.md` 由用户主动运行 `bash scripts/autodl_m8b_smoke.sh`。真实远程 preflight、E0、E1 和 checkpoint eval 当前全部未执行。
 
 当前及后续顺序是：
 
@@ -1869,7 +1869,7 @@ M9：正式 Benchmark + 跨域泛化
 
 ---
 
-## 23. AutoDL 迁移与 1.5B 首次训练执行手册
+## 23. 组内远程 GPU 服务器迁移与 1.5B 首次训练执行手册
 
 本节是当前接手者执行真实 M8b 的最短权威路径；更完整的门禁语义和停止条件见
 `docs/m8b_autodl_preflight.md`。这里的“训练”只指冻结的 1.5B M8b smoke：6 条
@@ -1878,11 +1878,13 @@ validation 的 E0/E1 checkpoint 评测。它不是全量训练，也不训练 Cr
 
 ### 23.1 迁移前的实时状态与硬边界
 
-2026-09-02 的只读检查发现当前分支为
-`feat/m6-extracted-ap-state-tracker`，工作树仍有 24 个已跟踪文件未提交；当时的
-`HEAD=2269048c7f9a9b20f3fd534e6adb07f0e2f93caf` 不能作为云端实验锁。接手者必须
-重新运行 `git status --short`，完成本地核验、提交和推送后，再用新的完整 40 位
-commit 设置 `AGEMEM_EXPECTED_COMMIT`。
+2026-09-02 的最新只读检查确认当前分支为
+`feat/m6-extracted-ap-state-tracker`，已推送基线为
+`fe1bff9040796ee0e92f7e3624a807fd5b8437e5`。本轮把部署目标从 AutoDL 迁移到组内
+服务器后，路径锁、门禁文案与相关文档形成新的未提交修改；`fe1bff9` 尚未包含这些
+服务器路径改动，不能作为最终远程实验锁。接手者必须重新运行 `git status --short`，
+完成核验、提交和推送后，再用新的完整 40 位 commit 设置
+`AGEMEM_EXPECTED_COMMIT`。
 
 当前 M8b 只锁定 `Qwen/Qwen2.5-1.5B-Instruct`。4B 的具体模型尚未冻结，必须使用
 独立的模型结构/file manifest、E0/E1/checkpoint-eval YAML、配置 digest、job 名称和
@@ -1890,7 +1892,7 @@ GPU 门禁；不能只替换 `TRINITY_MODEL_PATH` 复用 1.5B lock。暂不进�
 
 ### 23.2 必须迁移的最小文件集合
 
-代码只通过 Git 迁移；不要把 Windows 工作目录整体复制到 AutoDL。最终推送的固定
+代码只通过 Git 迁移；不要把 Windows 工作目录整体复制到远程服务器。最终推送的固定
 commit 应包含仓库内全部已跟踪输入，包括 `AgeMem_code_agentscope/`、`trinity/`、
 `configs/`、`examples/`、`scripts/`、`tests/`、`data/splits/`、`data/annotations/`、
 `artifacts/m5_hotpotqa_smoke/`、`artifacts/m6_extraction_benchmark/` 和
@@ -1913,7 +1915,7 @@ HotpotQA 必须另行迁移完整 Hugging Face `DatasetDict.save_to_disk` 目录
 
 ```text
 Windows: D:\Project\Age-Mem\data\hotpot_qa\fullwiki
-AutoDL: /root/autodl-tmp/data/hotpot_qa/fullwiki
+Remote: /data/hjx/Age_mem/data/hotpot_qa/fullwiki
 ```
 
 当前本地 fullwiki 为 11 个文件、645,926,725 bytes，预期 split 大小为
@@ -1922,7 +1924,7 @@ Arrow/state/metadata 文件。
 
 以下内容禁止迁移：仓库根部 ignored `config`、任意 `.env`、`.venv`、SSH 私钥、
 Hugging Face token 文件、数据库、完整 `runs/`、旧 Ray session、历史日志、WandB
-缓存和旧 checkpoint。现有云服务 key 应先轮换；AutoDL 只通过密钥配置或环境变量
+缓存和旧 checkpoint。现有云服务 key 应先轮换；远程服务器只通过密钥配置或环境变量
 注入 `DASHSCOPE_API_KEY`。
 
 ### 23.3 Windows 封版与私有数据打包
@@ -1935,7 +1937,7 @@ git diff --check
 .\.venv\python.exe scripts\agemem_m8b_preflight.py --mode local --no-write
 
 git add -u
-git commit -m "feat(agemem): finalize 1.5B AutoDL smoke inputs"
+git commit -m "feat(agemem): finalize 1.5B remote GPU smoke inputs"
 git push -u origin feat/m6-extracted-ap-state-tracker
 
 $commit = git rev-parse HEAD
@@ -1945,7 +1947,7 @@ git ls-remote origin refs/heads/feat/m6-extracted-ap-state-tracker
 ```
 
 本地预检必须为 0 FAIL；Windows 缺少完整 Ray/vLLM/GPU 造成的 WARN/SKIP 只作诊断，
-不能记为 AutoDL 通过。提交后要求工作树干净，并确认远端分支的哈希等于 `$commit`。
+不能记为远程 GPU 门禁通过。提交后要求工作树干净，并确认远端分支的哈希等于 `$commit`。
 
 制作两个不进入 Git 的传输包：
 
@@ -1965,15 +1967,15 @@ Get-FileHash ..\transfer\agemem-runtime-gate-inputs.tar.gz -Algorithm SHA256
 Get-FileHash ..\transfer\hotpotqa-fullwiki.tar.gz -Algorithm SHA256
 ```
 
-保存两个本地 SHA-256，并将压缩包上传到 `/root/autodl-tmp/upload/`；轨迹和 reward
+保存两个本地 SHA-256，并将压缩包上传到 `/data/hjx/Age_mem/upload/`；轨迹和 reward
 证据按私有实验数据处理，不上传公开仓库。
 
-### 23.4 AutoDL 固定目录与代码检出
+### 23.4 组内服务器固定目录与代码检出
 
 使用以下布局：
 
 ```text
-/root/autodl-tmp/
+/data/hjx/Age_mem/
 ├── AgeMem/
 ├── data/hotpot_qa/fullwiki/
 ├── models/Qwen2.5-1.5B-Instruct/
@@ -1982,27 +1984,28 @@ Get-FileHash ..\transfer\hotpotqa-fullwiki.tar.gz -Algorithm SHA256
 └── upload/
 ```
 
-仓库必须直接位于 `/root/autodl-tmp/AgeMem`。M7 集成测试按仓库父目录解析
-`data/hotpot_qa/fullwiki`；若把仓库放进 `/root/autodl-tmp/code/AgeMem`，默认相对路径
-会错误地解析到 `/root/autodl-tmp/code/data`。
+SFTP 的 `remotePath=/data/hjx/Age_mem` 映射本地工作区根目录，因此 Git 仓库必须位于
+`/data/hjx/Age_mem/AgeMem`。M7 集成测试按仓库父目录解析 `data/hotpot_qa/fullwiki`；
+若把仓库放进 `/data/hjx/Age_mem/code/AgeMem`，默认相对路径会错误地解析到
+`/data/hjx/Age_mem/code/data`。
 
 ```bash
-cd /root/autodl-tmp
+cd /data/hjx/Age_mem
 git clone --branch feat/m6-extracted-ap-state-tracker --single-branch \
   https://github.com/twihujiaxin/symbolicAi-age-mem.git AgeMem
-cd /root/autodl-tmp/AgeMem
+cd /data/hjx/Age_mem/AgeMem
 
 export AGEMEM_EXPECTED_COMMIT=<最终推送的完整40位commit>
 git checkout --detach "$AGEMEM_EXPECTED_COMMIT"
 test "$(git rev-parse HEAD)" = "$AGEMEM_EXPECTED_COMMIT"
 test -z "$(git status --porcelain)"
 
-sha256sum /root/autodl-tmp/upload/agemem-runtime-gate-inputs.tar.gz
-sha256sum /root/autodl-tmp/upload/hotpotqa-fullwiki.tar.gz
-tar -xzf /root/autodl-tmp/upload/agemem-runtime-gate-inputs.tar.gz \
-  -C /root/autodl-tmp/AgeMem
-tar -xzf /root/autodl-tmp/upload/hotpotqa-fullwiki.tar.gz \
-  -C /root/autodl-tmp
+sha256sum /data/hjx/Age_mem/upload/agemem-runtime-gate-inputs.tar.gz
+sha256sum /data/hjx/Age_mem/upload/hotpotqa-fullwiki.tar.gz
+tar -xzf /data/hjx/Age_mem/upload/agemem-runtime-gate-inputs.tar.gz \
+  -C /data/hjx/Age_mem/AgeMem
+tar -xzf /data/hjx/Age_mem/upload/hotpotqa-fullwiki.tar.gz \
+  -C /data/hjx/Age_mem
 
 find runs/m5_hotpotqa_smoke -type f | wc -l
 find runs/m6_schema_v2 -type f | wc -l
@@ -2032,9 +2035,9 @@ export CUDA_VISIBLE_DEVICES=1,2
 
 ```bash
 source "$(conda info --base)/etc/profile.d/conda.sh"
-conda create -p /root/autodl-tmp/conda-envs/agemem-m8b python=3.10.19 -y
-conda activate /root/autodl-tmp/conda-envs/agemem-m8b
-cd /root/autodl-tmp/AgeMem
+conda create -p /data/hjx/Age_mem/conda-envs/agemem-m8b python=3.10.19 -y
+conda activate /data/hjx/Age_mem/conda-envs/agemem-m8b
+cd /data/hjx/Age_mem/AgeMem
 python -m pip install --upgrade pip
 python -m pip install -e ".[m8b,dev]"
 python -m pip install "huggingface_hub[cli]"
@@ -2043,7 +2046,7 @@ python -m pip install "huggingface_hub[cli]"
 不要为修复单个依赖错误而批量升级或放宽锁。验证 DatasetDict：
 
 ```bash
-python -c "from datasets import load_from_disk; d=load_from_disk('/root/autodl-tmp/data/hotpot_qa/fullwiki'); print({k:len(v) for k,v in d.items()})"
+python -c "from datasets import load_from_disk; d=load_from_disk('/data/hjx/Age_mem/data/hotpot_qa/fullwiki'); print({k:len(v) for k,v in d.items()})"
 ```
 
 解析并立即冻结一次 Hugging Face 40 位 revision，之后不得继续使用浮动 `main`：
@@ -2052,7 +2055,7 @@ python -c "from datasets import load_from_disk; d=load_from_disk('/root/autodl-t
 export TRINITY_MODEL_REVISION="$(python -c "from huggingface_hub import HfApi; print(HfApi().model_info('Qwen/Qwen2.5-1.5B-Instruct').sha)")"
 [[ "$TRINITY_MODEL_REVISION" =~ ^[0-9a-f]{40}$ ]]
 
-export TRINITY_MODEL_PATH=/root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen2.5-1.5B-Instruct
 mkdir -p "$(dirname "$TRINITY_MODEL_PATH")"
 huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct \
   --revision "$TRINITY_MODEL_REVISION" \
@@ -2067,10 +2070,10 @@ python scripts/agemem_m8b_model_manifest.py \
 不得用 `--force` 掩盖模型目录漂移。设置持久路径和凭据：
 
 ```bash
-export HOTPOTQA_PATH=/root/autodl-tmp/data/hotpot_qa/fullwiki
-export TRINITY_CHECKPOINT_ROOT_DIR=/root/autodl-tmp/checkpoints
+export HOTPOTQA_PATH=/data/hjx/Age_mem/data/hotpot_qa/fullwiki
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints
 mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
-df -h /root/autodl-tmp
+df -h /data/hjx/Age_mem
 
 read -rsp "DASHSCOPE_API_KEY: " DASHSCOPE_API_KEY
 printf '\n'
@@ -2139,7 +2142,7 @@ provider 日志均不得提交进 Git。
 
 任一阶段失败都不扩大样本、step、seed 或 GPU 数，不放宽测试数/版本/GPU 门禁，不
 删除失败证据后复用固定 job。保留原 checkpoint root；环境修复后使用新的空持久目录
-重试，例如 `/root/autodl-tmp/checkpoints-attempt-002`。若代码或 YAML 发生变化，必须
+重试，例如 `/data/hjx/Age_mem/checkpoints-attempt-002`。若代码或 YAML 发生变化，必须
 产生新 commit、更新相应 lock/digest，并从严格预检重新开始。
 
 M8b 通过后仍按以下顺序推进：

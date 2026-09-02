@@ -4,15 +4,15 @@
 
 ## 结论
 
-M8a 已建立 E1 terminal-only 的本地静态/离线契约，但尚未执行真实模型、GPU、优化器更新或 checkpoint 重载。因此本阶段的结论是“可以进入 AutoDL 两卡 smoke 前置验证”，不是“E1 已复现”，更不是“可以直接开始全量训练”。
+M8a 已建立 E1 terminal-only 的本地静态/离线契约，但尚未执行真实模型、GPU、优化器更新或 checkpoint 重载。因此本阶段的结论是“可以进入组内远程服务器两卡 smoke 前置验证”，不是“E1 已复现”，更不是“可以直接开始全量训练”。
 
 当前仍有两项未关闭：
 
-1. AutoDL Linux 上的完整 runtime、E1 单次更新和 checkpoint 新进程重载尚未执行；这由 M8b smoke 负责，不在本地 Windows 门禁中伪记为通过。
+1. 组内远程 Linux/GPU 服务器上的完整 runtime、E1 单次更新和 checkpoint 新进程重载尚未执行；这由 M8b smoke 负责，不在本地 Windows 门禁中伪记为通过。
 2. 在线 `ActionCreditRecord` 自动生成尚未接入；M8a 保持 terminal-only 基线，AP/DFA credit 接线留到 E3/E4。
 
 后续上卡前检查现已固化为脚本和版本锁，执行入口见
-[M8b AutoDL 上卡前执行包](m8b_autodl_preflight.md)。
+[M8b 远程 GPU 服务器执行包](m8b_autodl_preflight.md)。
 
 本地未调用真实 LLM、embedding 服务或网络。
 
@@ -41,7 +41,7 @@ Ruff check：PASS
 Python compile：PASS
 ```
 
-3 个跳过项是 WorkflowRunner/ExperiencePipeline 的 Trinity runtime 接线测试；当前 Windows Python 3.10 环境没有 PyTorch、Ray 和 vLLM。核心 token/span、logprob、policy-freeze、buffer admission、数据、reward、干扰和 MemoryStore 契约均已在本地执行。跳过项必须在 AutoDL 完整 Linux 环境补跑，不能按通过处理。
+3 个跳过项是 WorkflowRunner/ExperiencePipeline 的 Trinity runtime 接线测试；当前 Windows Python 3.10 环境没有 PyTorch、Ray 和 vLLM。核心 token/span、logprob、policy-freeze、buffer admission、数据、reward、干扰和 MemoryStore 契约均已在本地执行。跳过项必须在组内远程服务器完整 Linux 环境补跑，不能按通过处理。
 
 ## 尚未关闭的正式实验门禁
 
@@ -60,21 +60,21 @@ E1 的 terminal reward 与固定干扰不调用辅助 LLM，但现有 memory wor
 
 M8a 也尚未把 M6 Extracted AP/DFA reward 写回在线 ActionCreditRecord；该接线属于 E3/E4。E5 的 DFA-state action bucket、RTG、动作内 token 平均和动作间平均 loss 仍未实现。
 
-## AutoDL 推荐顺序
+## 组内远程服务器推荐顺序
 
-1. 整理并提交当前 M6/M7/M8a 工作区；迁移前检查 ignored 文件。仓库根目录现有本地凭据文件不得上传，相关 key 应先轮换，云端只使用环境变量或 AutoDL 密钥配置。
+1. 整理并提交当前 M6/M7/M8a 工作区；迁移前检查 ignored 文件。仓库根目录现有本地凭据文件不得上传，相关 key 应先轮换，远程服务器只使用环境变量或密钥配置。
 2. 将 HotpotQA `fullwiki` 单独传到持久盘，核对目录、DatasetDict split、90,447 条 train 数量及 M5 manifest 的 6 个 Hotpot ID。
 3. 首轮使用两张 RTX A6000 48GB：1 张 rollout、1 张 trainer；四卡宿主机通过 `CUDA_DEVICE_ORDER=PCI_BUS_ID` 与 `CUDA_VISIBLE_DEVICES=1,2` 显式选择两张空闲卡。
 4. 固定代码 commit、Python 3.10、CUDA/driver、PyTorch、Ray、vLLM、Transformers、Trinity 本地 editable 版本，并保存 `pip freeze` 与 GPU 信息。
 5. 设置持久目录：
 
    ```bash
-   export TRINITY_MODEL_PATH=/root/autodl-tmp/models/Qwen2.5-1.5B-Instruct
-   export HOTPOTQA_PATH=/root/autodl-tmp/data/hotpot_qa/fullwiki
-   export TRINITY_CHECKPOINT_ROOT_DIR=/root/autodl-tmp/checkpoints
+   export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen2.5-1.5B-Instruct
+   export HOTPOTQA_PATH=/data/hjx/Age_mem/data/hotpot_qa/fullwiki
+   export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints
    ```
 
-6. 在启动 Ray 前先运行 M8a、tool-trace 和 M1～M7 回归；确认本地跳过的 3 个 runtime 测试在 AutoDL 变为 PASS。
+6. 在启动 Ray 前先运行 M8a、tool-trace 和 M1～M7 回归；确认本地跳过的 3 个 runtime 测试在组内远程服务器变为 PASS。
 7. 执行 Trinity config validation 和数据读取 smoke，确认 6 条固定样本、2-GPU 资源公式、LoRA 初始化目录、buffer 路径和 checkpoint 路径。
 8. 依次执行：E0 冻结评测 → E1 单 batch/单次参数更新 → checkpoint 保存 → 新进程重载 → 同一冻结 split 评测。任何一步失败都不扩大数据或步数。
 9. E1 重复运行稳定后，按 E3 → E4 → E5 推进；E2 只作为独立 heuristic dense reward 对照，M7 Critic/E6 暂不进入主训练。
