@@ -1844,17 +1844,23 @@ M0
 Codex 当前只应执行：
 
 ```text
-M8b：组内远程 GPU 服务器上的 E1 terminal-only 单次更新与 checkpoint 重载 smoke
+E1：同一 6 条 M5 样本的 terminal-only 多 seed 重复运行
 ```
 
-M0～M7、M8a 与 M8b-prep 已完成，不要重做或覆盖其实现。远程执行前先推送本地已整理提交并轮换本地凭据；进入 `/data/hjx/Age_mem/AgeMem` 后固定最终推送的代码 commit 和模型 revision，生成并核对模型 SHA-256 manifest，再按照 `docs/m8b_autodl_preflight.md` 由用户主动运行 `bash scripts/autodl_m8b_smoke.sh`。真实远程 preflight、E0、E1 和 checkpoint eval 当前全部未执行。
+M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆盖其实现，也不要
+修改冻结的 `agemem_e1_dry_run.yaml`。Smoke 证据在 commit
+`e82bf54ba48cd6f5a101510b33fe9db498890f49` 与
+`/data/hjx/Age_mem/checkpoints-attempt-002`。下一阶段使用新 job 名
+`agemem-e1-terminal-only-repeat-s{seed}`、seeds `7/17/27`、新的空 checkpoint 根目录
+（例如 `/data/hjx/Age_mem/checkpoints-e1-repeat`），由用户主动运行
+`bash scripts/agemem_e1_repeat.sh`。不要调用 `autodl_m8b_smoke.sh` 做这件事。
 
 当前及后续顺序是：
 
 ```text
 M8b：E0 冻结评测 + E1 单次更新 + checkpoint 新进程重载
-    ↓（E1 smoke 稳定且外部 provider 已冻结）
-E1：小规模 terminal-only 重复运行
+    ↓（1.5B smoke 已在 `e82bf54` / `checkpoints-attempt-002` 通过）
+E1：同一 6 条样本的 terminal-only 多 seed 重复运行
     ↓
 E3：Oracle AP + 手工 DFA + trajectory advantage
     ↓
@@ -1865,7 +1871,58 @@ E5：action-level advantage
 M9：正式 Benchmark + 跨域泛化
 ```
 
-当前不得提前开始 E3/E4/E5 或全量训练。冻结 runtime gate 必须精确发现 318 项并达到 0 FAIL/ERROR/SKIP；ActionCredit 在线生成器尚未实现，只有 schema/join/buffer validation。只有 postflight 同时证明 E0 model version 0、E1 单次更新/checkpoint、checkpoint eval model version 1 且训练/评测 `process_execution_id` 不同后，才能更新 `STATUS.md` 并决定是否扩大 E1。
+当前不得提前开始 E3/E4/E5 或全量训练。冻结 runtime gate 仍必须精确发现 318 项；
+E1 重复契约测试不计入该 318。ActionCredit 在线生成器尚未实现。M8b postflight 已
+证明 E0 model version 0、E1 单次更新/checkpoint、checkpoint eval model version 1
+且训练/评测 `process_execution_id` 不同；这仍不是正式 E1 统计，也不是 DFA 训练。
+
+---
+
+## 22.1 E1 terminal-only 多 seed 重复协议
+
+目的：在同一冻结 6 条 train / 2 条 held-out 样本上，用新 job 名和多个 seed 估计
+terminal-only 单次更新的波动。仍是 `terminal_only`，K=2，1 个 trainer step，
+milestone 关闭。不进入 E3，不改 M8b lock 中的 dry-run digest。
+
+| 项 | 值 |
+|---|---|
+| seeds | `7`、`17`、`27`（不用 smoke seed `20260802`） |
+| job 名 | `agemem-e1-terminal-only-repeat-s{seed}` |
+| 训练配置 | `examples/agemem_hotpotqa/agemem_e1_repeat.yaml` |
+| 评测配置 | `examples/agemem_hotpotqa/agemem_e1_repeat_eval.yaml` |
+| 锁 | `configs/e1_repeat.json` |
+| 启动器 | `scripts/agemem_e1_repeat.sh` |
+| checkpoint 根 | `/data/hjx/Age_mem/checkpoints-e1-repeat`（必须新建且不含 smoke job） |
+
+每个 seed：训练 1 step → 停止 Ray → 新进程加载 checkpoint → 2 条 held-out、T=0。
+完成判据是 `trainer_step_1.json`、`global_step_1/` 与 `bench_step_1_model_1.json`。
+已完成的 seed 可跳过；不完整的 job 目录拒绝复用。
+
+远程（conda `agemem-m8b`，`flash-attn==2.8.1`，先 `nvidia-smi` 确认两张空闲卡）：
+
+```bash
+cd /data/hjx/Age_mem/AgeMem
+git fetch origin feat/m6-extracted-ap-state-tracker
+export AGEMEM_EXPECTED_COMMIT=REPLACE_WITH_E1_REPEAT_40_HEX
+git checkout --detach "$AGEMEM_EXPECTED_COMMIT"
+test "$(git rev-parse HEAD)" = "$AGEMEM_EXPECTED_COMMIT"
+test -z "$(git status --porcelain)"
+
+export CUDA_DEVICE_ORDER=PCI_BUS_ID
+export CUDA_VISIBLE_DEVICES=0,1
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen2.5-1.5B-Instruct
+export TRINITY_MODEL_REVISION=989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+export HOTPOTQA_PATH=/data/hjx/Age_mem/data/hotpot_qa/fullwiki
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-repeat
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+# DASHSCOPE_API_KEY 仍从密钥配置注入，不要写进 history。
+
+bash -n scripts/agemem_e1_repeat.sh
+bash scripts/agemem_e1_repeat.sh
+```
+
+`CUDA_VISIBLE_DEVICES` 必须在运行前按实时空闲卡重核，不要默认照抄 `0,1`。
+不要复用 `/data/hjx/Age_mem/checkpoints` 或 `checkpoints-attempt-002`。
 
 ---
 

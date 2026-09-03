@@ -11,8 +11,11 @@
 ## 当前结论
 
 上卡前的代码、数据、配置、provider、运行时失败传播和产物验收门禁已经可执行化。
-当前仍未运行真实 GPU、Ray、vLLM、模型 rollout、优化器或 checkpoint 重载，
-因此 M8b 仍是“待在组内远程 GPU 服务器执行”，不是“已经通过”。
+1.5B M8b GPU smoke 已在 commit `e82bf54ba48cd6f5a101510b33fe9db498890f49`、
+checkpoint 根目录 `/data/hjx/Age_mem/checkpoints-attempt-002` 通过。不要修改
+冻结的 `agemem_e1_dry_run.yaml` digest 或 smoke job 名。下一阶段是同一 6 条样本
+的 E1 terminal-only 多 seed 重复，入口是 `bash scripts/agemem_e1_repeat.sh`，
+不是再次运行 `autodl_m8b_smoke.sh`。
 
 门禁默认不访问网络、不启动 Ray、不调用 LLM/embedding，也不启动训练。
 
@@ -222,3 +225,20 @@ $TRINITY_CHECKPOINT_ROOT_DIR/m8b_logs/$AGEMEM_EXPECTED_COMMIT/
   taskset/样本数/任务分数不完整。
 
 任何一项失败都不扩大样本、step、GPU 数或 seed，也不进入 E3/E4/E5。
+
+## E1 terminal-only 多 seed 重复
+
+M8b smoke 只证明单次更新链路可跑通。同一 6 条 M5 train 样本、仍
+`terminal_only`、不进入 E3 的重复运行使用独立配置：
+
+- 锁：`configs/e1_repeat.json`；
+- 训练：`examples/agemem_hotpotqa/agemem_e1_repeat.yaml`；
+- 新进程评测：`examples/agemem_hotpotqa/agemem_e1_repeat_eval.yaml`；
+- 启动器：`scripts/agemem_e1_repeat.sh`；
+- seeds：`7`、`17`、`27`（不是 smoke 的 `20260802`）；
+- job 名：`agemem-e1-terminal-only-repeat-s{seed}`。
+
+这些测试不进入冻结的 318 项 runtime gate。必须使用新的空 checkpoint 根目录，
+例如 `/data/hjx/Age_mem/checkpoints-e1-repeat`；脚本会拒绝仍含
+`agemem-e0-terminal-only-frozen-eval` 或 `agemem-e1-terminal-only-dry-run`
+的根目录。不要改 dry-run YAML，也不要把重复运行说成 DFA/Extracted AP 训练。

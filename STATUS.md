@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
+E1：同一 6 条 M5 样本的 terminal-only 多 seed 重复（1.5B，不进入 E3）
 
-状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）；当前 1.5B 上卡前锁、Stage 1/2 反捷径 canary/stress benchmark 与 318 项锁定回归已完成，4B 将使用独立模型/config lock；部署目标已从 AutoDL 改为组内远程 GPU 服务器，持久根目录冻结为 `/data/hjx/Age_mem`，真实 E0/E1/checkpoint 尚未执行
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）；1.5B M8b GPU smoke 已在远程通过（commit `e82bf54`，checkpoint root `checkpoints-attempt-002`）。当前设计并准备同一 6 条样本、seeds `7/17/27`、新 job 名的 terminal-only 重复。4B 将使用独立模型/config lock；部署目标为组内远程 GPU 服务器，持久根目录冻结为 `/data/hjx/Age_mem`
 
 ## Completed
 
@@ -146,7 +146,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 
 ### M8a
 
-> 状态说明：M8a 的本地静态/离线门禁实现已完成，但阶段验收仍有两项未关闭：组内远程服务器 runtime/E1 smoke，以及在线 `ActionCreditRecord` 自动生成。前者由 M8b smoke 执行，后者属于 E3/E4，不能在 terminal-only 基线中伪记为完成。
+> 状态说明：M8a 的本地静态/离线门禁实现已完成。组内远程 M8b GPU smoke 已在 `e82bf54` / `checkpoints-attempt-002` 通过。在线 `ActionCreditRecord` 自动生成仍未实现，属于 E3/E4，不能在 terminal-only 基线中伪记为完成。
 
 - [x] `TaskFileReader` 支持本地 Hugging Face `save_to_disk` Dataset/DatasetDict，并对 split、subset 与 row index fail closed
 - [x] E1 dry-run 固定复用 M5 manifest 的 6 条 source-train 样本；运行时校验 train fingerprint、source index 顺序与 Hotpot ID，真实 fullwiki 90,447→6 已核对
@@ -163,8 +163,8 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 - [x] M8a 初始范围为 46 项测试：43 PASS、3 SKIP；当前已由 M8b 锁扩展为 142 项 `m8a` scope（本地 139 PASS、3 SKIP）
 - [x] M1～M7 相关回归 145/145、tool-trace 30/30 均通过
 - [x] 本阶段未调用真实 LLM/embedding/网络，未运行模型、GPU、优化器或 checkpoint
-- [ ] **未关闭项 1：** 组内远程 Linux/GPU 服务器上的 3 个 runtime tests、完整 Config/Ray/vLLM/veRL、E1 单次更新和 checkpoint 新进程重载尚未执行（对应 M8b 真实 smoke）
-- [ ] **未关闭项 2：** 在线 `ActionCreditRecord` 自动生成器尚未实现；当前只有严格 schema、join 和 buffer validation（对应 E3/E4）
+- [x] **原未关闭项 1：** 组内远程 Linux/GPU 服务器上的 runtime tests、E1 单次更新和 checkpoint 新进程重载已在 `e82bf54` / `checkpoints-attempt-002` 通过；这仍不是正式 E1 统计
+- [ ] **未关闭项：** 在线 `ActionCreditRecord` 自动生成器尚未实现；当前只有严格 schema、join 和 buffer validation（对应 E3/E4）
 
 ### M8b 上卡前准备
 
@@ -183,7 +183,15 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 - [x] 将 M8a `save_to_disk` 测试改为只读 marker fixture + 内存 DatasetDict，消除 Windows 沙箱临时目录 ACL 假失败
 - [x] 新增 model-manifest、preflight、runtime-gate、postflight CLI，以及分阶段 fail-closed 的 `scripts/autodl_m8b_smoke.sh`
 - [x] `pyproject.toml` 新增 `m8b` extra（AgentScope + Datasets）；完整安装、运行顺序、停止条件与 provider 对账口径记录于 `docs/m8b_autodl_preflight.md`
-- [ ] 组内远程服务器上的 E0、E1 单 optimizer update、`global_step_1`、新进程 checkpoint eval 尚未执行
+- [x] 组内远程服务器上的 E0、E1 单 optimizer update、`global_step_1`、新进程 checkpoint eval 已在 `e82bf54` / `checkpoints-attempt-002` 通过（postflight pass=10）
+
+### E1 terminal-only 多 seed 重复（设计完成，远程未跑）
+
+- [x] 新增独立 train/eval YAML：同一 6 条 M5 train ID、K=2、1 trainer step、`terminal_only`、milestone 关闭；job 名与 seed 由环境变量注入
+- [x] seeds 固定为 `7/17/27`，job 名为 `agemem-e1-terminal-only-repeat-s{seed}`，不复用 smoke seed `20260802` 或 `agemem-e1-terminal-only-dry-run`
+- [x] 锁 `configs/e1_repeat.json` 与启动器 `scripts/agemem_e1_repeat.sh`：拒绝含 smoke job 的 checkpoint 根、要求 `flash-attn==2.8.1`、每个 seed 训练后新进程 held-out eval
+- [x] 契约测试不计入冻结 318 项 runtime gate；冻结 dry-run YAML digest 保持不变
+- [ ] 远程尚未在新的 `/data/hjx/Age_mem/checkpoints-e1-repeat` 上执行三 seed 重复
 
 ### Stage 1/2 反捷径 benchmark
 
@@ -228,7 +236,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 - M8b 上卡前执行包已完成本地验证与本地提交
 - Stage 1/2 反捷径 benchmark commit：`7d3c45d feat(agemem): add stage 1/2 anti-shortcut gates`
 - Git scratch-directory cleanup commit：`c26ecb8 chore(git): ignore local verification scratch directories`
-- 上一已推送基线：`0ca8277bba7ad27f4f96b5ef6c573962b65e3d49`；本提交包含预算 19 / `mcp<2` / runtime-gate `m8a=142,all=318` 修复。远端应用本提交完整 40 位哈希作为 `AGEMEM_EXPECTED_COMMIT`；真实 GPU 执行仍未开始
+- 上一已推送基线：`e82bf54ba48cd6f5a101510b33fe9db498890f49`（M8b 远程 GPU smoke 通过）。本提交为 E1 terminal-only 多 seed 重复协议；远端用本提交完整 40 位哈希作为 `AGEMEM_EXPECTED_COMMIT`
 
 ## Files changed in M6/M7/M8a
 
@@ -277,6 +285,15 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 - M8b 测试：`m8b_provider_usage_test.py`、`m8b_preflight_test.py`、`m8b_model_manifest_test.py`、`m8b_runtime_gate_test.py`、`m8b_runtime_fail_closed_test.py`、`m8b_postflight_test.py`
 - fixture/既有测试：`tests/buffer/task_file_reader_dataset_dict_test.py`、`tests/fixtures/m8a_saved_dataset_dict/`
 - 文档：`docs/m8b_autodl_preflight.md`、`docs/m8a_terminal_only_preflight.md`、HotpotQA `README.md`、`PROJECT_HANDOFF.md`、`STATUS.md`
+
+## Files changed in E1 terminal-only repeats
+
+- `examples/agemem_hotpotqa/agemem_e1_repeat.yaml`
+- `examples/agemem_hotpotqa/agemem_e1_repeat_eval.yaml`
+- `configs/e1_repeat.json`
+- `scripts/agemem_e1_repeat.sh`
+- `tests/common/e1_repeat_contract_test.py`
+- `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`PROJECT_HANDOFF.md`、`STATUS.md`
 
 ## Files changed in Stage 1/2 anti-shortcut extension
 
@@ -372,26 +389,25 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 - M7 Critic 结果来自固定 K=3 的 Oracle/error-policy smoke 轨迹，不代表真实模型 rollout 上的 Critic 表现
 - M7 controlled-error 的 5 条 FR 是预期合成鲁棒性结果，已定位但没有被“修成 0”
 - M7 只测量一个真实干扰配置（Stage 1=6、Stage 2=3），没有据此声称跨干扰强度泛化
-- M8b 只完成本地静态/离线门禁和模拟 artifact 的 postflight 单测；未执行真实模型 rollout、GPU、optimizer、checkpoint 或端到端 Trinity Config
+- M8b 只完成本地静态/离线门禁和模拟 artifact 的 postflight 单测；真实 1.5B GPU smoke 已在远程 `e82bf54` / `checkpoints-attempt-002` 通过，但仍只是单次更新链路，不是正式 E1 统计
 - E1 terminal reward 与固定 distractor 不调用辅助 LLM，但 memory embedding 仍访问已冻结的 DashScope，SUMMARY/CLEAR 仍可能调用已冻结的 `qwen-max`
 - provider usage 记录不含请求/响应正文；OpenAI-compatible API 不报告货币金额时为 `None`，必须另与 DashScope 账单对账
-- 锁定 suite 的 3 个 WorkflowRunner/ExperiencePipeline runtime tests 因本机缺 Ray 而 SKIP，必须在组内远程服务器变为 PASS
-- 当前 Windows 已发现 `C:\\Program Files\\WSL\\wsl.exe`，但本地 WSL 服务枚举返回 `E_ACCESSDENIED`，因此两个 `.sh` 已通过单元测试与人工审查，`bash -n` 仍须在组内远程服务器作为首个只读检查执行
-- 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
-- E5 的 DFA-state bucket、RTG、action-token mask 与动作级 loss 尚未实现
+- 锁定 suite 的 3 个 WorkflowRunner/ExperiencePipeline runtime tests 已在远程 smoke 变为 PASS；Windows 本地仍因缺 Ray 而 SKIP
 - `agemem_e1_dry_run.yaml` 仅含固定 6 条数据、K=2 和 1 个 trainer step，不代表 E1 统计复现或正式结果
+- E1 重复协议仍是同一 6 条样本、1 step、terminal-only；三个 seed 不能被说成 DFA、Extracted AP 或 E3
 - v2 CI canary 的 Stage 1 结果仍只来自 1 个固定 toy task/seed；stress 已扩展到 16 个含噪任务、50 seeds 和三个全局预算，但当前规范 artifact 仍使用 `unicode-lexical-v1`，上卡后必须用同一冻结 Qwen tokenizer/revision 重跑
 - v2 Stage 2 仍是 6 条独立合成 case；stress 另有 6 个成对反事实 context/12 future variants，并严格给出 query-blind `0.5` 上界，但这些仍是合成模板，不代表真实 HotpotQA 分布
 - 当前 canary/stress 证明固定公开基线受预算和反事实边界约束，不证明已训练模型学会未来相关性、真实 HotpotQA 泛化、DFA 优于 terminal-only，或端到端 Answer EM/F1 已提升
 
 ## Failures and blockers
 
-- 无未解决的本地可执行测试失败；318 项中有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此严格 runtime gate 当前按设计为 FAIL
-- DashScope provider 已冻结并接入调用/错误/延迟/usage 记录；货币成本仍须在实际 smoke 后与 provider 账单对账，不得把 E1 声称为端到端无外部模型
-- 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL、GPU 资源分配、LoRA 初始化、optimizer update 或 checkpoint 重载
-- 本地 postflight 只验证人工 fixture；尚无真实 E0/E1 receipt、`global_step_1` shard、训练后 LoRA 或新进程 model-version-1 eval 证据
-- 本地 HotpotQA fullwiki 已可用；上传 `/data/hjx/Age_mem/data/hotpot_qa/fullwiki` 后仍需重新校验三个 fingerprint、8 条固定样本内容 hash 与模型 manifest/revision
+- 无未解决的本地可执行测试失败；318 项中仍有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此 Windows 上严格 runtime gate 按设计为 FAIL
+- M8b 远程 smoke 已通过；下一阻塞是在新的空 checkpoint 根目录上执行三 seed 重复，以及运行前重核远程空闲 GPU
+- DashScope provider 已冻结；货币成本仍须与 provider 账单对账，不得把 E1 声称为端到端无外部模型
+- 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL 或真实 GPU 重复运行
+- 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
+- E5 的 DFA-state bucket、RTG、action-token mask 与动作级 loss 尚未实现
 
 ## Next recommended action
 
-用本提交的完整 40 位哈希设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在 `/data/hjx/Age_mem/AgeMem` 使用四卡 RTX A6000 宿主机，设置 `CUDA_DEVICE_ORDER=PCI_BUS_ID`、`CUDA_VISIBLE_DEVICES=1,2`，只使用两张实时空闲 48GB 卡；模型、fullwiki 与 checkpoint 分别放在 `/data/hjx/Age_mem/models`、`/data/hjx/Age_mem/data` 与 `/data/hjx/Age_mem/checkpoints`。准备固定 `Qwen/Qwen2.5-1.5B-Instruct` revision、模型 manifest 与 fullwiki 后，先用该冻结 tokenizer 重跑 stress，再安装 `.[m8b,dev]`，对两个 shell 脚本执行 `bash -n`，并按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 318/318 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止。1.5B smoke 稳定后再建立独立 4B lock；当前不进入 7B、E3/E4/E5 或全量训练。
+M8b 远程 GPU smoke 已在 commit `e82bf54ba48cd6f5a101510b33fe9db498890f49`、目录 `/data/hjx/Age_mem/checkpoints-attempt-002` 通过。不要改冻结的 dry-run YAML。下一阶段是同一 6 条 M5 样本上的 E1 terminal-only 多 seed 重复：seeds `7/17/27`，job 名为 `agemem-e1-terminal-only-repeat-s{seed}`，配置为 `examples/agemem_hotpotqa/agemem_e1_repeat.yaml` 与 `agemem_e1_repeat_eval.yaml`，锁为 `configs/e1_repeat.json`。必须使用新的空 checkpoint 根目录（例如 `/data/hjx/Age_mem/checkpoints-e1-repeat`），不要复用 smoke job 路径。远程命令：`bash scripts/agemem_e1_repeat.sh`。当前不进入 E3/E4/E5、4B 或全量训练。

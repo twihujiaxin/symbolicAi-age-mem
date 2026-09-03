@@ -1,0 +1,24 @@
+{
+  "eval_config": "examples/agemem_hotpotqa/agemem_e1_repeat_eval.yaml",
+  "held_out_row_ids": [
+    "5ab7c6995542993667794005",
+    "5adc8c545542994734353734"
+  ],
+  "job_name_template": "agemem-e1-terminal-only-repeat-s{seed}",
+  "reward_profile": "terminal_only",
+  "schema_version": "agemem.e1_repeat.lock.v1",
+  "repeat_times": 2,
+  "seeds": [7, 17, 27],
+  "smoke_seed": 20260802,
+  "source_train_row_ids": [
+    "5a85aaee5542991dd0999e84",
+    "5a74b19355429916b01641dd",
+    "5abecbed5542997719eab5c5",
+    "5a8ac7d055429950cd6afb8f",
+    "5a83df2655429933447460a1",
+    "5a76f83e55429972597f1405"
+  ],
+  "smoke_job_name": "agemem-e1-terminal-only-dry-run",
+  "train_config": "examples/agemem_hotpotqa/agemem_e1_repeat.yaml",
+  "trainer_total_steps": 1
+}

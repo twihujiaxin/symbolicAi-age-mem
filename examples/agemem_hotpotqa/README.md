@@ -9,6 +9,8 @@
 | `agemem_train.yaml` | E2 兼容性 heuristic dense reward 模板 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e0_frozen_eval.yaml` | M8b 固定 2 条 held-out 数据的 E0 基座评测 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_dry_run.yaml` | M8b 固定 6 条数据、2-GPU、单次更新 E1 smoke | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_repeat.yaml` | 同一 6 条数据的 E1 terminal-only 多 seed 训练；job 名由 `AGEMEM_E1_JOB_NAME` 注入 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_repeat_eval.yaml` | 单个 repeat seed 的新进程 held-out 评测 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_checkpoint_eval.yaml` | M8b 新进程加载 E1 checkpoint 后的固定评测 | `AgeMem_hotpot_workflow_training` |
 | `agemem_eval.yaml`  | Bench 模式评估   | `AgeMem_hotpot_workflow_evaluation` |
 
@@ -66,9 +68,23 @@ bash scripts/autodl_m8b_smoke.sh
 使用 1 张 rollout GPU + 1 张 trainer GPU，并只执行 1 个 trainer step。
 第二个脚本按 E0 → E1 单次更新 → 重启 Ray → checkpoint eval → postflight 的固定
 顺序执行，并验证 receipt、有限 loss/KL/reward、checkpoint shards、LoRA 变化和
-不同进程的 model-version-1 重载。当前本地尚未执行真实模型、GPU、优化器或
-checkpoint 重载；完整环境、模型 manifest、顺序和停止条件见
-[M8b 远程 GPU 服务器执行包](../../docs/m8b_autodl_preflight.md)。
+不同进程的 model-version-1 重载。1.5B smoke 已在远端 `e82bf54` /
+`/data/hjx/Age_mem/checkpoints-attempt-002` 通过。完整环境、模型 manifest、顺序和
+停止条件见 [M8b 远程 GPU 服务器执行包](../../docs/m8b_autodl_preflight.md)。
+
+**E1 terminal-only 多 seed 重复（不进入 E3，不改冻结 dry-run YAML）：**
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-repeat
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_repeat.sh
+bash scripts/agemem_e1_repeat.sh
+```
+
+该脚本使用 `agemem_e1_repeat.yaml` / `agemem_e1_repeat_eval.yaml`，同一 6 条
+M5 train 样本与 2 条 held-out 评测，seeds `7/17/27`，job 名为
+`agemem-e1-terminal-only-repeat-s{seed}`。必须使用不含 M8b smoke job 的新
+checkpoint 根目录。不要调用 `autodl_m8b_smoke.sh` 做这件事。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 
