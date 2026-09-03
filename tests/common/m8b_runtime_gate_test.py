@@ -101,7 +101,7 @@ class RuntimeGateCountTest(unittest.TestCase):
             runtime_gate.load_expected_test_counts(
                 runtime_gate.DEFAULT_LOCK_PATH
             ),
-            {"m8a": 141, "all": 317},
+            {"m8a": 142, "all": 318},
         )
         lock = json.loads(
             runtime_gate.DEFAULT_LOCK_PATH.read_text(encoding="utf-8")

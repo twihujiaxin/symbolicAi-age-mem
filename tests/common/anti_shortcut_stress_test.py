@@ -68,7 +68,7 @@ class AntiShortcutStressTest(unittest.TestCase):
 
         self.assertEqual(report.stage2.pair_count, 6)
         self.assertEqual(report.stage2.variant_count, 12)
-        self.assertEqual(report.stage2.budgets, (18,))
+        self.assertEqual(report.stage2.budgets, (19,))
         self.assertEqual(report.stage2.arm_count_per_policy, 12 * 50)
         self.assertEqual(report.stage2.public_input_identity_rate, 1.0)
         self.assertEqual(report.stage2.public_safe_success_ceiling, 0.5)
@@ -150,7 +150,7 @@ class AntiShortcutStressTest(unittest.TestCase):
             self.assertTrue(
                 set(first.support_segment_keys).isdisjoint(second.support_segment_keys)
             )
-            self.assertEqual(pair.max_context_tokens, 18)
+            self.assertEqual(pair.max_context_tokens, 19)
 
         first_payload = dataset.all()[0].model_dump(mode="python")
         first_payload["futures"][1]["support_segment_keys"] = first_payload["futures"][
@@ -169,6 +169,41 @@ class AntiShortcutStressTest(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "jointly retainable"):
             run_stage2_counterfactual_stress(dataset=union_fits)
+
+    def test_counterfactual_budget_fits_frozen_qwen_token_count_snapshot(self):
+        dataset = CounterfactualDataset.from_json()
+        qwen_token_counts = {
+            "cf-dev-entity-001": (17, 19, 17),
+            "cf-dev-length-001": (17, 17, 17),
+            "cf-dev-style-001": (11, 11, 11),
+            "cf-test-entity-001": (16, 15, 15),
+            "cf-test-length-001": (14, 14, 14),
+            "cf-test-style-001": (11, 11, 11),
+        }
+        counts_by_text = {}
+        for pair in dataset.all():
+            observed = qwen_token_counts[pair.pair_id]
+            self.assertEqual(len(observed), len(pair.segments))
+            counts_by_text.update(
+                {
+                    segment.text: token_count
+                    for segment, token_count in zip(pair.segments, observed)
+                }
+            )
+
+        report = run_stage2_counterfactual_stress(
+            dataset=dataset,
+            seeds=(0,),
+            token_counter=counts_by_text.__getitem__,
+        )
+
+        self.assertEqual(report.budgets, (19,))
+        self.assertEqual(report.max_target_token_gap, 2)
+        self.assertEqual(report.public_safe_success_ceiling, 0.5)
+        self.assertEqual(
+            report.aggregates["oracle_future"].safe_success_rate,
+            1.0,
+        )
 
     def test_report_digest_rejects_tampering_and_is_repeatable(self):
         report = self.report

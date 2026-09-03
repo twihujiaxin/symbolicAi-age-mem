@@ -1,5 +1,5 @@
 {
-  "digest": "385753c1d4d9b0aa8d9398622492e0632618077e921846dc90b88704d3c87b50",
+  "digest": "ae88dc9b64cfab0b1b705ef365e9fccbaa400924a3309346f40b1ff492e1b214",
   "gates": [
     {
       "evidence": "public_fields=('budget_tokens', 'observed_facts')",
@@ -1733,7 +1733,7 @@
     },
     "arm_count_per_policy": 600,
     "budgets": [
-      18
+      19
     ],
     "by_scenario": {
       "matched_entity": {
@@ -2409,7 +2409,7 @@
         }
       }
     },
-    "dataset_digest": "e72d8b228136dd4f9203476b30643aaaf2497202f80a97d4330afa08fda4215e",
+    "dataset_digest": "ac94e3e36465035d45349325a6b83c66cd7fc780a24b98edcffe21edaa46c8d3",
     "hindsight_decision_count": 600,
     "max_target_capitalized_gap": 0,
     "max_target_token_gap": 0,

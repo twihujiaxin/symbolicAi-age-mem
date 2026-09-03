@@ -4,7 +4,7 @@
     "pair_id": "cf-dev-entity-001",
     "split": "dev",
     "scenario": "matched_entity",
-    "max_context_tokens": 18,
+    "max_context_tokens": 19,
     "segments": [
       {
         "segment_key": "aurora",
@@ -39,7 +39,7 @@
     "pair_id": "cf-dev-style-001",
     "split": "dev",
     "scenario": "matched_style",
-    "max_context_tokens": 18,
+    "max_context_tokens": 19,
     "segments": [
       {
         "segment_key": "vaccine",
@@ -74,7 +74,7 @@
     "pair_id": "cf-dev-length-001",
     "split": "dev",
     "scenario": "matched_length",
-    "max_context_tokens": 18,
+    "max_context_tokens": 19,
     "segments": [
       {
         "segment_key": "eastern",
@@ -109,7 +109,7 @@
     "pair_id": "cf-test-entity-001",
     "split": "test",
     "scenario": "matched_entity",
-    "max_context_tokens": 18,
+    "max_context_tokens": 19,
     "segments": [
       {
         "segment_key": "lyra",
@@ -144,7 +144,7 @@
     "pair_id": "cf-test-style-001",
     "split": "test",
     "scenario": "matched_style",
-    "max_context_tokens": 18,
+    "max_context_tokens": 19,
     "segments": [
       {
         "segment_key": "alpine",
@@ -179,7 +179,7 @@
     "pair_id": "cf-test-length-001",
     "split": "test",
     "scenario": "matched_length",
-    "max_context_tokens": 18,
+    "max_context_tokens": 19,
     "segments": [
       {
         "segment_key": "maple",

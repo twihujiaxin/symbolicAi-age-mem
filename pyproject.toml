@@ -60,6 +60,7 @@ agent = [
 ]
 m8b = [
     "agentscope>=1.0.5,<2",
+    "mcp>=1.24,<2",
     "datasets>=4,<5",
 ]
 rm_gallery = [

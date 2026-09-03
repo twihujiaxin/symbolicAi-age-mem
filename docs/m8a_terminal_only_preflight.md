@@ -34,7 +34,7 @@ M8a 已建立 E1 terminal-only 的本地静态/离线契约，但尚未执行真
 ## 本地验证
 
 ```text
-历史 M8a 初始 subset：46 discovered，43 PASS，3 SKIP；当前 M8b lock scope：141 discovered，138 PASS，3 SKIP
+历史 M8a 初始 subset：46 discovered，43 PASS，3 SKIP；当前 M8b lock scope：142 discovered，139 PASS，3 SKIP
 M1～M7 related regression：145/145 PASS
 existing tool-trace regression：30/30 PASS
 Ruff check：PASS

@@ -4,7 +4,7 @@
 
 M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新、checkpoint 重载与证据门禁 smoke
 
-状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）；当前 1.5B 上卡前锁、Stage 1/2 反捷径 canary/stress benchmark 与 317 项锁定回归已完成，4B 将使用独立模型/config lock；部署目标已从 AutoDL 改为组内远程 GPU 服务器，持久根目录冻结为 `/data/hjx/Age_mem`，真实 E0/E1/checkpoint 尚未执行
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）；当前 1.5B 上卡前锁、Stage 1/2 反捷径 canary/stress benchmark 与 318 项锁定回归已完成，4B 将使用独立模型/config lock；部署目标已从 AutoDL 改为组内远程 GPU 服务器，持久根目录冻结为 `/data/hjx/Age_mem`，真实 E0/E1/checkpoint 尚未执行
 
 ## Completed
 
@@ -160,7 +160,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 - [x] ActionEvent 与 Experience task/rollout/stage/timestep/EID 精确对齐；最终 buffer 边界重算 character→token span 并重查 ToolTrace join；同一 task 混合 policy version 时拒绝
 - [x] 规则/oracle/random/error-injector 轨迹禁止进入 on-policy buffer；AgeMem ExperiencePipeline 在 operator 前后均强制契约存在，删除或篡改契约时 fail closed
 - [x] `AgeMem_code_agentscope*` 已纳入 Trinity wheel，Pydantic 作为显式依赖；非 repo cwd 的 wheel 内 ActionEvent/M2 store import smoke 通过
-- [x] M8a 初始范围为 46 项测试：43 PASS、3 SKIP；当前已由 M8b 锁扩展为 141 项 `m8a` scope（本地 138 PASS、3 SKIP）
+- [x] M8a 初始范围为 46 项测试：43 PASS、3 SKIP；当前已由 M8b 锁扩展为 142 项 `m8a` scope（本地 139 PASS、3 SKIP）
 - [x] M1～M7 相关回归 145/145、tool-trace 30/30 均通过
 - [x] 本阶段未调用真实 LLM/embedding/网络，未运行模型、GPU、优化器或 checkpoint
 - [ ] **未关闭项 1：** 组内远程 Linux/GPU 服务器上的 3 个 runtime tests、完整 Config/Ray/vLLM/veRL、E1 单次更新和 checkpoint 新进程重载尚未执行（对应 M8b 真实 smoke）
@@ -168,7 +168,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 
 ### M8b 上卡前准备
 
-- [x] `configs/m8b_autodl_preflight.json` 锁定三份 YAML 的规范 LF SHA-256、M5 manifest、37 项 E1 契约、`m8a=141/all=317` 精确测试数和 `experience_buffer.path=null`
+- [x] `configs/m8b_autodl_preflight.json` 锁定三份 YAML 的规范 LF SHA-256、M5 manifest、37 项 E1 契约、`m8a=142/all=318` 精确测试数和 `experience_buffer.path=null`
 - [x] 跨平台 preflight 核对完整 40 位 commit、dirty state、递归 `.env`/ignored credential、非空 key、持久路径、空 job、依赖版本与 Trinity Config schema
 - [x] 模型门禁固定 `Qwen/Qwen2.5-1.5B-Instruct`、完整 revision、Qwen2.5-1.5B 结构、单文件权重、最小 3 GB 权重体积及逐文件 SHA-256 manifest，不伪造模型来源
 - [x] 数据门禁核对 fullwiki 三个 split 的规模/fingerprint，以及 6 条 train + 2 条 held-out 的 Hotpot ID 和规范内容 hash
@@ -201,7 +201,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 - [x] 保留 v2 7/7 CI canary 不变，另建 `agemem.anti_shortcut_stress.v1`：Stage 1 覆盖 16 个含噪任务 × 50 seeds × 3 个全局预算，每个策略 2400 arms，并加入顺序、长短、opaque-ID、random-hash 与 entity-chain 基线
 - [x] Stage 2 新增 6 个 dev/test 反事实 pair（12 个 future variants）× 50 seeds；同一 pair 的两个 future 复用同一公开输入和同一 query-blind decision，互斥 support 各自可放入预算但并集不可放入
 - [x] Stage 2 query-blind Oracle safe success 精确为 `0.5`，query-aware Oracle 为 `1.0`；公开策略最高 `0.372`，random-hash 为 `0.350`，未超过理论上界
-- [x] stress 11/11 integrity gates PASS，lexical-token checksum `385753c1d4d9b0aa8d9398622492e0632618077e921846dc90b88704d3c87b50`；8/8 新增测试 PASS，CLI 支持冻结本地 Qwen tokenizer/revision 重跑
+- [x] stress 11/11 integrity gates PASS，lexical-token checksum `ae88dc9b64cfab0b1b705ef365e9fccbaa400924a3309346f40b1ff492e1b214`；9/9 新增测试 PASS，CLI 支持冻结本地 Qwen tokenizer/revision 重跑
 
 ## Environment
 
@@ -212,7 +212,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 - Pydantic: 2.13.4
 - Datasets: 4.8.5
 - PyArrow: 25.0.0
-- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；锁定 317 项 suite 中 3 个 runtime 接线测试因此 SKIP
+- PyTorch / Ray / vLLM: 当前 `.venv` 未安装；锁定 318 项 suite 中 3 个 runtime 接线测试因此 SKIP
 - Ruff: 0.15.9；pytest/Flake8 未安装；测试使用标准库 `unittest`
 
 ## Git state
@@ -228,7 +228,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 - M8b 上卡前执行包已完成本地验证与本地提交
 - Stage 1/2 反捷径 benchmark commit：`7d3c45d feat(agemem): add stage 1/2 anti-shortcut gates`
 - Git scratch-directory cleanup commit：`c26ecb8 chore(git): ignore local verification scratch directories`
-- 已推送基线 commit：`fe1bff9040796ee0e92f7e3624a807fd5b8437e5`；本轮“AutoDL → 组内服务器 `/data/hjx/Age_mem`”路径迁移改动尚未提交或推送，真实 GPU 执行仍未开始
+- 上一已推送基线：`0ca8277bba7ad27f4f96b5ef6c573962b65e3d49`；本提交包含预算 19 / `mcp<2` / runtime-gate `m8a=142,all=318` 修复。远端应用本提交完整 40 位哈希作为 `AGEMEM_EXPECTED_COMMIT`；真实 GPU 执行仍未开始
 
 ## Files changed in M6/M7/M8a
 
@@ -334,10 +334,10 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 - Stage 1 budget/store baselines：13/13 PASS；Stage 2 challenge：9/9 PASS；统一报告：4/4 PASS；合计 26/26 PASS
 - E2 显式 target-question 对齐回归：2/2 PASS
 - 反捷径统一报告：7/7 gates PASS，real LLM / external embedding service / network calls 0，schema v2 checksum `b5ced8e688194d3d9e7cb3a6b4bd8d256d7cc38610fcb56a1d8c37987a7b952c`
-- 反捷径 stress：8/8 tests、11/11 integrity gates PASS；Stage 1 每策略 2400 arms，Stage 2 每策略 600 arms，checksum `385753c1d4d9b0aa8d9398622492e0632618077e921846dc90b88704d3c87b50`
-- M8b lock 精确测试数：`m8a=141`、`all=317`；suite discovery 与 lock 完全一致
-- M8b 最终本地 all scope：317 RUN，314 PASS，0 FAIL，0 ERROR，3 SKIP，0 unexpected success
-- M8b 当前 m8a scope 组成：原 M8a 46 项 + M8b 新增 61 项 + 反捷径 canary 26 项 + stress 8 项 = 141；本地 138 PASS、3 SKIP
+- 反捷径 stress：9/9 tests、11/11 integrity gates PASS；Stage 1 每策略 2400 arms，Stage 2 每策略 600 arms，checksum `ae88dc9b64cfab0b1b705ef365e9fccbaa400924a3309346f40b1ff492e1b214`
+- M8b lock 精确测试数：`m8a=142`、`all=318`；suite discovery 与 lock 完全一致
+- 本次未重跑完整 318 项 suite；新增 Qwen token-count snapshot 已 PASS，因此本地 all scope 推断为 318 RUN、315 PASS、3 SKIP，0 FAIL/ERROR/unexpected success
+- M8b 当前 m8a scope 组成：原 M8a 46 项 + M8b 新增 61 项 + 反捷径 canary 26 项 + stress 9 项 = 142；本地 139 PASS、3 SKIP
 - M8b 新增 61 项：provider 16、preflight 16、model manifest 2、runtime gate 5、runtime fail-closed 12、postflight 10，全部 PASS
 - M8b strict runtime gate 本地结果必须为 FAIL：仅有的 3 个 SKIP 都因缺 Ray，且门禁按设计不放行 SKIP
 - 1.5B 锁干净提交后的本地 preflight（`--no-write`）：18 PASS、0 FAIL、2 WARN、11 SKIP；两个 WARN 为未注入远程 key 与本地 ignored 凭据文件，11 个 SKIP 包含尚未配置本地 1.5B 模型路径以及只能在远程 Linux/GPU 环境验证的 GPU/runtime 项
@@ -386,7 +386,7 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 
 ## Failures and blockers
 
-- 无未解决的本地可执行测试失败；317 项中有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此严格 runtime gate 当前按设计为 FAIL
+- 无未解决的本地可执行测试失败；318 项中有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此严格 runtime gate 当前按设计为 FAIL
 - DashScope provider 已冻结并接入调用/错误/延迟/usage 记录；货币成本仍须在实际 smoke 后与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL、GPU 资源分配、LoRA 初始化、optimizer update 或 checkpoint 重载
 - 本地 postflight 只验证人工 fixture；尚无真实 E0/E1 receipt、`global_step_1` shard、训练后 LoRA 或新进程 model-version-1 eval 证据
@@ -394,4 +394,4 @@ M8b：`Qwen/Qwen2.5-1.5B-Instruct` 组内远程 GPU 服务器 E0/E1 单次更新
 
 ## Next recommended action
 
-先推送已验证并在本地提交的 1.5B M8b-prep 与 Stage 1/2 反捷径扩展，用最终推送的完整 commit 设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在 `/data/hjx/Age_mem/AgeMem` 使用四卡 RTX A6000 宿主机，设置 `CUDA_DEVICE_ORDER=PCI_BUS_ID`、`CUDA_VISIBLE_DEVICES=1,2`，只使用两张实时空闲 48GB 卡；模型、fullwiki 与 checkpoint 分别放在 `/data/hjx/Age_mem/models`、`/data/hjx/Age_mem/data` 与 `/data/hjx/Age_mem/checkpoints`。准备固定 `Qwen/Qwen2.5-1.5B-Instruct` revision、模型 manifest 与 fullwiki 后，先用该冻结 tokenizer 重跑 stress，再安装 `.[m8b,dev]`，对两个 shell 脚本执行 `bash -n`，并按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 317/317 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止。1.5B smoke 稳定后再建立独立 4B lock；当前不进入 7B、E3/E4/E5 或全量训练。
+用本提交的完整 40 位哈希设置 `AGEMEM_EXPECTED_COMMIT`，并轮换/仅通过环境变量注入凭据。在 `/data/hjx/Age_mem/AgeMem` 使用四卡 RTX A6000 宿主机，设置 `CUDA_DEVICE_ORDER=PCI_BUS_ID`、`CUDA_VISIBLE_DEVICES=1,2`，只使用两张实时空闲 48GB 卡；模型、fullwiki 与 checkpoint 分别放在 `/data/hjx/Age_mem/models`、`/data/hjx/Age_mem/data` 与 `/data/hjx/Age_mem/checkpoints`。准备固定 `Qwen/Qwen2.5-1.5B-Instruct` revision、模型 manifest 与 fullwiki 后，先用该冻结 tokenizer 重跑 stress，再安装 `.[m8b,dev]`，对两个 shell 脚本执行 `bash -n`，并按 `docs/m8b_autodl_preflight.md` 运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次通过严格 preflight + 318/318 runtime gate、E0 model-version-0 评测、E1 单次 actor update、`global_step_1` 保存、重启后的 model-version-1 held-out 评测和 postflight；任何一步失败都停止。1.5B smoke 稳定后再建立独立 4B lock；当前不进入 7B、E3/E4/E5 或全量训练。

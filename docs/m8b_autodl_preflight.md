@@ -45,9 +45,9 @@ terminal-only reward、固定 Stage-2 干扰和同一个 DashScope provider prof
 两项 WARN 是未注入云端 key 和仓库根部存在本地 ignored 凭据文件；11 项 SKIP
 包含尚未配置本地 1.5B 模型路径，以及只能在远程 Linux/GPU 完整环境验证的
 GPU/runtime 项。严格 runtime suite 已冻结
-发现数为 `m8a=141`、`all=317`，少跑、漏跑、FAIL、ERROR 或 SKIP 都会失败。
+发现数为 `m8a=142`、`all=318`，少跑、漏跑、FAIL、ERROR 或 SKIP 都会失败。
 其中 `m8a` scope 已纳入 Stage 1 storage budget、Stage 2 query-delayed challenge
-和统一 anti-shortcut canary 三个模块，共 26 项测试；另有 8 项独立 stress
+和统一 anti-shortcut canary 三个模块，共 26 项测试；另有 9 项独立 stress
 协议/反事实回归。这些测试不改动 E1 YAML 或
 `terminal_only` reward profile。
 
@@ -140,7 +140,7 @@ bash scripts/autodl_m8b_preflight.sh
    两张卡执行门禁。每张总显存至少 48,000 MiB、空闲显存至少 47,000 MiB，并要求
    `nvidia-smi` 物理 UUID 与 PyTorch 重映射设备 UUID 对齐；数值选择器必须配合
    `CUDA_DEVICE_ORDER=PCI_BUS_ID`；
-4. 运行锁定的 317 项 M1～M8b/tool-trace/anti-shortcut 回归，并把数量漂移或任何
+4. 运行锁定的 318 项 M1～M8b/tool-trace/anti-shortcut 回归，并把数量漂移或任何
    `FAIL/ERROR/SKIP` 都视为失败。
 
 报告保存到：

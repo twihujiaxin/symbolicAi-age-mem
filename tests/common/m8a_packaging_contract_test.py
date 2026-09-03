@@ -16,6 +16,9 @@ class M8APackagingContractTest(unittest.TestCase):
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         self.assertIn('include = ["trinity*", "AgeMem_code_agentscope*"]', pyproject)
         self.assertIn('"pydantic>=2.0,<3"', pyproject)
+        m8b_dependencies = pyproject.split("m8b = [", 1)[1].split("]", 1)[0]
+        self.assertIn('"agentscope>=1.0.5,<2"', m8b_dependencies)
+        self.assertIn('"mcp>=1.24,<2"', m8b_dependencies)
         self.assertIn(
             '"AgeMem_code_agentscope.toy_hotpotqa" = ["data/*.json"]',
             pyproject,

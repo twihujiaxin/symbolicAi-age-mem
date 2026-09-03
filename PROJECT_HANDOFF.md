@@ -2,10 +2,10 @@
 
 > 面向：VS Code 中的 Codex 插件  
 > 项目方向：AgeMem 式可学习记忆管理 + GLARE 式 LTLf/DFA 逻辑奖励  
-> 文档版本：v2.0<br>
-> 更新时间：2026-09-02<br>
+> 文档版本：v2.1<br>
+> 更新时间：2026-09-03<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7 已完成；目标模型限定为 1.5B 与 4B、暂不考虑 7B；M8a、1.5B M8b-prep 与 Stage 1/2 反捷径 canary/stress 离线门禁已实现，4B 将使用独立模型/config lock。部署目标已从 AutoDL 改为组内远程 GPU 服务器，工作区根目录为 `/data/hjx/Age_mem`；真实严格预检、E0、E1 单次更新和 checkpoint 新进程重载均尚未执行
+> 当前状态：M0～M7 已完成；目标模型限定为 1.5B 与 4B、暂不考虑 7B；M8a、1.5B M8b-prep 与 Stage 1/2 反捷径 canary/stress 离线门禁已实现，4B 将使用独立模型/config lock。部署目标已从 AutoDL 改为组内远程 GPU 服务器，工作区根目录为 `/data/hjx/Age_mem`。1.5B 远程准备已推进到步骤十二“使用冻结 tokenizer 重跑反捷径 stress”；本地已将 Stage 2 统一预算改为 19、重生成 lexical stress 报告，并把 runtime gate 锁更新为 `m8a=142`、`all=318`。该修复包含在当前提交中；远程冻结 Qwen tokenizer 重跑、真实严格预检、E0、E1 单次更新和 checkpoint 新进程重载均尚未执行
 
 ---
 
@@ -1060,7 +1060,7 @@ M8a 不执行模型训练，只关闭 E1 在租卡前可以用 CPU/静态检查�
 - 规则、Oracle、random 和 error-injector 轨迹禁止进入 on-policy buffer；AgeMem pipeline 在 operator 前后均强制契约存在，删除或篡改时 fail closed；
 - Trinity wheel 同时包含 `trinity*` 与复用的 `AgeMem_code_agentscope*` 契约包。
 
-原始 M8a scoped 结果已被 M8b 冻结 runtime gate 取代。当前锁定发现数为 `m8a=141`、`all=317`；少跑、漏跑、数量漂移、FAIL、ERROR、unexpected success 或任意 SKIP 都判失败。本地因缺 PyTorch/Ray/vLLM 仍有 3 个环境性 SKIP，只能作为诊断，必须在组内远程服务器完整 Linux 环境变为 PASS。
+原始 M8a scoped 结果已被 M8b 冻结 runtime gate 取代。当前锁定发现数为 `m8a=142`、`all=318`；少跑、漏跑、数量漂移、FAIL、ERROR、unexpected success 或任意 SKIP 都判失败。本地因缺 PyTorch/Ray/vLLM 仍有 3 个环境性 SKIP，只能作为诊断，必须在组内远程服务器完整 Linux 环境变为 PASS。
 
 当前 E1 仍使用 DashScope embedding，SUMMARY/CLEAR 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。M8b-prep 已为首轮 smoke 冻结 endpoint、embedding/chat model，并记录无正文的调用、错误、延迟和 usage；provider 不返回货币金额时保持 `None` 并在实验后与账单对账。M8a 也尚未在线生成 DFA `ActionCreditRecord`，E3/E4/E5 不得提前宣称完成。
 
@@ -1084,7 +1084,7 @@ python scripts/agemem_m8b_model_manifest.py \
 
 - `scripts/agemem_m8b_preflight.py --mode autodl` 要求固定 40 位代码 commit、干净工作树、无嵌套 `.env`/远程 ignored 凭据、模型/数据/checkpoint 均位于当前冻结的持久根目录 `/data/hjx/Age_mem`、至少 80 GiB checkpoint 空间，以及空的固定 E0/E1 job 路径；内部 mode 名 `autodl` 仅作为严格 Linux/GPU 模式的兼容名称保留；
 - GPU 门禁允许四卡宿主机通过 `CUDA_DEVICE_ORDER=PCI_BUS_ID` 与 `CUDA_VISIBLE_DEVICES` 显式选择两张 RTX A6000；报告保留完整物理清单，仅对选中卡要求总显存至少 48,000 MiB、执行前空闲显存至少 47,000 MiB，并要求 PyTorch 重映射设备与 `nvidia-smi` 物理 UUID 一致；
-- `scripts/agemem_m8b_runtime_gate.py --scope all` 锁定 `m8a=141`、`all=317`，任何测试数量漂移、FAIL、ERROR、unexpected success 或 SKIP 都 fail closed；本地仍有 3 个环境性 SKIP，必须在组内远程服务器变为 PASS；
+- `scripts/agemem_m8b_runtime_gate.py --scope all` 锁定 `m8a=142`、`all=318`，任何测试数量漂移、FAIL、ERROR、unexpected success 或 SKIP 都 fail closed；本地仍有 3 个环境性 SKIP，必须在组内远程服务器变为 PASS；
 - DashScope endpoint、`text-embedding-v4` 256 维和 `qwen-max` 已冻结。每次成功、失败、eval 或 malformed-response 调用立即写入独立、加锁、`fsync` 的 `<checkpoint_job_dir>/trajectories/auxiliary_provider_calls.jsonl`，键为 `task_id / rollout_id / execution_id / call_index`；只保存 provider/model/outcome/error type/latency/usage 等元数据，不保存 prompt、response、header 或 key。SDK retry 关闭，遥测无法持久化时调用本身失败；未返回货币成本时保持 `null`，不得估造；
 - launcher、Explorer、Trainer 和 NCCL 同步路径已改为失败向上传播；外围异常日志只记类型。训练和评测仅在真实步骤完成后写严格 JSON receipt，非有限指标、失败 rollout/eval、提前耗尽或写盘错误均不得生成成功证据；
 - E0 receipt 固定为 `bench_step_0_model_0.json`，E1 更新 receipt 固定为 `trainer_step_1.json`，checkpoint 新进程评测 receipt 固定为 `bench_step_1_model_1.json`。每份 receipt 记录 `process_id` 和每进程唯一的 `process_execution_id`；checkpoint eval 的执行 ID 必须与训练不同。
@@ -1101,7 +1101,7 @@ postflight 必须同时证明：E0 是 step/model version `0/0` 且 2 条 held-o
 
 真实远程 GPU 验收状态如下，当前均未执行、不得勾选或宣称成功：
 
-- [ ] 组内远程服务器严格 preflight 与 317 项 runtime gate 全通过且 0 SKIP；
+- [ ] 组内远程服务器严格 preflight 与 318 项 runtime gate 全通过且 0 SKIP；
 - [ ] E0 model-version-0 held-out 冻结评测通过；
 - [ ] E1 单次 optimizer update、step-1 receipt 和 `global_step_1` 通过；
 - [ ] 停止/重启 Ray 后，model-version-1 checkpoint 新进程评测通过；
@@ -1122,7 +1122,7 @@ postflight 必须同时证明：E0 是 step/model version `0/0` 且 2 条 held-o
 - `always_keep` 的 support recall 为 `1.0` 但 budget compliance / safe success 为 `0.0`；`always_clear` 的 budget compliance 为 `1.0` 但 support recall / safe success 为 `0.0`；`opaque_id_control`（仅保留字典序最小句柄）为 `0.667/1.0/0.667`；`oracle_safe_compress` 的 support recall、distractor removal、budget compliance 与 safe success 均为 `1.0`；
 - Oracle 策略只证明同一预算下存在可行上界，不是可部署模型，也不证明未知未来查询下可以在线达到该上界；
 - E2 context preservation 现在由 workflow 显式传入真实 `target_question`，不再把 Stage 2 第一条干扰消息误当问题；旧调用保留兼容回退；
-- 26 项 canary 测试与 2 项显式问题对齐回归全部通过，历史锁由 280 增至 308；新增 8 项 stress 回归后，完整本地结果为 316 RUN、313 PASS、3 个环境性 SKIP、0 FAIL/ERROR；两份报告均可确定性重建与校验。
+- 26 项 canary 测试与 2 项显式问题对齐回归全部通过，历史锁由 280 增至 308；新增 9 项 stress 回归后，完整本地结果为 318 RUN、315 PASS、3 个环境性 SKIP、0 FAIL/ERROR；两份报告均可确定性重建与校验。
 
 规范报告位于 `artifacts/anti_shortcut_benchmark/` 与
 `docs/anti_shortcut_benchmark.md`，checksum 为
@@ -1131,12 +1131,12 @@ postflight 必须同时证明：E0 是 step/model version `0/0` 且 2 条 held-o
 独立 stress 报告位于 `artifacts/anti_shortcut_stress/` 与
 `docs/anti_shortcut_stress.md`，schema 为 `agemem.anti_shortcut_stress.v1`，
 lexical-token checksum 为
-`385753c1d4d9b0aa8d9398622492e0632618077e921846dc90b88704d3c87b50`。其协议为：
+`ae88dc9b64cfab0b1b705ef365e9fccbaa400924a3309346f40b1ff492e1b214`。其协议为：
 
 - Stage 1 选取 train/dev/test 中 16 个含 distractor、duplicate 或 stale fact 的任务，覆盖 50 个 order seeds 和 12/20/28 三个全局预算；每个策略 2400 arms，所有三事实任务达到 6/6 permutation coverage；
 - 非 Oracle Stage 1 输入只含 `budget_tokens` 与公开事实，隐藏 task ID、split、seed 和私有角色；加入 reverse-order、shortest/longest、opaque min/max、random-hash 和 entity-chain 强基线；
 - Stage 2 使用 6 个 dev/test counterfactual pair、12 个 future variants 和 50 seeds；同一 pair 的两个 future 共享完全相同的公开输入，并复用一次 query-blind decision；
-- 两 future support 互斥、各自可装入 18-token budget、并集不可装入，目标段 token/大写词差均为 0，因此 query-blind safe-success 上界严格为 `0.5`；pair-blind Oracle 正好 `0.5`，query-aware Oracle 为 `1.0`，公开策略最高 `0.372`；
+- 两 future support 互斥、各自可装入 19-token budget、并集不可装入，目标段 token/大写词差均为 0，因此 query-blind safe-success 上界严格为 `0.5`；pair-blind Oracle 正好 `0.5`，query-aware Oracle 为 `1.0`，公开策略最高 `0.372`；
 - stress 的 11/11 gate 是协议完整性/可证伪性门禁，不是模型能力门禁。当前 artifact 仍使用 `unicode-lexical-v1`；远程服务器模型 manifest 就绪后，必须通过 CLI 注入冻结的 Qwen tokenizer、完整 40 位 revision 与 tokenizer assets digest 重跑。
 
 ### 任务
@@ -1538,7 +1538,7 @@ M0～M7、M8a 和 M8b-prep 已完成。只执行组内远程服务器 M8b GPU sm
 
 先核对固定代码 commit、`TRINITY_MODEL_REVISION` 和模型 SHA-256 manifest，
 再由用户主动运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次完成
-严格 preflight、冻结的 317 项 0-SKIP runtime gate、E0 model-version-0 评测、
+严格 preflight、冻结的 318 项 0-SKIP runtime gate、E0 model-version-0 评测、
 E1 单次 optimizer update、Ray 重启、model-version-1 checkpoint 新进程评测
 和只读 postflight；不要手工跳过或并行运行阶段。
 
@@ -1645,7 +1645,7 @@ docs/m8b_autodl_preflight.md。
 只执行组内远程服务器 E1 terminal-only 单次更新 smoke。
 
 先核对 `TRINITY_MODEL_REVISION` 与 `.agemem_model_manifest.json`，然后运行
-`bash scripts/autodl_m8b_smoke.sh`。不得绕过脚本内的严格 preflight、317 项
+`bash scripts/autodl_m8b_smoke.sh`。不得绕过脚本内的严格 preflight、318 项
 0-SKIP runtime gate、E0 model-version-0 receipt、E1 step-1 update/checkpoint、
 Ray 重启、model-version-1 checkpoint eval 和 postflight。
 
@@ -1865,7 +1865,7 @@ E5：action-level advantage
 M9：正式 Benchmark + 跨域泛化
 ```
 
-当前不得提前开始 E3/E4/E5 或全量训练。冻结 runtime gate 必须精确发现 317 项并达到 0 FAIL/ERROR/SKIP；ActionCredit 在线生成器尚未实现，只有 schema/join/buffer validation。只有 postflight 同时证明 E0 model version 0、E1 单次更新/checkpoint、checkpoint eval model version 1 且训练/评测 `process_execution_id` 不同后，才能更新 `STATUS.md` 并决定是否扩大 E1。
+当前不得提前开始 E3/E4/E5 或全量训练。冻结 runtime gate 必须精确发现 318 项并达到 0 FAIL/ERROR/SKIP；ActionCredit 在线生成器尚未实现，只有 schema/join/buffer validation。只有 postflight 同时证明 E0 model version 0、E1 单次更新/checkpoint、checkpoint eval model version 1 且训练/评测 `process_execution_id` 不同后，才能更新 `STATUS.md` 并决定是否扩大 E1。
 
 ---
 
@@ -1878,12 +1878,19 @@ validation 的 E0/E1 checkpoint 评测。它不是全量训练，也不训练 Cr
 
 ### 23.1 迁移前的实时状态与硬边界
 
-2026-09-02 的最新只读检查确认当前分支为
-`feat/m6-extracted-ap-state-tracker`，已推送基线为
-`fe1bff9040796ee0e92f7e3624a807fd5b8437e5`。本轮把部署目标从 AutoDL 迁移到组内
-服务器后，路径锁、门禁文案与相关文档形成新的未提交修改；`fe1bff9` 尚未包含这些
-服务器路径改动，不能作为最终远程实验锁。接手者必须重新运行 `git status --short`，
-完成核验、提交和推送后，再用新的完整 40 位 commit 设置
+2026-09-03 的最新本地只读检查确认当前分支为
+`feat/m6-extracted-ap-state-tracker`，已推送的组内服务器迁移基线为
+`0ca8277bba7ad27f4f96b5ef6c573962b65e3d49`。远端已经能在
+`/data/hjx/Age_mem/AgeMem` 进入该仓库，并已建立
+`/data/hjx/Age_mem/conda-envs/agemem-m8b` 环境。该 commit 仍含两个在真实环境中才暴露的
+问题：`m8b` extra 未显式约束 `mcp<2`，以及 Stage 2 counterfactual fixture 的
+`max_context_tokens=18` 无法容纳冻结 Qwen tokenizer 下的一条 19-token support。
+
+本地工作树正在修复这两个问题：为 `m8b` 增加 `mcp>=1.24,<2`，并把两份镜像
+counterfactual fixture 的统一预算从 18 调整为 19，同时补依赖契约和 Qwen token-count
+snapshot 回归测试。该修复尚未完成全部测试、规范报告重生成、提交和推送，因此
+`0ca8277` 不能作为下一次正式 stress/preflight/smoke 的最终实验锁。接手者必须先运行
+`git status --short`，完成验证、提交和推送，再用新的完整 40 位 commit 更新
 `AGEMEM_EXPECTED_COMMIT`。
 
 当前 M8b 只锁定 `Qwen/Qwen2.5-1.5B-Instruct`。4B 的具体模型尚未冻结，必须使用
@@ -1898,7 +1905,7 @@ commit 应包含仓库内全部已跟踪输入，包括 `AgeMem_code_agentscope/
 `artifacts/m5_hotpotqa_smoke/`、`artifacts/m6_extraction_benchmark/` 和
 `artifacts/m7_group_critic/`。
 
-严格 `all=317` runtime gate 还会读取以下三个被 Git 忽略的规范运行目录，必须把它们
+严格 `all=318` runtime gate 还会读取以下三个被 Git 忽略的规范运行目录，必须把它们
 作为私有、带 SHA-256 的最小证据包迁移到云端仓库内的相同相对路径：
 
 ```text
@@ -2043,7 +2050,18 @@ python -m pip install -e ".[m8b,dev]"
 python -m pip install "huggingface_hub[cli]"
 ```
 
-不要为修复单个依赖错误而批量升级或放宽锁。验证 DatasetDict：
+`0ca8277` 的 `m8b` extra 漏掉了 AgentScope 1.x 所需的 MCP 上界，真实安装曾出现
+`ImportError: cannot import name 'streamablehttp_client'`。在包含正式修复的新 commit
+推送前，远端仅可用下面的环境级兼容命令继续诊断；不要修改远端仓库文件：
+
+```bash
+python -m pip install --upgrade "mcp==1.27.2"
+python -c 'from mcp.client.streamable_http import streamablehttp_client; import agentscope; print("AgentScope/MCP import: PASS")'
+python -m pip check
+```
+
+新 commit 的 `m8b` extra 会恢复 `mcp>=1.24,<2` 的解析约束。不要为修复单个依赖错误
+而批量升级或放宽锁。验证 DatasetDict：
 
 ```bash
 python -c "from datasets import load_from_disk; d=load_from_disk('/data/hjx/Age_mem/data/hotpot_qa/fullwiki'); print({k:len(v) for k,v in d.items()})"
@@ -2096,6 +2114,26 @@ python scripts/agemem_anti_shortcut_stress.py \
   --docs-path "$stress_dir/report.md"
 ```
 
+2026-09-03 在 `0ca8277` 上首次进入该步骤时，AgentScope/MCP 导入问题已通过环境级
+`mcp==1.27.2` 兼容安装跨过；随后脚本在真正运行 Stage 2 时以
+`counterfactual support exceeds budget in cf-dev-entity-001` 停止。冻结 Qwen tokenizer
+的六组实测计数为：
+
+| Pair | 两个 future support | Union | Total | 旧预算 | 可行预算区间 |
+|---|---:|---:|---:|---:|---:|
+| `cf-dev-entity-001` | 17 / 19 | 36 | 53 | 18 | 19～35 |
+| `cf-dev-length-001` | 17 / 17 | 34 | 51 | 18 | 17～33 |
+| `cf-dev-style-001` | 11 / 11 | 22 | 33 | 18 | 11～21 |
+| `cf-test-entity-001` | 16 / 15 | 31 | 46 | 18 | 16～30 |
+| `cf-test-length-001` | 14 / 14 | 28 | 42 | 18 | 14～27 |
+| `cf-test-style-001` | 11 / 11 | 22 | 33 | 18 | 11～21 |
+
+统一预算 19 同时满足全部 pair 的
+`max(support_A, support_B) <= budget < union`，而且最大 support token gap 为 2，仍满足
+现有长度匹配门禁。不得只在远端手改 JSON，也不得用 lexical counter 的 PASS 代替冻结
+tokenizer 结果；应先完成本地修复、测试、报告重生成和新 commit，再在新 commit 对应的
+全新 `$stress_dir` 重跑本步骤。
+
 检查 shell、确认没有既存 Ray cluster，然后运行只读门禁：
 
 ```bash
@@ -2105,7 +2143,7 @@ ray status
 bash scripts/autodl_m8b_preflight.sh
 ```
 
-只有严格预检和 `317/317 PASS、0 FAIL、0 ERROR、0 SKIP` 全部成立，才执行：
+只有严格预检和 `318/318 PASS、0 FAIL、0 ERROR、0 SKIP` 全部成立，才执行：
 
 ```bash
 bash scripts/autodl_m8b_smoke.sh
@@ -2159,3 +2197,126 @@ M8b 通过后仍按以下顺序推进：
 official supporting facts），但只用于离线 M7 critic prompt/cache；E1 policy
 observation 仍不可见该私有记录。在线 `ActionCreditRecord` 生成器未实现，因此不得
 把本次 terminal-only smoke 描述成 DFA/AP 奖励训练，也不得提前进入 E3/E4/E5。
+
+---
+
+## 24. 1.5B 远程训练流程与实时进度（2026-09-03）
+
+本节是第 23 节执行手册的进度账。状态只分为“已确认”“部分完成/待复核”“当前阻塞”
+和“未开始”；不能根据文件存在或命令曾被输入就推断步骤成功。当前尚未发生任何模型
+参数更新，准确表述应为“训练准备进行到步骤十二”，不能表述为“训练已开始”。
+
+### 24.1 顺序流程
+
+| 步骤 | 操作 | 当前状态 | 完成判据或备注 |
+|---:|---|---|---|
+| 一 | 在组内服务器建立持久目录 | 已确认 | 根目录为 `/data/hjx/Age_mem`；`/data` 已恢复约 2 TiB 可用空间 |
+| 二 | 上传两个最小迁移压缩包 | 已确认 | 用户已完成迁移；SHA-256 尚应与 Windows 原包再次对账 |
+| 三 | clone Git 仓库到固定路径 | 已确认 | 仓库位于 `/data/hjx/Age_mem/AgeMem` |
+| 四 | 固定代码 commit 且保持干净工作树 | 部分完成/待更新 | 远端当前基线是 `0ca8277...`；必须等待本轮修复形成新 commit 后重新 checkout |
+| 五 | 解压 runtime gate 输入和 HotpotQA DatasetDict | 部分完成/待复核 | 应重新确认文件计数 `120 / 61 / 120 / 11` 及 split 大小 |
+| 六 | 创建并激活 Python 3.10.19 Conda 环境 | 已确认 | 提示符显示 `/data/hjx/Age_mem/conda-envs/agemem-m8b`；不得回退到 base Python 3.9 |
+| 七 | 安装 `.[m8b,dev]` 与辅助依赖 | 部分完成/待锁定 | 首次解析暴露 MCP 2.x 兼容问题；环境级 `mcp==1.27.2` 已足以让 stress 进入 Stage 2，新 commit 将补 `mcp<2` |
+| 八 | 检查物理 GPU 并过滤为两张空闲 A6000 | 部分完成/待复核 | 已确认宿主机有 4 张 A6000；新 tmux pane/SSH shell 中仍须重设 `CUDA_VISIBLE_DEVICES` 并确认 Python 只看到 2 张 |
+| 九 | 设置模型、数据、checkpoint 和 commit 环境变量 | 部分完成/待新 commit | 新 shell 必须重新 export；`AGEMEM_EXPECTED_COMMIT` 必须改成修复后的完整 40 位哈希，不能带尖括号 |
+| 十 | 下载并冻结 `Qwen/Qwen2.5-1.5B-Instruct` revision | 已确认到 tokenizer 可加载 | 冻结 tokenizer 已能从本地模型目录运行；仍应在最终运行记录中保存完整 model revision |
+| 十一 | 生成并核验模型 file manifest、注入 DashScope key | 部分完成/待复核 | 当前对话未取得 manifest PASS、key 注入和 provider 连通性的完整输出，不能标为完成 |
+| **十二** | **使用冻结 tokenizer 重跑反捷径 stress** | **当前阻塞** | 本地 lexical 测试与规范报告已按预算 19 重生成（digest `ae88dc9b64cfab0b1b705ef365e9fccbaa400924a3309346f40b1ff492e1b214`）；修复尚未提交/推送，远程冻结 Qwen tokenizer 重跑仍未执行 |
+| 十三 | 检查两个 shell 脚本语法及 Ray 独占状态 | 未开始 | `bash -n` 两脚本均通过，且同一 UNIX 账号下没有其他 Ray 作业后才能继续 |
+| 十四 | 运行严格 M8b preflight/runtime gate | 未开始 | 必须 `318/318 PASS`，并且 `FAIL=0 / ERROR=0 / SKIP=0` |
+| 十五 | 运行完整 M8b smoke | 未开始 | 顺序为 E0 → E1 一次 optimizer update → `global_step_1` → Ray 重启 → checkpoint E1 eval |
+| 十六 | 核验 postflight 与归档证据 | 未开始 | `postflight_report.json.status=pass`，并保存 receipts、日志、GPU/驱动、`pip freeze` 和 provider usage |
+
+### 24.2 步骤十二的故障记录
+
+第一次执行冻结-tokenizer stress 时，脚本在导入 AgentScope 阶段失败：
+
+```text
+ImportError: cannot import name 'streamablehttp_client'
+```
+
+根因是 `m8b` optional dependency 没有继承 `agent` extra 中的 `mcp>=1.24,<2`；
+AgentScope 1.x 的依赖下界允许解析到已删除旧兼容符号的 MCP 2.x。环境级安装
+`mcp==1.27.2` 后脚本能够进入实验主体，说明 GPU、模型路径和 stress CLI 参数不是该
+错误的根因。
+
+第二次执行在 Stage 2 数据不变量校验处失败：
+
+```text
+counterfactual support exceeds budget in cf-dev-entity-001
+```
+
+根因是 fixture 的统一预算 18 只在 `unicode-lexical-v1` 下验证过，未在文档要求的冻结
+Qwen tokenizer 下做回归；`borealis` support 实测为 19 token。六组数据共同的最小可行
+统一预算是 19，而最小 union 是 22，因此改成 19 不会让一对互斥 future 同时装入，也
+不会破坏理论 safe-success ceiling 0.5。
+
+### 24.3 当前本地修复状态
+
+截至本次更新，本地 24.4 闭环已完成测试、规范报告重生成，并作为当前提交推送。推送前工作树包含：
+
+```text
+M  pyproject.toml
+M  data/toy/stage2_counterfactual_pairs.json
+M  AgeMem_code_agentscope/toy_hotpotqa/data/stage2_counterfactual_pairs.json
+M  tests/common/anti_shortcut_stress_test.py
+M  tests/common/m8a_packaging_contract_test.py
+M  tests/common/m8b_runtime_gate_test.py
+M  configs/m8b_autodl_preflight.json
+M  artifacts/anti_shortcut_stress/
+M  docs/anti_shortcut_stress.md
+M  docs/m8a_terminal_only_preflight.md
+M  docs/m8b_autodl_preflight.md
+M  docs/project_presentation_materials.md
+M  PROJECT_HANDOFF.md
+M  STATUS.md
+```
+
+其中已经完成并本地核验的修改为：
+
+- 在 `m8b` extra 中补 `mcp>=1.24,<2`；
+- 两份必须 byte-identical 的 counterfactual fixture 均把预算 `18 → 19`；
+- 原有 lexical stress 断言同步到 19；
+- 增加冻结 Qwen token-count snapshot 回归，锁定六个 pair 的实测成本、最大 gap 2、
+  ceiling 0.5 和 oracle feasibility；
+- 增加 `m8b` extra 必须含 AgentScope/MCP 兼容范围的打包契约；
+- `tests.common.anti_shortcut_stress_test` 与 `tests.common.m8a_packaging_contract_test`
+  共 10/10 PASS；
+- lexical CLI 已重生成 `artifacts/anti_shortcut_stress/` 与
+  `docs/anti_shortcut_stress.md`，digest 为
+  `ae88dc9b64cfab0b1b705ef365e9fccbaa400924a3309346f40b1ff492e1b214`，
+  Stage 2 budgets 为 `(19,)`，公开策略最高 safe success 仍为 `0.372`；
+- unittest discovery 实测 `m8a=142`、`all=318`，runtime gate 锁已同步。
+
+尚未完成的工作：远端用本提交的完整 40 位哈希 checkout 后，在全新 `$stress_dir`
+用冻结 Qwen tokenizer 重跑步骤十二。完整 318 项 runtime gate 执行、本地
+`--mode autodl` 预检、E0/E1 smoke 也尚未执行。本地 lexical PASS 不能改写为
+“步骤十二已确认”。
+
+### 24.4 从当前状态继续的唯一顺序
+
+本地 24.4 测试与报告重生成已完成。下一位接手者先检查工作树，再提交并推送：
+
+```powershell
+cd D:\Project\Age-Mem\AgeMem
+git status --short
+git diff --check
+```
+
+确认规范 stress JSON/Markdown 已重生成且相关门禁通过后，再提交并推送。记录新的完整
+commit 后，远端只做 Git 同步，不手工复制已跟踪文件：
+
+```bash
+cd /data/hjx/Age_mem/AgeMem
+git fetch origin feat/m6-extracted-ap-state-tracker
+export AGEMEM_EXPECTED_COMMIT=REPLACE_WITH_NEW_40_HEX_COMMIT
+git checkout --detach "$AGEMEM_EXPECTED_COMMIT"
+test "$(git rev-parse HEAD)" = "$AGEMEM_EXPECTED_COMMIT"
+test -z "$(git status --porcelain)"
+```
+
+命令中的 `REPLACE_WITH_NEW_40_HEX_COMMIT` 是占位符，实际输入时必须整体替换为新的完整
+40 位哈希。
+随后在同一个 tmux pane 中重新激活 Conda、重设全部环境变量，并使用新 commit 对应的
+全新 stress 目录重跑步骤十二。只有输出 JSON 的 `status` 为 `pass`，才把步骤十二改成
+“已确认”并进入步骤十三；不得跳过到 preflight 或训练。

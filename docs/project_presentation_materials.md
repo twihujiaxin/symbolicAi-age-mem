@@ -315,7 +315,7 @@ RewardBreakdown / ActionCreditRecord
 **讲解备注 / 证据边界（不全部上屏）**
 
 - v2 7/7 CI canary 保持不变；stress 11/11 integrity gates PASS，真实 LLM / external embedding service / network calls 为 0；
-- stress checksum 为 `385753c1d4d9b0aa8d9398622492e0632618077e921846dc90b88704d3c87b50`；
+- stress checksum 为 `ae88dc9b64cfab0b1b705ef365e9fccbaa400924a3309346f40b1ff492e1b214`；
 - Pair-blind ceiling 与 hindsight Oracle 使用私有 labels，只是不可部署的离线上界；
 - E1 `terminal_only` 配置与 M3-M7 artifacts 未改写；
 - 当前 artifact 使用 `unicode-lexical-v1` 计量；冻结 Qwen tokenizer 的上卡复跑仍待执行；
@@ -547,7 +547,7 @@ M8a 将首轮 GPU smoke 收缩为可控的 terminal-only baseline，确保奖励
 **本地证据**
 
 - M8a 原始历史 subset：46 项，43 PASS、3 SKIP；
-- M8b 锁定后 m8a scope：141 项，138 PASS、3 个缺 Ray 的环境性 SKIP；
+- M8b 锁定后 m8a scope：142 项，139 PASS、3 个缺 Ray 的环境性 SKIP；
 - M1-M7 相关回归：145/145；tool-trace：30/30；
 - 本阶段真实 LLM/embedding/network/GPU/optimizer/checkpoint：0。
 
@@ -585,7 +585,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 **本地结果**
 
 - 定向 M8b tests：61/61 PASS；反捷径 canary tests：26/26 PASS；stress tests：8/8 PASS；另有 2 项 E2 target-question 对齐回归；
-- 全量锁定 suite：317 discovered/executed，314 PASS、3 SKIP、0 FAIL、0 ERROR；
+- 全量锁定 suite：318 discovered，推断 315 PASS、3 SKIP、0 FAIL、0 ERROR；
 - 1.5B 锁干净提交后的本地 preflight：18 PASS、0 FAIL、2 WARN、11 SKIP；WARN 来自未注入远程 key 与本地 ignored 凭据，SKIP 包含尚未配置本地 1.5B 模型路径及 remote-only 项；
 - 严格 runtime gate 对 SKIP fail closed；
 - 真实 GPU/LLM/optimizer/checkpoint：0。
@@ -626,7 +626,7 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 **推荐下一步**
 
 1. 提交并推送当前已验证改动，固定最终完整 commit，并轮换本地凭据；
-2. 组内远程服务器上用冻结 Qwen tokenizer 重跑 stress，并执行 `bash -n`、严格 preflight 和 `317/317` runtime gate；
+2. 组内远程服务器上用冻结 Qwen tokenizer 重跑 stress，并执行 `bash -n`、严格 preflight 和 `318/318` runtime gate；
 3. 依次完成 E0 frozen eval、E1 单次 update、checkpoint 保存、重启后 eval、postflight；
 4. 只有 M8b smoke 通过后，设计 E3/E4 在线 `ActionCreditRecord` 生成与 terminal-only 对照；
 5. 最后才进入多 seed、扩大数据和正式 DFA-vs-terminal 研究。
@@ -647,8 +647,8 @@ M8b-prep 已把租卡前风险转化为版本锁、数据/模型 provenance、�
 | M5 | HotpotQA smoke adapter | 90,447/7,405/7,405；30 trajectories | 确定性策略 |
 | M6 | Extracted AP / StateTracker | mock AP F1 .976；controlled FR 5/10 可解释 | fake/mock extractor |
 | M7 | Critic offline validation | 90/90 replay；30 fallback；20/20 farming | deterministic mock |
-| M8a | Terminal-only contract | 141 scope；138 PASS、3 local SKIP | 尚未上卡 |
-| M8b-prep | Remote GPU evidence gates | 61/61 targeted；317 all scope | 尚未真实执行 |
+| M8a | Terminal-only contract | 142 scope；139 PASS、3 local SKIP | 尚未上卡 |
+| M8b-prep | Remote GPU evidence gates | 61/61 targeted；318 all scope | 尚未真实执行 |
 
 ## 5. 图表与素材清单
 

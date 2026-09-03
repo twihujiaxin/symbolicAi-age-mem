@@ -8,18 +8,18 @@
 - Stage 1 budgets: `(12, 20, 28)`
 - Stage 1 minimum permutation coverage: `1.000`
 - Stage 2: `6` 个反事实对 / `12` 个 future variants × `50` seeds；每个策略 `600` arms
-- Stage 2 budgets: `(18,)`
+- Stage 2 budgets: `(19,)`
 - Stage 2 public-input identity: `1.000`
 - Real LLM calls: `0`
 - Integrity gates: `PASS`
-- Repeatability checksum: `385753c1d4d9b0aa8d9398622492e0632618077e921846dc90b88704d3c87b50`
+- Repeatability checksum: `ae88dc9b64cfab0b1b705ef365e9fccbaa400924a3309346f40b1ff492e1b214`
 
 ## Reproduce
 
 ```bash
 python scripts/agemem_anti_shortcut_stress.py
 
-# Remote GPU server: rerun with the frozen production tokenizer.
+# AutoDL: rerun with the frozen production tokenizer.
 stress_dir="$TRINITY_CHECKPOINT_ROOT_DIR/anti_shortcut_stress/$AGEMEM_EXPECTED_COMMIT"
 python scripts/agemem_anti_shortcut_stress.py \
   --tokenizer-path "$TRINITY_MODEL_PATH" \
