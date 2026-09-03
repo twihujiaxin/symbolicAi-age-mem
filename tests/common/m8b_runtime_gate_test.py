@@ -5,7 +5,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts import agemem_m8b_runtime_gate as runtime_gate
+from trinity.common.repo_script import load_repo_script
+
+runtime_gate = load_repo_script("agemem_m8b_runtime_gate")
 
 
 class RuntimeGateCountTest(unittest.TestCase):

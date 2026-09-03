@@ -743,7 +743,9 @@ class GpuGateTest(unittest.TestCase):
 
 class RuntimeGateReportTest(unittest.TestCase):
     def test_skipped_test_is_a_hard_failure(self):
-        from scripts.agemem_m8b_runtime_gate import result_report
+        from trinity.common.repo_script import load_repo_script
+
+        result_report = load_repo_script("agemem_m8b_runtime_gate").result_report
 
         class FakeTest:
             @staticmethod

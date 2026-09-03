@@ -24,7 +24,9 @@ from AgeMem_code_agentscope.toy_hotpotqa.shortcut_stress import (
     _blind_stage2_input,
     lexical_token_counter,
 )
-from scripts import agemem_anti_shortcut_stress as stress_cli
+from trinity.common.repo_script import load_repo_script
+
+stress_cli = load_repo_script("agemem_anti_shortcut_stress")
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
