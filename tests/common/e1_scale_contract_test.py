@@ -27,27 +27,11 @@ SCALE_SCRIPT = REPOSITORY_ROOT / "scripts" / "agemem_e1_scale.sh"
 RUNTIME_GATE = REPOSITORY_ROOT / "scripts" / "agemem_m8b_runtime_gate.py"
 
 
-def _complete_lock() -> dict:
-    lock = load_lock()
-    extra = []
-    for index in range(int(lock["extra_train_size"])):
-        extra.append(
-            {
-                "content_sha256": f"{index:064x}",
-                "hotpot_id": f"extra-{index:02d}",
-                "source_index": 100000 + index,
-            }
-        )
-    lock["fixed_train_rows"] = list(lock["prefix_train_rows"]) + extra
-    lock["selection_status"] = "frozen"
-    return lock
-
-
 class E1ScaleContractTest(unittest.TestCase):
     def test_lock_keeps_vanilla_grpo_and_expands_beyond_smoke(self):
         lock = load_lock()
         self.assertEqual(lock["schema_version"], "agemem.e1_scale.lock.v1")
-        self.assertEqual(lock["selection_status"], "pending")
+        self.assertEqual(lock["selection_status"], "frozen")
         self.assertEqual(lock["job_name"], "agemem-e1-terminal-only-scale")
         self.assertNotEqual(lock["job_name"], lock["smoke_job_name"])
         self.assertEqual(lock["reward_profile"], "terminal_only")
@@ -59,14 +43,26 @@ class E1ScaleContractTest(unittest.TestCase):
         self.assertFalse(lock["stage3_require_final_answer"])
         self.assertFalse(lock["stage3_repair_untagged_answer"])
         self.assertEqual(len(lock["source_train_prefix_ids"]), 6)
-        self.assertEqual(lock["fixed_train_rows"], [])
-        self.assertFalse(selection_is_complete(lock))
+        self.assertEqual(len(lock["fixed_train_rows"]), 24)
+        self.assertTrue(selection_is_complete(lock))
+        self.assertEqual(
+            [row["hotpot_id"] for row in lock["fixed_train_rows"][:6]],
+            lock["source_train_prefix_ids"],
+        )
 
     def test_generated_yaml_has_no_answer_nudge(self):
-        lock = _complete_lock()
+        lock = load_lock()
         self.assertTrue(selection_is_complete(lock))
         train = render_train_yaml(lock)
         eval_text = render_eval_yaml(lock)
+        committed_train = (
+            REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_scale.yaml"
+        ).read_text(encoding="utf-8")
+        committed_eval = (
+            REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_scale_eval.yaml"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(committed_train.replace("\r\n", "\n"), train.replace("\r\n", "\n"))
+        self.assertEqual(committed_eval.replace("\r\n", "\n"), eval_text.replace("\r\n", "\n"))
         for text in (train, eval_text):
             self.assertIn('name: "agemem-e1-terminal-only-scale"', text)
             self.assertNotIn("agemem-e1-terminal-only-dry-run", text)

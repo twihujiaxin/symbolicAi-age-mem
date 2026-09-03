@@ -205,7 +205,7 @@ E1：1.5B terminal-only 正式扩大（24 条 / 8 step，无 nudge，不进入 E
 
 - [x] 协议锁 `configs/e1_scale.json`：24 条 train（保留 M5 的 6 条前缀 + 18 条新样本）、8 trainer step、seed 7、K=2、`terminal_only`
 - [x] 明确关闭 `stage3_require_final_answer` / `stage3_repair_untagged_answer`；job 名 `agemem-e1-terminal-only-scale`；不改冻结 dry-run YAML
-- [ ] 远端尚未用冻结 HotpotQA 选出 18 条额外 train 行并提交 YAML；选出前启动器 fail closed
+- [x] 远端已用冻结 HotpotQA 选出 18 条额外 train 行；`selection_status=frozen`，24 条 ID/index/hash 已写入 lock 与 YAML
 
 ### Stage 1/2 反捷径 benchmark
 
@@ -326,6 +326,8 @@ E1：1.5B terminal-only 正式扩大（24 条 / 8 step，无 nudge，不进入 E
 - `scripts/agemem_e1_scale_select.py`
 - `scripts/agemem_e1_scale.sh`
 - `tests/common/e1_scale_contract_test.py`
+- `examples/agemem_hotpotqa/agemem_e1_scale.yaml`
+- `examples/agemem_hotpotqa/agemem_e1_scale_eval.yaml`
 - `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`STATUS.md`
 
 ## Files changed in Stage 1/2 anti-shortcut extension
@@ -435,7 +437,7 @@ E1：1.5B terminal-only 正式扩大（24 条 / 8 step，无 nudge，不进入 E
 ## Failures and blockers
 
 - 无未解决的本地可执行测试失败；318 项中仍有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此 Windows 上严格 runtime gate 按设计为 FAIL
-- M8b 远程 smoke 已通过；E1 三 seed 基线 terminal F1 为 0。格式 probe 已证明 nudge 后可评分，但不并入基线。当前阻塞是冻结 1.5B 正式扩大：先在远端选出 18 条额外 train 行并提交，再用空 checkpoint 根目录跑 24 条 / 8 step。运行前重核远程空闲 GPU。不要进 E3，也不要跳到 4B
+- M8b 远程 smoke 已通过；E1 三 seed 基线 terminal F1 为 0。格式 probe 已证明 nudge 后可评分，但不并入基线。24 条 E1 scale 行已冻结。当前阻塞是在空 checkpoint 根目录 `/data/hjx/Age_mem/checkpoints-e1-scale` 跑 8 step 训练。运行前重核远程空闲 GPU。不要进 E3，也不要跳到 4B
 - DashScope provider 已冻结；货币成本仍须与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL 或真实 GPU 重复运行
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
@@ -443,4 +445,4 @@ E1：1.5B terminal-only 正式扩大（24 条 / 8 step，无 nudge，不进入 E
 
 ## Next recommended action
 
-E1 三 seed 基线已在 `/data/hjx/Age_mem/checkpoints-e1-repeat` 完成（无 `<answer>`，reward 全 0）。格式 probe 已完成，nudge 不并入基线。不要改冻结 dry-run YAML，不要进 E3，不要跳到 4B。下一步是 1.5B 正式扩大：远端先 `python scripts/agemem_e1_scale_select.py --write-yaml` 冻结 24 条 train，把生成的 lock/YAML 提交后再用空目录 `/data/hjx/Age_mem/checkpoints-e1-scale` 跑 `bash scripts/agemem_e1_scale.sh`。
+E1 三 seed 基线已在 `/data/hjx/Age_mem/checkpoints-e1-repeat` 完成（无 `<answer>`，reward 全 0）。格式 probe 已完成，nudge 不并入基线。24 条 train 已冻结。不要改冻结 dry-run YAML，不要进 E3，不要跳到 4B。下一步：空目录 `/data/hjx/Age_mem/checkpoints-e1-scale` 跑 `bash scripts/agemem_e1_scale.sh`。运行前重核 `nvidia-smi`。

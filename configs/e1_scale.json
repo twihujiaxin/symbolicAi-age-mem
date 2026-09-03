@@ -1,6 +1,6 @@
 {
   "schema_version": "agemem.e1_scale.lock.v1",
-  "selection_status": "pending",
+  "selection_status": "frozen",
   "train_config": "examples/agemem_hotpotqa/agemem_e1_scale.yaml",
   "eval_config": "examples/agemem_hotpotqa/agemem_e1_scale_eval.yaml",
   "job_name": "agemem-e1-terminal-only-scale",
@@ -79,5 +79,126 @@
       "source_index": 5204
     }
   ],
-  "fixed_train_rows": []
+  "fixed_train_rows": [
+    {
+      "content_sha256": "5b9560b5341609d6150a9ba002517c278cc5f8fb17ff2d654d9e56a071d45bb2",
+      "hotpot_id": "5a85aaee5542991dd0999e84",
+      "source_index": 60480
+    },
+    {
+      "content_sha256": "d3d692b281a4d85a22b89c779a94aeda7ee0c99082dc59c3c1b739ef829d3739",
+      "hotpot_id": "5a74b19355429916b01641dd",
+      "source_index": 64387
+    },
+    {
+      "content_sha256": "5a0e609fbc73d336719c252fefa09f3ba7220f92e556ffe0e6f75f8ef7c9e678",
+      "hotpot_id": "5abecbed5542997719eab5c5",
+      "source_index": 29294
+    },
+    {
+      "content_sha256": "b3cf9065c676d924ce31b9b406f3c8d5cc7ef3dc960fc8d6ec4244981e1ce57e",
+      "hotpot_id": "5a8ac7d055429950cd6afb8f",
+      "source_index": 14935
+    },
+    {
+      "content_sha256": "073dd5bf9f9236fd2720a729680817789fe634bd3903cd4388641e42c675bfa1",
+      "hotpot_id": "5a83df2655429933447460a1",
+      "source_index": 86169
+    },
+    {
+      "content_sha256": "8495e0aa48f14436815d9accc7d4ca6e27797d4cbdcfdcedad1c483883f48fb7",
+      "hotpot_id": "5a76f83e55429972597f1405",
+      "source_index": 71348
+    },
+    {
+      "content_sha256": "1f09205965f2b96b63ad0c0cb3941dd0c213572e87b103ad8f9bd344c0079cfe",
+      "hotpot_id": "5add0a7c5542990d50227da1",
+      "source_index": 57079
+    },
+    {
+      "content_sha256": "f636f2de3c4c7938a80c52b4f051bf56ca94599b05bd549a13b9ff14ab07f09a",
+      "hotpot_id": "5adeef285542993344016bc1",
+      "source_index": 21143
+    },
+    {
+      "content_sha256": "8ea1a5d62fc6602a26461c8d7815bdc9cdaa6813f4b089155f7ac54eee47bd8d",
+      "hotpot_id": "5ae798ed55429952e35ea997",
+      "source_index": 9872
+    },
+    {
+      "content_sha256": "beda1c5a5157f14c9f600294076ce68e6847dd554c06bcb9106ff62b1073bfd6",
+      "hotpot_id": "5a8e72f05542990e94052b13",
+      "source_index": 66263
+    },
+    {
+      "content_sha256": "85d1c0b811255c83ecce9fd0519b0c850a47c3d3b058ae0d7071c14577d574df",
+      "hotpot_id": "5a7f1e2a55429934daa2fce7",
+      "source_index": 1138
+    },
+    {
+      "content_sha256": "c8d4d96197f595855eaf60588232ba741e4f7f000992318030420c259a9275de",
+      "hotpot_id": "5ab62b8e55429953192ad28e",
+      "source_index": 50420
+    },
+    {
+      "content_sha256": "3c0a4437e150dfb1270f9bfd6760212ff2e8a4b1e4ea049f9b7f95aeda5a6e79",
+      "hotpot_id": "5ac0ac415542997d64295a4b",
+      "source_index": 36613
+    },
+    {
+      "content_sha256": "6f8d3161ebcca955a9511471c3b6c7ec47ddbfc7c2c0e142a1a2144f20d5383e",
+      "hotpot_id": "5ab32828554299233954ff36",
+      "source_index": 75810
+    },
+    {
+      "content_sha256": "61a51991f91ac83e0c532f7e15baf852aa16d18a51c7a302fef6f4de0483c2f7",
+      "hotpot_id": "5ab3b09055429976abd1bcaa",
+      "source_index": 82867
+    },
+    {
+      "content_sha256": "a9106ac70928da975c26a32303efe945ad831872ce54355c71d7453e8e67ccc7",
+      "hotpot_id": "5a84eb985542991dd0999e21",
+      "source_index": 60951
+    },
+    {
+      "content_sha256": "370e444b716ca9750df9322abed5add9a8e3e877b541111086b8d0f68e94b333",
+      "hotpot_id": "5adf8e07554299025d62a2b9",
+      "source_index": 20907
+    },
+    {
+      "content_sha256": "4b6e9de51690b2a035d35571ac83f9552d37823bb4d496375db21d3b86c4d78d",
+      "hotpot_id": "5a7f7d755542994857a76749",
+      "source_index": 56927
+    },
+    {
+      "content_sha256": "a63e24f65f5afbea0d617590c61477d73998ebead1495f1e485389dcee4cd669",
+      "hotpot_id": "5adbf23a55429944faac23c5",
+      "source_index": 17284
+    },
+    {
+      "content_sha256": "a99980f415f41f0dc5e0b65338131a96907e1261dfdf28419c5d64e0a82b2db9",
+      "hotpot_id": "5a83531b5542996488c2e40c",
+      "source_index": 52656
+    },
+    {
+      "content_sha256": "9b228778be2b57197d75e00245bb84be437758909de2047e09479600c1cb53f7",
+      "hotpot_id": "5ab6c01055429953192ad374",
+      "source_index": 50894
+    },
+    {
+      "content_sha256": "f94ef14a491df8affe046fec57a2fc18203a5d58cad5c2f8fc22cb80998f12e7",
+      "hotpot_id": "5a88c1be554299206df2b362",
+      "source_index": 3318
+    },
+    {
+      "content_sha256": "6a8f721136008eef5ebf250aa7ed7c15b2c4adfafe6e8d3bfd16e9a3afd90098",
+      "hotpot_id": "5abed4105542990832d3a0d8",
+      "source_index": 37943
+    },
+    {
+      "content_sha256": "944245a5ebedc35864e4fbc7e2ec1392871f5f754bc80329dbe5461803e189ff",
+      "hotpot_id": "5ae1ab365542997f29b3c0f6",
+      "source_index": 35789
+    }
+  ]
 }
