@@ -103,32 +103,30 @@ import json, sys
 from collections import Counter
 from pathlib import Path
 job = Path(sys.argv[1])
-path = job / "buffer" / "explorer_output.jsonl"
+path = job / "trajectories" / "stage3_final_turn.jsonl"
 print("== Stage-3 answer probe summary ==")
-if not path.is_file():
-    print("MISSING", path)
+if not path.is_file() or path.stat().st_size == 0:
+    print("MISSING_OR_EMPTY", path)
     sys.exit(1)
-stage3 = []
+rows = []
 with path.open(encoding="utf-8") as handle:
     for line in handle:
         if not line.strip():
             continue
         obj = json.loads(line)
-        info = obj.get("info") or {}
-        if info.get("trace_stage") != 3:
-            continue
-        text = obj.get("response_text") or ""
-        stage3.append({
-            "nudge": bool(info.get("stage3_final_answer_nudge")),
-            "found": bool(info.get("found_answer")),
-            "has_answer": "<answer>" in text.lower(),
-            "has_tool": "<tool_call>" in text,
-        })
-print("stage3_rows", len(stage3))
-print("nudge", Counter(row["nudge"] for row in stage3))
-print("found_answer", Counter(row["found"] for row in stage3))
-print("has_<answer>", Counter(row["has_answer"] for row in stage3))
-print("has_<tool_call>", Counter(row["has_tool"] for row in stage3))
+        rows.append(obj)
+print("rows", len(rows))
+print("round", Counter(row.get("round") for row in rows))
+print("nudged", Counter(row.get("nudged") for row in rows))
+print("found_answer", Counter(row.get("found_answer") for row in rows))
+print("has_answer_tag", Counter(row.get("has_answer_tag") for row in rows))
+print("has_tool_call", Counter(row.get("has_tool_call") for row in rows))
+last = [row for row in rows if row.get("nudged") or row.get("round") == 1]
+print("last_round_rows", len(last))
+for row in last[:6]:
+    preview = (row.get("response_preview") or "").replace("\n", " ")[:160]
+    print("--- task", row.get("task_id"), "found", row.get("found_answer"), "parsed", row.get("parsed_answer"))
+    print("preview", preview)
 PY
 
 printf 'Stage-3 answer probe finished.\n'

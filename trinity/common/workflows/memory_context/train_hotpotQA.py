@@ -16,7 +16,10 @@ from trinity.common.auxiliary_provider import (
 )
 from trinity.common.experience import Experience
 from trinity.common.models.model import ModelWrapper
-from trinity.common.tool_trace import ToolTraceRecorder
+from trinity.common.tool_trace import (
+    ToolTraceRecorder,
+    append_stage3_final_turn_record,
+)
 from trinity.common.workflows.workflow import WORKFLOWS, MultiTurnWorkflow, Task
 from trinity.utils.log import get_logger
 
@@ -566,6 +569,37 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             "context_roles": role_counts,
             "memory_count": memory_count,
         }
+
+    def _record_stage3_final_turn(
+        self,
+        *,
+        round_index: int,
+        response_text: str,
+        nudged: bool,
+    ) -> None:
+        if not self.stage3_require_final_answer:
+            return
+        text = response_text or ""
+        parsed = parse_answer(text)
+        payload = {
+            "execution_id": self.current_execution_id,
+            "found_answer": bool(parsed),
+            "has_answer_tag": "<answer>" in text.lower(),
+            "has_tool_call": "<tool_call>" in text,
+            "nudged": bool(nudged),
+            "parsed_answer": parsed,
+            "response_preview": text[:4096],
+            "round": round_index,
+            "stage": 3,
+            "task_id": getattr(self.task, "task_id", ""),
+        }
+        try:
+            append_stage3_final_turn_record(self.tool_trace_recorder.path, payload)
+        except Exception:
+            self.logger.warning(
+                "Unable to append Stage-3 final-turn record",
+                exc_info=True,
+            )
 
     def _annotate_experiences(
         self,
@@ -1571,6 +1605,11 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             self._stage3_round_count = r + 1
             if self.verbose:
                 self.logger.info(f"Id {r} - Response text: {response_text}")
+            self._record_stage3_final_turn(
+                round_index=r,
+                response_text=response_text,
+                nudged=nudge_this_round,
+            )
             exps = self.model.extract_experience_from_history(clear_history=True)
             for exp in exps:
                 exp.eid.step = r

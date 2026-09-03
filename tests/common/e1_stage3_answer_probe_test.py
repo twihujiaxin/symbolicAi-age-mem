@@ -112,6 +112,15 @@ class E1Stage3AnswerProbeTest(unittest.TestCase):
         self.assertNotIn("autodl_m8b_smoke.sh", script)
         self.assertNotIn("agemem_e1_dry_run.yaml", script)
         self.assertIn("agemem_e1_stage3_answer_probe.yaml", script)
+        self.assertIn("stage3_final_turn.jsonl", script)
+        trace = (
+            REPOSITORY_ROOT
+            / "trinity"
+            / "common"
+            / "tool_trace.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("STAGE3_FINAL_TURN_FILENAME = \"stage3_final_turn.jsonl\"", trace)
+        self.assertIn("expected_answer", trace)
 
 
 if __name__ == "__main__":

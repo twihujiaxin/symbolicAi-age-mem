@@ -22,12 +22,13 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 from trinity.common.constants import LOG_DIR_ENV_VAR
 
 TOOL_TRACE_PATH_ENV_VAR = "AGEMEM_TOOL_TRACE_PATH"
 TOOL_TRACE_SCHEMA_VERSION = 2
+STAGE3_FINAL_TURN_FILENAME = "stage3_final_turn.jsonl"
 
 _LOCAL_PATH_LOCKS: Dict[str, threading.Lock] = {}
 _LOCAL_PATH_LOCKS_GUARD = threading.Lock()
@@ -243,6 +244,29 @@ def resolve_tool_trace_path(
     log_path = Path(log_dir).resolve()
     job_dir = log_path.parent if log_path.name.lower() == "log" else log_path
     return str(job_dir / "trajectories" / "tool_calls.jsonl")
+
+
+def append_stage3_final_turn_record(
+    tool_trace_path: Optional[str],
+    payload: Mapping[str, Any],
+) -> None:
+    """Append one Stage-3 turn record next to tool_calls.jsonl.
+
+    Bench eval discards experiences, so this sidecar is the durable response dump
+    when ``stage3_require_final_answer`` is enabled.
+    """
+    if not tool_trace_path:
+        return
+    forbidden = ("expected_answer", "gold_answer", "answer")
+    for key in payload:
+        if str(key).lower() in forbidden:
+            raise ValueError(f"Stage-3 final-turn record must not include {key!r}")
+    path = str(Path(tool_trace_path).parent / STAGE3_FINAL_TURN_FILENAME)
+    line = (
+        json.dumps(dict(payload), ensure_ascii=False, sort_keys=True, allow_nan=False)
+        + "\n"
+    )
+    ToolTraceRecorder._append_line_locally(path, line)
 
 
 class _ToolTraceWriter:
