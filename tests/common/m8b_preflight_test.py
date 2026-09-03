@@ -657,6 +657,46 @@ class GpuGateTest(unittest.TestCase):
             [2, 1],
         )
 
+        unprefixed_torch = {
+            "torch_version": "2.8.0+cu128",
+            "torch_cuda_version": "12.8",
+            "cuda_available": True,
+            "device_count": 2,
+            "devices": [
+                {
+                    "index": index,
+                    "uuid": str(physical_index),
+                    "name": "NVIDIA RTX A6000",
+                    "memory_mib": 48569,
+                }
+                for index, physical_index in enumerate((1, 2))
+            ],
+        }
+        unprefixed_gates = m8b_preflight.GateBook()
+        with patch.object(
+            m8b_preflight, "_query_nvidia_smi", return_value=nvidia
+        ), patch.object(
+            m8b_preflight, "_query_torch_cuda", return_value=unprefixed_torch
+        ):
+            unprefixed_inventory = m8b_preflight._check_gpu(
+                ROOT,
+                lock,
+                mode="autodl",
+                gates=unprefixed_gates,
+                environment={
+                    "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+                    "CUDA_VISIBLE_DEVICES": "1,2",
+                },
+            )
+        self.assertTrue(unprefixed_gates.passed)
+        self.assertEqual(
+            [
+                gpu["uuid"]
+                for gpu in unprefixed_inventory["nvidia_smi"]
+            ],
+            ["GPU-1", "GPU-2"],
+        )
+
         busy_nvidia = [dict(gpu) for gpu in nvidia]
         busy_nvidia[1]["free_memory_mib"] = 1000
         busy_gates = m8b_preflight.GateBook()

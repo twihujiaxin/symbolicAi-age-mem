@@ -1261,6 +1261,15 @@ def _query_nvidia_smi(repository_root: Path) -> list[dict[str, Any]]:
     return gpus
 
 
+def _normalize_gpu_uuid(value: Any) -> str:
+    """Match nvidia-smi `GPU-<uuid>` against PyTorch's unprefixed device UUID."""
+
+    token = str(value or "").strip().lower()
+    if token.startswith("gpu-"):
+        return token[4:]
+    return token
+
+
 def _filter_cuda_visible_devices(
     gpus: Sequence[Mapping[str, Any]],
     environment: Mapping[str, str],
@@ -1398,12 +1407,14 @@ def _check_gpu(
             else torch_count >= minimum_count
         )
         nvidia_by_uuid = {
-            str(gpu.get("uuid", "")).lower(): gpu for gpu in gpus
+            _normalize_gpu_uuid(gpu.get("uuid")): gpu
+            for gpu in gpus
+            if _normalize_gpu_uuid(gpu.get("uuid"))
         }
         mapped_devices = []
         for device in torch_devices if isinstance(torch_devices, list) else []:
-            uuid_value = str(device.get("uuid", "")).lower()
-            gpu = nvidia_by_uuid.get(uuid_value)
+            uuid_value = _normalize_gpu_uuid(device.get("uuid"))
+            gpu = nvidia_by_uuid.get(uuid_value) if uuid_value else None
             mapped_devices.append((device, gpu))
         valid = (
             bool(torch_cuda.get("cuda_available"))
