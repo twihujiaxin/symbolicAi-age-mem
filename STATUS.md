@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-E1：Stage 3 是否写出 `<answer>`（冻结 1.5B probe，不进入 E3）
+E1：1.5B terminal-only 正式扩大（24 条 / 8 step，无 nudge，不进入 E3）
 
-状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）；1.5B M8b GPU smoke 已通过；同一 6 条样本的 E1 terminal-only 三 seed 已在 `checkpoints-e1-repeat` 跑完，terminal F1 全 0，因为 Stage 3 未写出 `<answer>`。当前做最后一轮答案格式 probe，不进入 E3。部署目标为组内远程 GPU 服务器，持久根目录冻结为 `/data/hjx/Age_mem`
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。1.5B M8b GPU smoke 已通过。E1 GRPO 基线三 seed（同一 6 条、1 step、无 nudge）train reward 与 held-out F1 全 0。Stage 3 格式 probe（nudge）mean F1 ≈ 0.21、max 1.0，该干预不并入基线。下一步是 1.5B 正式扩大：24 条 train、8 trainer step、seed 7、无 `<answer>` nudge；4B 排在这次之后。部署目标为组内远程 GPU 服务器，持久根目录冻结为 `/data/hjx/Age_mem`
 
 ## Completed
 
@@ -194,12 +194,18 @@ E1：Stage 3 是否写出 `<answer>`（冻结 1.5B probe，不进入 E3）
 - [x] 远程已在 `/data/hjx/Age_mem/checkpoints-e1-repeat` 完成三 seed；train reward 与 held-out F1 全 0
 - [x] seed 7 轨迹确认 Stage 3 已执行；7 条 Stage 3 记录均无 `<answer>`，多数继续 `Retrieve_memory` 或闲聊
 
-### Stage 3 `<answer>` probe（设计完成，远程未跑）
+### Stage 3 `<answer>` probe
 
 - [x] `stage3_require_final_answer` 默认关闭，不改冻结 dry-run YAML
 - [x] 启用时只在 Stage 3 最后一轮追加“不要调用工具、必须写 `<answer>`”，不含 gold 答案
 - [x] 探针配置 `agemem_e1_stage3_answer_probe.yaml`：同一 6 条 train、T=0、bench、不训练
-- [ ] 远程尚未在 `/data/hjx/Age_mem/checkpoints-e1-answer-probe` 执行该探针
+- [x] 远程已在 `checkpoints-e1-answer-probe-003` / commit `f971af7` 跑完；最后一轮 12/12 写出 `<answer>`，repair 未触发；`task_score` mean ≈ 0.208、max 1.0。该开关不并入 GRPO 基线
+
+### 1.5B terminal-only 正式扩大（无 nudge）
+
+- [x] 协议锁 `configs/e1_scale.json`：24 条 train（保留 M5 的 6 条前缀 + 18 条新样本）、8 trainer step、seed 7、K=2、`terminal_only`
+- [x] 明确关闭 `stage3_require_final_answer` / `stage3_repair_untagged_answer`；job 名 `agemem-e1-terminal-only-scale`；不改冻结 dry-run YAML
+- [ ] 远端尚未用冻结 HotpotQA 选出 18 条额外 train 行并提交 YAML；选出前启动器 fail closed
 
 ### Stage 1/2 反捷径 benchmark
 
@@ -313,6 +319,15 @@ E1：Stage 3 是否写出 `<answer>`（冻结 1.5B probe，不进入 E3）
 - `scripts/agemem_e1_stage3_answer_probe.sh`
 - `tests/common/e1_stage3_answer_probe_test.py`
 
+## Files changed in 1.5B E1 scale
+
+- `configs/e1_scale.json`
+- `trinity/common/e1_scale.py`
+- `scripts/agemem_e1_scale_select.py`
+- `scripts/agemem_e1_scale.sh`
+- `tests/common/e1_scale_contract_test.py`
+- `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`STATUS.md`
+
 ## Files changed in Stage 1/2 anti-shortcut extension
 
 - Stage 1：`AgeMem_code_agentscope/toy_hotpotqa/storage_baselines.py`、`tests/common/stage1_storage_baseline_test.py`
@@ -420,7 +435,7 @@ E1：Stage 3 是否写出 `<answer>`（冻结 1.5B probe，不进入 E3）
 ## Failures and blockers
 
 - 无未解决的本地可执行测试失败；318 项中仍有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此 Windows 上严格 runtime gate 按设计为 FAIL
-- M8b 远程 smoke 已通过；E1 三 seed 已跑完且 terminal F1 为 0。下一阻塞是在新的空 checkpoint 根目录上执行 Stage 3 `<answer>` probe，以及运行前重核远程空闲 GPU
+- M8b 远程 smoke 已通过；E1 三 seed 基线 terminal F1 为 0。格式 probe 已证明 nudge 后可评分，但不并入基线。当前阻塞是冻结 1.5B 正式扩大：先在远端选出 18 条额外 train 行并提交，再用空 checkpoint 根目录跑 24 条 / 8 step。运行前重核远程空闲 GPU。不要进 E3，也不要跳到 4B
 - DashScope provider 已冻结；货币成本仍须与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL 或真实 GPU 重复运行
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
@@ -428,4 +443,4 @@ E1：Stage 3 是否写出 `<answer>`（冻结 1.5B probe，不进入 E3）
 
 ## Next recommended action
 
-E1 三 seed 已在 `/data/hjx/Age_mem/checkpoints-e1-repeat` 完成，terminal F1 全 0。冻结 1.5B probe 显示模型最后一轮会用自然语言答题，但不写 `<answer>` 标签。不要改冻结 dry-run YAML，不要进 E3。下一步是同一 6 条 train 的标签修复 probe：`stage3_require_final_answer` + `stage3_repair_untagged_answer`，不训练。新 checkpoint 根目录 `/data/hjx/Age_mem/checkpoints-e1-answer-probe-003`，命令：`bash scripts/agemem_e1_stage3_answer_probe.sh`。
+E1 三 seed 基线已在 `/data/hjx/Age_mem/checkpoints-e1-repeat` 完成（无 `<answer>`，reward 全 0）。格式 probe 已完成，nudge 不并入基线。不要改冻结 dry-run YAML，不要进 E3，不要跳到 4B。下一步是 1.5B 正式扩大：远端先 `python scripts/agemem_e1_scale_select.py --write-yaml` 冻结 24 条 train，把生成的 lock/YAML 提交后再用空目录 `/data/hjx/Age_mem/checkpoints-e1-scale` 跑 `bash scripts/agemem_e1_scale.sh`。

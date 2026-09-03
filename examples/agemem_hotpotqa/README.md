@@ -10,6 +10,8 @@
 | `agemem_e0_frozen_eval.yaml` | M8b 固定 2 条 held-out 数据的 E0 基座评测 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_dry_run.yaml` | M8b 固定 6 条数据、2-GPU、单次更新 E1 smoke | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_repeat.yaml` | 同一 6 条数据的 E1 terminal-only 多 seed 训练；job 名由 `AGEMEM_E1_JOB_NAME` 注入 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_scale.yaml` | 1.5B 正式扩大：24 条 train、8 step、无 nudge；由 `agemem_e1_scale_select.py` 生成 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_scale_eval.yaml` | 扩大 run 的新进程 held-out 评测 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_repeat_eval.yaml` | 单个 repeat seed 的新进程 held-out 评测 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_stage3_answer_probe.yaml` | 同一 6 条 train 样本、T=0、最后一轮强制要求 `<answer>` 的冻结评测；不训练 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_checkpoint_eval.yaml` | M8b 新进程加载 E1 checkpoint 后的固定评测 | `AgeMem_hotpot_workflow_training` |
@@ -98,6 +100,20 @@ bash scripts/agemem_e1_stage3_answer_probe.sh
 
 保持 `stage3_max_rounds: 2`，最后一轮要求 `<answer>`；若仍无标签再追加一轮只修标签。
 默认 E1/smoke YAML 不启用这些开关。不要把这次 probe 说成 DFA 或正式 E1。
+
+**1.5B terminal-only 正式扩大（无 nudge，24 条 / 8 step）：**
+
+```bash
+export HOTPOTQA_PATH=/data/hjx/Age_mem/data/hotpot_qa/fullwiki
+python scripts/agemem_e1_scale_select.py --write-yaml
+# 提交生成的 configs/e1_scale.json 与 YAML 后再训练
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-scale
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash scripts/agemem_e1_scale.sh
+```
+
+不要改冻结 dry-run YAML，不要打开 `stage3_require_final_answer`。
+
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

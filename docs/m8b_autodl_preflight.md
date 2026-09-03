@@ -255,3 +255,26 @@ E1 三 seed 显示 Stage 3 会跑，但两轮内不写 `<answer>`。独立探针
 - job 名：`agemem-e1-stage3-answer-probe`。
 
 默认关闭该开关，因此冻结 dry-run digest 不变。不要把 probe 说成 E3。
+格式 probe 已在 `checkpoints-e1-answer-probe-003` 完成；nudge 不并入 GRPO 基线。
+
+## 1.5B terminal-only 正式扩大
+
+在 6 条 / 1 step 基线之后，用独立 job 扩大到 24 条 train、8 个 trainer step，仍然
+`terminal_only`、不加 `<answer>` nudge、不改冻结 dry-run YAML：
+
+```bash
+export HOTPOTQA_PATH=/data/hjx/Age_mem/data/hotpot_qa/fullwiki
+python scripts/agemem_e1_scale_select.py --write-yaml
+```
+
+选出的 18 条额外行必须提交进 git 之后才能训练。然后使用空 checkpoint 根目录：
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-scale
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_scale.sh
+bash scripts/agemem_e1_scale.sh
+```
+
+不要把这次扩大说成 DFA、E3 或 4B。
+
