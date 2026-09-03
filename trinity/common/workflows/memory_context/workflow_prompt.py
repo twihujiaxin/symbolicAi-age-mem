@@ -58,6 +58,14 @@ Your full output must follow these rules:
 - Use <answer> only once when the final solution is ready.
 """
 
+# Last Stage-3 user turn when workflow_args.stage3_require_final_answer is true.
+# Must not name tools, gold answers, or Hotpot facts.
+STAGE3_FINAL_ANSWER_NUDGE = (
+    "This is the final turn. Do not call tools. "
+    "Using the question and any information already in the conversation, "
+    "output only the final answer inside <answer>...</answer>."
+)
+
 
 SUMMARY_CONTEXT_SYS_PROMPT = """
 You are a conversation summarization assistant. 

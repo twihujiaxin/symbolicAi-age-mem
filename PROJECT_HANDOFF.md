@@ -1844,7 +1844,7 @@ M0
 Codex 当前只应执行：
 
 ```text
-E1：同一 6 条 M5 样本的 terminal-only 多 seed 重复运行
+E1：冻结 1.5B 的 Stage 3 <answer> 格式 probe（不训练，不进入 E3）
 ```
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆盖其实现，也不要
@@ -1923,6 +1923,12 @@ bash scripts/agemem_e1_repeat.sh
 
 `CUDA_VISIBLE_DEVICES` 必须在运行前按实时空闲卡重核，不要默认照抄 `0,1`。
 不要复用 `/data/hjx/Age_mem/checkpoints` 或 `checkpoints-attempt-002`。
+
+E1 三 seed 已跑完：terminal F1 全 0，因为 Stage 3 两轮内没有写出 `<answer>`。
+下一步不是 E3，而是冻结 1.5B 上的 Stage-3 答案格式 probe：同一 6 条 train 样本、
+仍 `stage3_max_rounds: 2`、最后一轮追加 `stage3_require_final_answer` nudge、
+`mode: bench`、不训练。入口：`bash scripts/agemem_e1_stage3_answer_probe.sh`，
+新 checkpoint 根目录例如 `/data/hjx/Age_mem/checkpoints-e1-answer-probe`。
 
 ---
 

@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-E1：同一 6 条 M5 样本的 terminal-only 多 seed 重复（1.5B，不进入 E3）
+E1：Stage 3 是否写出 `<answer>`（冻结 1.5B probe，不进入 E3）
 
-状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）；1.5B M8b GPU smoke 已在远程通过（commit `e82bf54`，checkpoint root `checkpoints-attempt-002`）。当前设计并准备同一 6 条样本、seeds `7/17/27`、新 job 名的 terminal-only 重复。4B 将使用独立模型/config lock；部署目标为组内远程 GPU 服务器，持久根目录冻结为 `/data/hjx/Age_mem`
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）；1.5B M8b GPU smoke 已通过；同一 6 条样本的 E1 terminal-only 三 seed 已在 `checkpoints-e1-repeat` 跑完，terminal F1 全 0，因为 Stage 3 未写出 `<answer>`。当前做最后一轮答案格式 probe，不进入 E3。部署目标为组内远程 GPU 服务器，持久根目录冻结为 `/data/hjx/Age_mem`
 
 ## Completed
 
@@ -185,13 +185,21 @@ E1：同一 6 条 M5 样本的 terminal-only 多 seed 重复（1.5B，不进入 
 - [x] `pyproject.toml` 新增 `m8b` extra（AgentScope + Datasets）；完整安装、运行顺序、停止条件与 provider 对账口径记录于 `docs/m8b_autodl_preflight.md`
 - [x] 组内远程服务器上的 E0、E1 单 optimizer update、`global_step_1`、新进程 checkpoint eval 已在 `e82bf54` / `checkpoints-attempt-002` 通过（postflight pass=10）
 
-### E1 terminal-only 多 seed 重复（设计完成，远程未跑）
+### E1 terminal-only 多 seed 重复
 
 - [x] 新增独立 train/eval YAML：同一 6 条 M5 train ID、K=2、1 trainer step、`terminal_only`、milestone 关闭；job 名与 seed 由环境变量注入
 - [x] seeds 固定为 `7/17/27`，job 名为 `agemem-e1-terminal-only-repeat-s{seed}`，不复用 smoke seed `20260802` 或 `agemem-e1-terminal-only-dry-run`
 - [x] 锁 `configs/e1_repeat.json` 与启动器 `scripts/agemem_e1_repeat.sh`：拒绝含 smoke job 的 checkpoint 根、要求 `flash-attn==2.8.1`、每个 seed 训练后新进程 held-out eval
 - [x] 契约测试不计入冻结 318 项 runtime gate；冻结 dry-run YAML digest 保持不变
-- [ ] 远程尚未在新的 `/data/hjx/Age_mem/checkpoints-e1-repeat` 上执行三 seed 重复
+- [x] 远程已在 `/data/hjx/Age_mem/checkpoints-e1-repeat` 完成三 seed；train reward 与 held-out F1 全 0
+- [x] seed 7 轨迹确认 Stage 3 已执行；7 条 Stage 3 记录均无 `<answer>`，多数继续 `Retrieve_memory` 或闲聊
+
+### Stage 3 `<answer>` probe（设计完成，远程未跑）
+
+- [x] `stage3_require_final_answer` 默认关闭，不改冻结 dry-run YAML
+- [x] 启用时只在 Stage 3 最后一轮追加“不要调用工具、必须写 `<answer>`”，不含 gold 答案
+- [x] 探针配置 `agemem_e1_stage3_answer_probe.yaml`：同一 6 条 train、T=0、bench、不训练
+- [ ] 远程尚未在 `/data/hjx/Age_mem/checkpoints-e1-answer-probe` 执行该探针
 
 ### Stage 1/2 反捷径 benchmark
 
@@ -294,6 +302,16 @@ E1：同一 6 条 M5 样本的 terminal-only 多 seed 重复（1.5B，不进入 
 - `scripts/agemem_e1_repeat.sh`
 - `tests/common/e1_repeat_contract_test.py`
 - `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`PROJECT_HANDOFF.md`、`STATUS.md`
+
+## Files changed in Stage 3 answer probe
+
+- `trinity/common/workflows/memory_context/utils.py`
+- `trinity/common/workflows/memory_context/workflow_prompt.py`
+- `trinity/common/workflows/memory_context/train_hotpotQA.py`
+- `examples/agemem_hotpotqa/agemem_e1_stage3_answer_probe.yaml`
+- `configs/e1_stage3_answer_probe.json`
+- `scripts/agemem_e1_stage3_answer_probe.sh`
+- `tests/common/e1_stage3_answer_probe_test.py`
 
 ## Files changed in Stage 1/2 anti-shortcut extension
 
@@ -402,7 +420,7 @@ E1：同一 6 条 M5 样本的 terminal-only 多 seed 重复（1.5B，不进入 
 ## Failures and blockers
 
 - 无未解决的本地可执行测试失败；318 项中仍有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此 Windows 上严格 runtime gate 按设计为 FAIL
-- M8b 远程 smoke 已通过；下一阻塞是在新的空 checkpoint 根目录上执行三 seed 重复，以及运行前重核远程空闲 GPU
+- M8b 远程 smoke 已通过；E1 三 seed 已跑完且 terminal F1 为 0。下一阻塞是在新的空 checkpoint 根目录上执行 Stage 3 `<answer>` probe，以及运行前重核远程空闲 GPU
 - DashScope provider 已冻结；货币成本仍须与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL 或真实 GPU 重复运行
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
@@ -410,4 +428,4 @@ E1：同一 6 条 M5 样本的 terminal-only 多 seed 重复（1.5B，不进入 
 
 ## Next recommended action
 
-M8b 远程 GPU smoke 已在 commit `e82bf54ba48cd6f5a101510b33fe9db498890f49`、目录 `/data/hjx/Age_mem/checkpoints-attempt-002` 通过。不要改冻结的 dry-run YAML。下一阶段是同一 6 条 M5 样本上的 E1 terminal-only 多 seed 重复：seeds `7/17/27`，job 名为 `agemem-e1-terminal-only-repeat-s{seed}`，配置为 `examples/agemem_hotpotqa/agemem_e1_repeat.yaml` 与 `agemem_e1_repeat_eval.yaml`，锁为 `configs/e1_repeat.json`。必须使用新的空 checkpoint 根目录（例如 `/data/hjx/Age_mem/checkpoints-e1-repeat`），不要复用 smoke job 路径。远程命令：`bash scripts/agemem_e1_repeat.sh`。当前不进入 E3/E4/E5、4B 或全量训练。
+E1 三 seed 已在 `/data/hjx/Age_mem/checkpoints-e1-repeat` 完成，terminal F1 全 0，因为 Stage 3 未写出 `<answer>`。不要改冻结 dry-run YAML，不要进 E3。下一步是冻结 1.5B 的 Stage 3 答案格式 probe：同一 6 条 train、`stage3_max_rounds: 2`、最后一轮 `stage3_require_final_answer` nudge、不训练。新 checkpoint 根目录 `/data/hjx/Age_mem/checkpoints-e1-answer-probe`，命令：`bash scripts/agemem_e1_stage3_answer_probe.sh`。

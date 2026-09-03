@@ -479,6 +479,32 @@ def parse_answer(text: str) -> Optional[str]:
     return None
 
 
+def should_emit_stage3_final_answer_nudge(
+    *,
+    enabled: bool,
+    round_index: int,
+    max_rounds: int,
+    found_answer: bool,
+) -> bool:
+    """Return True on the last Stage 3 round when a final-answer nudge is enabled.
+
+    The nudge does not change the terminal-only reward. It only asks the model
+    not to spend the last allowed round on another tool call.
+    """
+    if not enabled or found_answer:
+        return False
+    if (
+        not isinstance(round_index, int)
+        or isinstance(round_index, bool)
+        or not isinstance(max_rounds, int)
+        or isinstance(max_rounds, bool)
+        or max_rounds <= 0
+        or round_index < 0
+    ):
+        return False
+    return round_index == max_rounds - 1
+
+
 def extract_score(text: str, default: float = 0.0) -> float:
     """Extract a float score from text (fallback to default)."""
     if not text:

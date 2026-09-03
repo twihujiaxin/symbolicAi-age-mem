@@ -26,6 +26,7 @@ from .workflow_prompt import (
     TOOL_CALL_SYS_PROMPT,
     SUMMARY_CONTEXT_SYS_PROMPT,
     TEXT_SIMILARITY_SYS_PROMPT,
+    STAGE3_FINAL_ANSWER_NUDGE,
 )
 from .utils import (
     TOOL_SCHEMA as COMMON_TOOL_SCHEMA,
@@ -35,6 +36,7 @@ from .utils import (
     parse_answer as common_parse_answer,
     parse_tool_calls as common_parse_tool_calls,
     should_collect_intermediate_experience,
+    should_emit_stage3_final_answer_nudge,
     validate_tool_call,
 )
 
@@ -146,6 +148,9 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 "distractor source"
             )
         self.stage3_max_rounds = self.workflow_args.get("stage3_max_rounds", 5)
+        self.stage3_require_final_answer = bool(
+            self.workflow_args.get("stage3_require_final_answer", False)
+        )
         self.stage1_max_rounds = self.workflow_args.get("stage1_max_rounds", 5)
         self.stage2_max_rounds = self.workflow_args.get("stage2_max_rounds", 5)
         self.tool_reward_stats_source = (
@@ -1547,6 +1552,17 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             self.current_round = r
             self.current_step = r
             self.current_turn_index = 0
+            nudge_this_round = should_emit_stage3_final_answer_nudge(
+                enabled=self.stage3_require_final_answer,
+                round_index=r,
+                max_rounds=self.stage3_max_rounds,
+                found_answer=found_final_answer,
+            )
+            if nudge_this_round:
+                self._append_context("user", STAGE3_FINAL_ANSWER_NUDGE)
+                self.logger.info(
+                    "Stage 3 round %s: appended final-answer nudge", r
+                )
             if self.verbose:
                 self.logger.info(
                     f"Id {r} - Before Context messages: {self.context_messages}"
@@ -1564,6 +1580,11 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 round_index=r,
                 step_index=r,
             )
+            if nudge_this_round:
+                for exp in exps:
+                    info = dict(exp.info or {})
+                    info["stage3_final_answer_nudge"] = True
+                    exp.info = info
 
             if not exps:
                 self.logger.warning(

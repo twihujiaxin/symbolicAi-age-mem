@@ -1,0 +1,19 @@
+{
+  "config": "examples/agemem_hotpotqa/agemem_e1_stage3_answer_probe.yaml",
+  "job_name": "agemem-e1-stage3-answer-probe",
+  "reward_profile": "terminal_only",
+  "schema_version": "agemem.e1_stage3_answer_probe.lock.v1",
+  "seed": 7,
+  "smoke_job_name": "agemem-e1-terminal-only-dry-run",
+  "source_train_row_ids": [
+    "5a85aaee5542991dd0999e84",
+    "5a74b19355429916b01641dd",
+    "5abecbed5542997719eab5c5",
+    "5a8ac7d055429950cd6afb8f",
+    "5a83df2655429933447460a1",
+    "5a76f83e55429972597f1405"
+  ],
+  "stage3_max_rounds": 2,
+  "stage3_require_final_answer": true,
+  "trainer_total_steps": 0
+}

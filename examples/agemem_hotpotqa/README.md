@@ -11,6 +11,7 @@
 | `agemem_e1_dry_run.yaml` | M8b 固定 6 条数据、2-GPU、单次更新 E1 smoke | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_repeat.yaml` | 同一 6 条数据的 E1 terminal-only 多 seed 训练；job 名由 `AGEMEM_E1_JOB_NAME` 注入 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_repeat_eval.yaml` | 单个 repeat seed 的新进程 held-out 评测 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_stage3_answer_probe.yaml` | 同一 6 条 train 样本、T=0、最后一轮强制要求 `<answer>` 的冻结评测；不训练 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_checkpoint_eval.yaml` | M8b 新进程加载 E1 checkpoint 后的固定评测 | `AgeMem_hotpot_workflow_training` |
 | `agemem_eval.yaml`  | Bench 模式评估   | `AgeMem_hotpot_workflow_evaluation` |
 
@@ -85,6 +86,18 @@ bash scripts/agemem_e1_repeat.sh
 M5 train 样本与 2 条 held-out 评测，seeds `7/17/27`，job 名为
 `agemem-e1-terminal-only-repeat-s{seed}`。必须使用不含 M8b smoke job 的新
 checkpoint 根目录。不要调用 `autodl_m8b_smoke.sh` 做这件事。
+
+**Stage 3 是否写出 `<answer>`（冻结 1.5B，不训练）：**
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-answer-probe
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_stage3_answer_probe.sh
+bash scripts/agemem_e1_stage3_answer_probe.sh
+```
+
+保持 `stage3_max_rounds: 2`，只在最后一轮追加“不要调用工具、必须写 `<answer>`”。
+默认 E1/smoke YAML 不启用该开关。不要把这次 probe 说成 DFA 或正式 E1。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

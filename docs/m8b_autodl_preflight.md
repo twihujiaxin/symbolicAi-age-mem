@@ -242,3 +242,16 @@ M8b smoke 只证明单次更新链路可跑通。同一 6 条 M5 train 样本、
 例如 `/data/hjx/Age_mem/checkpoints-e1-repeat`；脚本会拒绝仍含
 `agemem-e0-terminal-only-frozen-eval` 或 `agemem-e1-terminal-only-dry-run`
 的根目录。不要改 dry-run YAML，也不要把重复运行说成 DFA/Extracted AP 训练。
+
+## Stage 3 `<answer>` probe
+
+E1 三 seed 显示 Stage 3 会跑，但两轮内不写 `<answer>`。独立探针保持
+`stage3_max_rounds: 2` 和 `terminal_only`，只在最后一轮追加
+`stage3_require_final_answer` nudge，并且不训练：
+
+- 锁：`configs/e1_stage3_answer_probe.json`；
+- 配置：`examples/agemem_hotpotqa/agemem_e1_stage3_answer_probe.yaml`；
+- 启动器：`scripts/agemem_e1_stage3_answer_probe.sh`；
+- job 名：`agemem-e1-stage3-answer-probe`。
+
+默认关闭该开关，因此冻结 dry-run digest 不变。不要把 probe 说成 E3。
