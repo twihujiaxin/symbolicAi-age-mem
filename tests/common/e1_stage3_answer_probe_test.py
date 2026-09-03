@@ -81,9 +81,22 @@ class E1Stage3AnswerProbeTest(unittest.TestCase):
         self.assertIn("Do not call tools", text)
         self.assertNotIn("Retrieve_memory", text)
         self.assertNotIn("<tool_call>", text)
+        self.assertIn("Example: <answer>42</answer>", text)
+        repair = prompt.STAGE3_ANSWER_TAG_REPAIR
+        self.assertIn("<answer>", repair)
+        self.assertIn("omitted <answer> tags", repair)
+        self.assertNotIn("Retrieve_memory", repair)
         lock = _lock()
         for row_id in lock["source_train_row_ids"]:
             self.assertNotIn(row_id, text)
+            self.assertNotIn(row_id, repair)
+
+    def test_tag_repair_only_runs_when_untagged(self):
+        utils = _load_module(UTILS_PATH, "e1_stage3_utils")
+        repair = utils.should_repair_untagged_stage3_answer
+        self.assertTrue(repair(enabled=True, found_answer=False))
+        self.assertFalse(repair(enabled=True, found_answer=True))
+        self.assertFalse(repair(enabled=False, found_answer=False))
 
     def test_probe_yaml_enables_nudge_without_reusing_smoke_job(self):
         lock = _lock()
@@ -91,10 +104,12 @@ class E1Stage3AnswerProbeTest(unittest.TestCase):
         self.assertEqual(lock["schema_version"], "agemem.e1_stage3_answer_probe.lock.v1")
         self.assertEqual(lock["job_name"], "agemem-e1-stage3-answer-probe")
         self.assertTrue(lock["stage3_require_final_answer"])
+        self.assertTrue(lock["stage3_repair_untagged_answer"])
         self.assertEqual(lock["stage3_max_rounds"], 2)
         self.assertIn('name: "agemem-e1-stage3-answer-probe"', yaml_text)
         self.assertNotIn(lock["smoke_job_name"], yaml_text)
         self.assertIn("stage3_require_final_answer: true", yaml_text)
+        self.assertIn("stage3_repair_untagged_answer: true", yaml_text)
         self.assertIn("stage3_max_rounds: 2", yaml_text)
         self.assertIn("mode: bench", yaml_text)
         self.assertIn("continue_from_checkpoint: false", yaml_text)
@@ -106,6 +121,7 @@ class E1Stage3AnswerProbeTest(unittest.TestCase):
         self.assertEqual(_source_digest(DRY_RUN), smoke_lock["source_files"]["config"]["sha256"])
         dry_run = DRY_RUN.read_text(encoding="utf-8")
         self.assertNotIn("stage3_require_final_answer: true", dry_run)
+        self.assertNotIn("stage3_repair_untagged_answer: true", dry_run)
         gate = RUNTIME_GATE.read_text(encoding="utf-8")
         script = PROBE_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("e1_stage3_answer_probe_test", gate)

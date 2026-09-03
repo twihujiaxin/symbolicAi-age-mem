@@ -505,6 +505,15 @@ def should_emit_stage3_final_answer_nudge(
     return round_index == max_rounds - 1
 
 
+def should_repair_untagged_stage3_answer(
+    *,
+    enabled: bool,
+    found_answer: bool,
+) -> bool:
+    """Return True when a tag-repair turn should run after an untagged Stage-3 reply."""
+    return bool(enabled) and not bool(found_answer)
+
+
 def extract_score(text: str, default: float = 0.0) -> float:
     """Extract a float score from text (fallback to default)."""
     if not text:

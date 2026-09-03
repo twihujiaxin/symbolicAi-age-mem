@@ -61,9 +61,16 @@ Your full output must follow these rules:
 # Last Stage-3 user turn when workflow_args.stage3_require_final_answer is true.
 # Must not name tools, gold answers, or Hotpot facts.
 STAGE3_FINAL_ANSWER_NUDGE = (
-    "This is the final turn. Do not call tools. "
-    "Using the question and any information already in the conversation, "
-    "output only the final answer inside <answer>...</answer>."
+    "This is the final turn. Do not call tools. Do not write explanations. "
+    "Reply with exactly this form and nothing else: <answer>SHORT ANSWER</answer> "
+    "Example: <answer>42</answer>"
+)
+
+# Extra turn when the last Stage-3 reply has content but no <answer> tags.
+STAGE3_ANSWER_TAG_REPAIR = (
+    "The previous reply is invalid because it omitted <answer> tags. "
+    "Do not call tools. Do not add explanations. "
+    "Rewrite only the final answer as <answer>SHORT ANSWER</answer>."
 )
 
 

@@ -118,12 +118,16 @@ with path.open(encoding="utf-8") as handle:
 print("rows", len(rows))
 print("round", Counter(row.get("round") for row in rows))
 print("nudged", Counter(row.get("nudged") for row in rows))
+print("repaired", Counter(row.get("repaired") for row in rows))
 print("found_answer", Counter(row.get("found_answer") for row in rows))
 print("has_answer_tag", Counter(row.get("has_answer_tag") for row in rows))
 print("has_tool_call", Counter(row.get("has_tool_call") for row in rows))
-last = [row for row in rows if row.get("nudged") or row.get("round") == 1]
-print("last_round_rows", len(last))
-for row in last[:6]:
+last = [row for row in rows if row.get("nudged") or row.get("repaired") or row.get("round") == 1]
+print("last_or_repair_rows", len(last))
+repair = [row for row in rows if row.get("repaired")]
+print("repair_found_answer", Counter(row.get("found_answer") for row in repair))
+print("repair_has_answer_tag", Counter(row.get("has_answer_tag") for row in repair))
+for row in last[:8]:
     preview = (row.get("response_preview") or "").replace("\n", " ")[:160]
     print("--- task", row.get("task_id"), "found", row.get("found_answer"), "parsed", row.get("parsed_answer"))
     print("preview", preview)

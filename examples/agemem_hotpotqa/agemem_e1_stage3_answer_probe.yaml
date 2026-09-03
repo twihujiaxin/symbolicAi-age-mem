@@ -54,6 +54,7 @@ buffer:
         terminal_reward_metric: hotpotqa_official
         milestone_reward_enabled: false
         stage3_require_final_answer: true
+        stage3_repair_untagged_answer: true
         auxiliary_provider:
           schema_version: agemem.auxiliary_provider.v1
           provider: dashscope
@@ -101,6 +102,7 @@ buffer:
         terminal_reward_metric: hotpotqa_official
         milestone_reward_enabled: false
         stage3_require_final_answer: true
+        stage3_repair_untagged_answer: true
         auxiliary_provider:
           schema_version: agemem.auxiliary_provider.v1
           provider: dashscope

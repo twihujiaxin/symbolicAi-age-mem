@@ -96,8 +96,8 @@ bash -n scripts/agemem_e1_stage3_answer_probe.sh
 bash scripts/agemem_e1_stage3_answer_probe.sh
 ```
 
-保持 `stage3_max_rounds: 2`，只在最后一轮追加“不要调用工具、必须写 `<answer>`”。
-默认 E1/smoke YAML 不启用该开关。不要把这次 probe 说成 DFA 或正式 E1。
+保持 `stage3_max_rounds: 2`，最后一轮要求 `<answer>`；若仍无标签再追加一轮只修标签。
+默认 E1/smoke YAML 不启用这些开关。不要把这次 probe 说成 DFA 或正式 E1。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

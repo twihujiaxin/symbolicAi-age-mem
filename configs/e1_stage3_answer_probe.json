@@ -15,5 +15,6 @@
   ],
   "stage3_max_rounds": 2,
   "stage3_require_final_answer": true,
+  "stage3_repair_untagged_answer": true,
   "trainer_total_steps": 0
 }

@@ -30,6 +30,7 @@ from .workflow_prompt import (
     SUMMARY_CONTEXT_SYS_PROMPT,
     TEXT_SIMILARITY_SYS_PROMPT,
     STAGE3_FINAL_ANSWER_NUDGE,
+    STAGE3_ANSWER_TAG_REPAIR,
 )
 from .utils import (
     TOOL_SCHEMA as COMMON_TOOL_SCHEMA,
@@ -40,6 +41,7 @@ from .utils import (
     parse_tool_calls as common_parse_tool_calls,
     should_collect_intermediate_experience,
     should_emit_stage3_final_answer_nudge,
+    should_repair_untagged_stage3_answer,
     validate_tool_call,
 )
 
@@ -153,6 +155,9 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.stage3_max_rounds = self.workflow_args.get("stage3_max_rounds", 5)
         self.stage3_require_final_answer = bool(
             self.workflow_args.get("stage3_require_final_answer", False)
+        )
+        self.stage3_repair_untagged_answer = bool(
+            self.workflow_args.get("stage3_repair_untagged_answer", False)
         )
         self.stage1_max_rounds = self.workflow_args.get("stage1_max_rounds", 5)
         self.stage2_max_rounds = self.workflow_args.get("stage2_max_rounds", 5)
@@ -576,6 +581,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         round_index: int,
         response_text: str,
         nudged: bool,
+        repaired: bool = False,
     ) -> None:
         if not self.stage3_require_final_answer:
             return
@@ -588,6 +594,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             "has_tool_call": "<tool_call>" in text,
             "nudged": bool(nudged),
             "parsed_answer": parsed,
+            "repaired": bool(repaired),
             "response_preview": text[:4096],
             "round": round_index,
             "stage": 3,
@@ -1682,8 +1689,47 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     stage_experiences.extend(exps)
                 break
 
+        ran_untagged_repair = False
+        if should_repair_untagged_stage3_answer(
+            enabled=self.stage3_repair_untagged_answer,
+            found_answer=found_final_answer,
+        ):
+            ran_untagged_repair = True
+            repair_round = self.stage3_max_rounds
+            self.current_round = repair_round
+            self.current_step = repair_round
+            self.current_turn_index = 0
+            self._append_context("user", STAGE3_ANSWER_TAG_REPAIR)
+            self.logger.info("Stage 3: appended untagged-answer repair turn")
+            response_text = await self.get_model_response_text(self.context_messages)
+            self._record_stage3_final_turn(
+                round_index=repair_round,
+                response_text=response_text,
+                nudged=False,
+                repaired=True,
+            )
+            exps = self.model.extract_experience_from_history(clear_history=True)
+            for exp in exps:
+                exp.eid.step = repair_round
+            self._annotate_experiences(
+                exps,
+                stage=3,
+                round_index=repair_round,
+                step_index=repair_round,
+            )
+            self._append_context("assistant", response_text)
+            tool_calls = parse_tool_calls(response_text)
+            if tool_calls:
+                self._apply_tools(tool_calls, exps)
+            final_answer = parse_answer(response_text)
+            if final_answer:
+                found_final_answer = True
+                task_score = await self._get_answer_score(final_answer)
+            if exps:
+                stage_experiences.extend(exps)
+
         # If no answer is found, add the last experience.
-        if not found_final_answer and not context_autosummarized:
+        if not found_final_answer and not context_autosummarized and not ran_untagged_repair:
             # Ensure at least one experience exists.
             if exps:
                 stage_experiences.append(exps[-1])

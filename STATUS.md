@@ -428,4 +428,4 @@ E1：Stage 3 是否写出 `<answer>`（冻结 1.5B probe，不进入 E3）
 
 ## Next recommended action
 
-E1 三 seed 已在 `/data/hjx/Age_mem/checkpoints-e1-repeat` 完成，terminal F1 全 0，因为 Stage 3 未写出 `<answer>`。不要改冻结 dry-run YAML，不要进 E3。下一步是冻结 1.5B 的 Stage 3 答案格式 probe：同一 6 条 train、`stage3_max_rounds: 2`、最后一轮 `stage3_require_final_answer` nudge、不训练。新 checkpoint 根目录 `/data/hjx/Age_mem/checkpoints-e1-answer-probe`，命令：`bash scripts/agemem_e1_stage3_answer_probe.sh`。
+E1 三 seed 已在 `/data/hjx/Age_mem/checkpoints-e1-repeat` 完成，terminal F1 全 0。冻结 1.5B probe 显示模型最后一轮会用自然语言答题，但不写 `<answer>` 标签。不要改冻结 dry-run YAML，不要进 E3。下一步是同一 6 条 train 的标签修复 probe：`stage3_require_final_answer` + `stage3_repair_untagged_answer`，不训练。新 checkpoint 根目录 `/data/hjx/Age_mem/checkpoints-e1-answer-probe-003`，命令：`bash scripts/agemem_e1_stage3_answer_probe.sh`。
