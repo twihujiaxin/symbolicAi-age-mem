@@ -162,7 +162,18 @@ class WorkflowRunner:
 
         except Exception as e:
             error_type = type(e).__name__
-            self.logger.error(f"WorkflowRunner run task error ({error_type})")
+            # Keep generic exception bodies out of logs (provider/task text).
+            # ActionContractError, including RayTaskError wrappers, is the
+            # fail-closed sentence and must be visible in the explorer log.
+            if "ActionContractError" in error_type:
+                contract_text = str(e).replace("\r", " ").replace("\n", " | ")[:1500]
+                self.logger.error(
+                    "WorkflowRunner run task error (%s): %s",
+                    error_type,
+                    contract_text,
+                )
+            else:
+                self.logger.error(f"WorkflowRunner run task error ({error_type})")
             if isinstance(e, ActionContractError) and str(e).startswith(
                 "rollout policy version changed"
             ):

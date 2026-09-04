@@ -26,7 +26,10 @@ from transformers import AutoProcessor
 from vllm.lora.request import LoRARequest
 from vllm.sampling_params import RequestOutputKind
 
-from trinity.common.action_event_contract import response_metadata_for_generation
+from trinity.common.action_event_contract import (
+    ActionContractError,
+    response_metadata_for_generation,
+)
 from trinity.common.config import InferenceModelConfig
 from trinity.common.experience import Experience
 from trinity.common.models.api.vllm_patch import get_vllm_version
@@ -116,6 +119,29 @@ class vLLMRolloutModel(InferenceModel):
         self.api_server_host = None
         self.api_server_port = None
         self.api_server = None
+
+    def _response_metadata(
+        self,
+        token_ids: Sequence[int],
+        response_text: str,
+        record_action_metadata: bool,
+    ) -> Optional[Dict[str, Any]]:
+        if not record_action_metadata:
+            return None
+        try:
+            return response_metadata_for_generation(
+                self.tokenizer, token_ids, response_text
+            )
+        except ActionContractError as exc:
+            token_count = len(token_ids) if token_ids is not None else None
+            text_len = len(response_text) if isinstance(response_text, str) else None
+            self.logger.error(
+                "response metadata contract failed: %s (text_len=%s token_count=%s)",
+                str(exc)[:1500],
+                text_len,
+                token_count,
+            )
+            raise
 
     async def _initialize_tokenizer(self):
         if self.tokenizer is None:
@@ -224,14 +250,10 @@ class vLLMRolloutModel(InferenceModel):
                 prompt_length=len(output.prompt_token_ids),
                 prompt_text=self.tokenizer.decode(output.prompt_token_ids),
                 response_text=output.outputs[i].text,
-                info=(
-                    response_metadata_for_generation(
-                        self.tokenizer,
-                        output.outputs[i].token_ids,
-                        output.outputs[i].text,
-                    )
-                    if record_action_metadata
-                    else None
+                info=self._response_metadata(
+                    output.outputs[i].token_ids,
+                    output.outputs[i].text,
+                    record_action_metadata,
                 ),
             )
             for i in range(len(output.outputs))
@@ -327,14 +349,10 @@ class vLLMRolloutModel(InferenceModel):
                 prompt_length=len(output.prompt_token_ids),
                 prompt_text=mm_inputs["prompt"],
                 response_text=output.outputs[i].text,
-                info=(
-                    response_metadata_for_generation(
-                        self.tokenizer,
-                        output.outputs[i].token_ids,
-                        output.outputs[i].text,
-                    )
-                    if record_action_metadata
-                    else None
+                info=self._response_metadata(
+                    output.outputs[i].token_ids,
+                    output.outputs[i].text,
+                    record_action_metadata,
                 ),
                 multi_modal_inputs=mm_inputs["multi_modal_inputs"],
             )

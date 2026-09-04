@@ -911,10 +911,15 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             return await self.inference_samples(rollout_n)
 
         except Exception as e:
-            self.logger.error(
-                "Error in run (%s)",
-                type(e).__name__[:128],
-            )
+            error_type = type(e).__name__[:128]
+            if "ActionContractError" in error_type:
+                self.logger.error(
+                    "Error in run (%s): %s",
+                    error_type,
+                    str(e).replace("\r", " ").replace("\n", " | ")[:1500],
+                )
+            else:
+                self.logger.error("Error in run (%s)", error_type)
             raise
 
     def _mark_retrievals_used_by_next_response(self, messages) -> None:
