@@ -6,6 +6,9 @@ import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 from trinity.common.action_event_contract import (
+    TRUNCATED_TOOL_CALL_SPAN_ERROR,
+    ActionContractError,
+    parse_tool_calls_with_char_spans,
     prepare_experience_action_drafts,
     record_experience_action_result,
 )
@@ -988,6 +991,26 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self._model_round_count += 1
         return responses[0].response_text
 
+    def _parse_executable_tool_calls(self, response_text: str) -> List[Dict]:
+        """Execute only tool calls that have an exact character span.
+
+        The tolerant parser may close a truncated JSON array with synthetic
+        brackets. Those characters are not in the response, so the action
+        contract refuses a span. Skip execution instead of crashing the task.
+        """
+
+        try:
+            parse_tool_calls_with_char_spans(response_text)
+        except ActionContractError as exc:
+            if str(exc) == TRUNCATED_TOOL_CALL_SPAN_ERROR:
+                self.logger.warning(
+                    "skipping truncated tool-call JSON without an exact character span (text_len=%s)",
+                    len(response_text) if isinstance(response_text, str) else None,
+                )
+                return []
+            raise
+        return parse_tool_calls(response_text)
+
     async def inference_samples(self, rollout_num: int) -> List[Experience]:
         """对同一道题采样多条三阶段轨迹，并为每条轨迹计算终局奖励。"""
 
@@ -1381,7 +1404,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 # Even without experiences, continue to record at least one response.
                 self._append_context("assistant", response_text)
                 # Handle tool calls (if any) first.
-                tool_calls = parse_tool_calls(response_text)
+                tool_calls = self._parse_executable_tool_calls(response_text)
                 if tool_calls:
                     self._apply_tools(tool_calls, exps)
                 # Then check whether an answer is present.
@@ -1398,7 +1421,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 )
 
             # Handle tool calls (if any) first.
-            tool_calls = parse_tool_calls(response_text)
+            tool_calls = self._parse_executable_tool_calls(response_text)
 
             # Mark experiences that used memory-management tools.
             memory_related_tool = should_collect_intermediate_experience(
@@ -1508,7 +1531,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     # Even without experiences, continue to record at least one response.
                     self._append_context("assistant", response_text)
                     # Handle tool calls (if any) first.
-                    tool_calls = parse_tool_calls(response_text)
+                    tool_calls = self._parse_executable_tool_calls(response_text)
                     if tool_calls:
                         self._apply_tools(tool_calls, exps)
                     # Then check whether an answer is present.
@@ -1525,7 +1548,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     )
 
                 # Handle tool calls (if any) first.
-                tool_calls = parse_tool_calls(response_text)
+                tool_calls = self._parse_executable_tool_calls(response_text)
 
                 # Mark experiences that used context-management tools.
                 context_related_tool = should_collect_intermediate_experience(
@@ -1644,7 +1667,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 # Even without experiences, continue to record at least one response.
                 self._append_context("assistant", response_text)
                 # Handle tool calls (if any) first.
-                tool_calls = parse_tool_calls(response_text)
+                tool_calls = self._parse_executable_tool_calls(response_text)
                 if tool_calls:
                     self._apply_tools(tool_calls, exps)
                 # Then check whether an answer is present.
@@ -1662,7 +1685,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 )
 
             # Handle tool calls (if any) first.
-            tool_calls = parse_tool_calls(response_text)
+            tool_calls = self._parse_executable_tool_calls(response_text)
 
             # Mark experiences that used context-management tools.
             context_related_tool = should_collect_intermediate_experience(
@@ -1723,7 +1746,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 step_index=repair_round,
             )
             self._append_context("assistant", response_text)
-            tool_calls = parse_tool_calls(response_text)
+            tool_calls = self._parse_executable_tool_calls(response_text)
             if tool_calls:
                 self._apply_tools(tool_calls, exps)
             final_answer = parse_answer(response_text)

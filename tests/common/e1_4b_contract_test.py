@@ -266,6 +266,35 @@ class E14BContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ActionContractError, "cannot derive exact"):
             derive_response_token_char_offsets(tokenizer, [1, 2, 3, 4], "ab")
 
+    def test_truncated_tool_call_keeps_empty_drafts_and_still_fail_closed_on_spans(self):
+        from trinity.common.action_event_contract import (
+            ACTION_DRAFTS_KEY,
+            ActionContractError,
+            parse_tool_calls_with_char_spans,
+            prepare_experience_action_drafts,
+        )
+
+        truncated = '<tool_call>[{"name":"Add_memory","arguments":{}}'
+        with self.assertRaisesRegex(ActionContractError, "truncated"):
+            parse_tool_calls_with_char_spans(truncated)
+
+        class _EID:
+            step = 0
+
+        class _Experience:
+            response_text = truncated
+            info = {}
+            eid = _EID()
+            tokens = None
+            logprobs = None
+            action_mask = None
+
+        experience = _Experience()
+        prepare_experience_action_drafts(
+            experience, stage_id=1, timestep=0, assistant_turn_id=0
+        )
+        self.assertEqual(experience.info[ACTION_DRAFTS_KEY], [])
+
     def test_frozen_1p5b_dry_run_and_runtime_gate_are_untouched(self):
         smoke = json.loads(SMOKE_LOCK_PATH.read_text(encoding="utf-8"))
         self.assertEqual(_source_digest(DRY_RUN), smoke["source_files"]["config"]["sha256"])

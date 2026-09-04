@@ -45,6 +45,7 @@ ON_POLICY_ELIGIBLE_KEY = "agemem_on_policy_eligible"
 RESPONSE_TOKEN_OFFSETS_KEY = "agemem_response_token_char_offsets"
 
 OFF_POLICY_SOURCES = frozenset({"rule", "oracle", "random", "error_injector"})
+TRUNCATED_TOOL_CALL_SPAN_ERROR = "truncated tool-call JSON has no exact character span"
 
 
 class ActionContractError(ValueError):
@@ -603,9 +604,7 @@ def _calls_from_segment(
     if array_end is None or array_end > segment_end:
         # The tolerant execution parser may repair a missing closing bracket.
         # Such a synthetic character has no honest response/token span.
-        raise ActionContractError(
-            "truncated tool-call JSON has no exact character span"
-        )
+        raise ActionContractError(TRUNCATED_TOOL_CALL_SPAN_ERROR)
     calls: list[ParsedToolCallSpan] = []
     for call_start, call_end in _array_element_ranges(text, array_start, array_end):
         try:
@@ -715,7 +714,14 @@ def prepare_experience_action_drafts(
     response_text = experience.response_text
     if not isinstance(response_text, str):
         raise ActionContractError("Experience.response_text is required")
-    parsed = parse_tool_calls_with_char_spans(response_text)
+    try:
+        parsed = parse_tool_calls_with_char_spans(response_text)
+    except ActionContractError as exc:
+        if str(exc) != TRUNCATED_TOOL_CALL_SPAN_ERROR:
+            raise
+        # Hitting the generation budget mid-tool-call is a real model outcome.
+        # It must not receive a fake span, and it must not abort the workflow.
+        parsed = ()
     info: MutableMapping[str, Any] = dict(experience.info or {})
     if ACTION_DRAFTS_KEY in info or ACTION_EVENTS_KEY in info:
         raise ActionContractError("Experience already contains action metadata")
@@ -1261,6 +1267,7 @@ __all__ = [
     "OFF_POLICY_SOURCES",
     "RESPONSE_TOKEN_OFFSETS_KEY",
     "TRAJECTORY_SOURCE_KEY",
+    "TRUNCATED_TOOL_CALL_SPAN_ERROR",
     "ActionContractError",
     "ParsedToolCallSpan",
     "derive_response_token_char_offsets",
