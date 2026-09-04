@@ -161,6 +161,39 @@ class E14BContractTest(unittest.TestCase):
         with self.assertRaisesRegex(ActionContractError, "cannot derive exact"):
             derive_response_token_char_offsets(tokenizer, [1, 2], "ab")
 
+    def test_bpe_convert_tokens_to_string_offsets_when_decode_is_not_a_prefix(self):
+        from trinity.common.action_event_contract import derive_response_token_char_offsets
+
+        class _BpeTokenizer:
+            all_special_ids = []
+            all_special_tokens = []
+
+            def __call__(self, text, *, add_special_tokens=False, return_offsets_mapping=False):
+                del add_special_tokens, text
+                result = {"input_ids": [0]}
+                if return_offsets_mapping:
+                    result["offset_mapping"] = [(0, 1)]
+                return result
+
+            def decode(self, token_ids, **kwargs):
+                del kwargs
+                ids = list(token_ids)
+                if ids == [10]:
+                    return "z"
+                if ids == [10, 11]:
+                    return "ab"
+                return "z"
+
+            def convert_ids_to_tokens(self, token_ids):
+                mapping = {10: "a", 11: "b"}
+                return [mapping[token_id] for token_id in token_ids]
+
+            def convert_tokens_to_string(self, tokens):
+                return "".join(tokens)
+
+        offsets = derive_response_token_char_offsets(_BpeTokenizer(), [10, 11], "ab")
+        self.assertEqual(offsets, ((0, 1), (1, 2)))
+
     def test_frozen_1p5b_dry_run_and_runtime_gate_are_untouched(self):
         smoke = json.loads(SMOKE_LOCK_PATH.read_text(encoding="utf-8"))
         self.assertEqual(_source_digest(DRY_RUN), smoke["source_files"]["config"]["sha256"])

@@ -193,6 +193,67 @@ def _offsets_with_skipped_specials(
         return None
 
 
+def _offsets_from_convert_tokens_to_string(
+    tokenizer: Any,
+    token_ids: Sequence[int],
+    response_text: str,
+) -> tuple[tuple[int, int], ...] | None:
+    """Exact offsets when BPE decode(ids[:k]) is not a character prefix.
+
+    Qwen3 byte-level tokens plus vLLM ``skip_special_tokens=True`` make
+    incremental ``tokenizer.decode`` fail ``startswith``, even when the full
+    detokenized string matches.  ``convert_tokens_to_string`` on the growing
+    visible token list is monotonic and is accepted only when it equals
+    ``response_text`` exactly.
+    """
+
+    convert_ids = getattr(tokenizer, "convert_ids_to_tokens", None)
+    to_string = getattr(tokenizer, "convert_tokens_to_string", None)
+    if not callable(convert_ids) or not callable(to_string):
+        return None
+    special_ids = _special_token_id_set(tokenizer)
+    special_tokens = {
+        token
+        for token in (getattr(tokenizer, "all_special_tokens", None) or ())
+        if isinstance(token, str)
+    }
+    try:
+        raw_tokens = convert_ids(list(token_ids))
+    except TypeError:
+        try:
+            raw_tokens = [convert_ids(token_id) for token_id in token_ids]
+        except TypeError:
+            return None
+    if isinstance(raw_tokens, str) or len(raw_tokens) != len(token_ids):
+        return None
+    prefixes = [""]
+    visible: list[str] = []
+    for token, token_id in zip(raw_tokens, token_ids):
+        if not isinstance(token, str):
+            return None
+        if token_id in special_ids or token in special_tokens:
+            prefixes.append(prefixes[-1])
+            continue
+        visible.append(token)
+        try:
+            piece = to_string(visible)
+        except TypeError:
+            return None
+        if not isinstance(piece, str) or not response_text.startswith(piece):
+            return None
+        prefixes.append(piece)
+    if prefixes[-1] != response_text:
+        return None
+    offsets = tuple(
+        (len(prefixes[index]), len(prefixes[index + 1]))
+        for index in range(len(token_ids))
+    )
+    try:
+        return _validate_response_offsets(offsets, len(token_ids), len(response_text))
+    except ActionContractError:
+        return None
+
+
 def derive_response_token_char_offsets(
     tokenizer: Any,
     response_token_ids: Sequence[int],
@@ -230,6 +291,12 @@ def derive_response_token_char_offsets(
     special_offsets = _offsets_with_skipped_specials(tokenizer, token_ids, response_text)
     if special_offsets is not None:
         return special_offsets
+
+    string_offsets = _offsets_from_convert_tokens_to_string(
+        tokenizer, token_ids, response_text
+    )
+    if string_offsets is not None:
+        return string_offsets
 
     decoded_prefixes: list[str] = [""]
     for end in range(1, len(token_ids) + 1):
