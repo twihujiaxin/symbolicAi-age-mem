@@ -339,6 +339,27 @@ bash -n scripts/agemem_e1_4b_stage3_answer_probe.sh
 bash scripts/agemem_e1_4b_stage3_answer_probe.sh
 ```
 
-必须使用空目录；脚本会拒绝已有 1.5B smoke/probe 或 4B E0/E1 job 的根。不要把
-这次 probe 并入 GRPO 基线，也不要说成 E3。
+必须使用空目录；脚本会拒绝已有 1.5B smoke/probe、4B E0/E1 或 format-conditioned
+job 的根。不要把这次 probe 并入 GRPO 基线，也不要说成 E3。
+
+## format-conditioned 4B GRPO（独立锁，非基线）
+
+同一 6 条 M5 train、K=2、1 trainer step、打开 Stage 3 `<answer>` nudge。E0 与
+checkpoint eval 也带 nudge、T=0。不改 4B E1 dry-run：
+
+- 锁：`configs/e1_4b_format.json`；
+- 配置：`examples/agemem_hotpotqa/agemem_e0_4b_format_eval.yaml`、
+  `agemem_e1_4b_format.yaml`、`agemem_e1_4b_format_eval.yaml`；
+- 启动器：`scripts/agemem_e1_4b_format.sh`；
+- job 名：`agemem-e0-terminal-only-4b-format-eval`、`agemem-e1-terminal-only-4b-format`。
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-format
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_format.sh
+bash scripts/agemem_e1_4b_format.sh
+```
+
+必须使用空目录。先看 1-step `training/reward_mean` 与 held-out `task_score`。
+不要把这次并入 vanilla E1 基线，也不要说成 E3。
 

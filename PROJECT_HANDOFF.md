@@ -1844,17 +1844,19 @@ M0
 Codex 当前只应执行：
 
 ```text
-E1：独立 4B Stage 3 <answer> 格式 probe（不训练，不进入 E3）
+E1：独立 format-conditioned 4B GRPO（nudge 打开，非基线，不进入 E3）
 ```
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆盖其实现，也不要
 修改冻结的 `agemem_e1_dry_run.yaml` 或 `agemem_e1_4b_dry_run.yaml`。1.5B 与 4B 的
 无 nudge terminal-only E1 均已关闭（reward/F1 全 0）。4B 证据在 commit
 `2da2c1cbbe575c88d7fa1520099e89d3ea5b9f1b` 与
-`/data/hjx/Age_mem/checkpoints-e1-4b-006`。当前由用户主动运行
-`bash scripts/agemem_e1_4b_stage3_answer_probe.sh`，使用新的空 checkpoint 根
-（例如 `/data/hjx/Age_mem/checkpoints-e1-4b-answer-probe`）。不要调用
-`autodl_m8b_smoke.sh` 或 `agemem_e1_4b.sh` 做这件事。
+`/data/hjx/Age_mem/checkpoints-e1-4b-006`。4B Stage 3 probe 已在
+`f9a5da399fb87b44144b9cdc319584697715790a` /
+`/data/hjx/Age_mem/checkpoints-e1-4b-answer-probe` 关闭（最后一轮 12/12 套标签，
+mean F1 ≈ 0.32）。当前由用户主动运行 `bash scripts/agemem_e1_4b_format.sh`，使用
+新的空 checkpoint 根（例如 `/data/hjx/Age_mem/checkpoints-e1-4b-format`）。不要调用
+`autodl_m8b_smoke.sh`、`agemem_e1_4b.sh` 或 probe 启动器做这件事。
 
 当前及后续顺序是：
 
@@ -1961,7 +1963,9 @@ snapshot 回归测试。该修复尚未完成全部测试、规范报告重生�
 revision `1cfa9a7208912126459214e8b04321603b3df60c`，文件为 `configs/e1_4b.json`
 与独立 E0/E1/checkpoint-eval YAML；无 nudge E1 已在 `checkpoints-e1-4b-006` 关闭。
 4B Stage 3 probe 使用 `configs/e1_4b_stage3_answer_probe.json`，不能只替换
-`TRINITY_MODEL_PATH` 复用 1.5B lock 或 1.5B probe。暂不进入 7B。
+`TRINITY_MODEL_PATH` 复用 1.5B lock 或 1.5B probe。format-conditioned 4B GRPO
+使用 `configs/e1_4b_format.json`，不能复用 `configs/e1_4b.json`（该锁断言 nudge
+关闭）。暂不进入 7B。
 
 ### 23.2 必须迁移的最小文件集合
 

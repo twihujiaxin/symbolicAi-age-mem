@@ -57,8 +57,10 @@ if [[ -e "$project_dir/agemem-e0-terminal-only-frozen-eval" || \
       -e "$project_dir/agemem-e1-terminal-only-repeat-s7" || \
       -e "$project_dir/agemem-e1-stage3-answer-probe" || \
       -e "$project_dir/agemem-e0-terminal-only-4b-frozen-eval" || \
-      -e "$project_dir/agemem-e1-terminal-only-4b-dry-run" ]]; then
-  printf 'Refusing a checkpoint root that already contains 1.5B or 4B E1/probe jobs.\n' >&2
+      -e "$project_dir/agemem-e1-terminal-only-4b-dry-run" || \
+      -e "$project_dir/agemem-e0-terminal-only-4b-format-eval" || \
+      -e "$project_dir/agemem-e1-terminal-only-4b-format" ]]; then
+  printf 'Refusing a checkpoint root that already contains 1.5B, 4B E1, format-conditioned, or probe jobs.\n' >&2
   exit 2
 fi
 if [[ -e "$job_dir" ]]; then

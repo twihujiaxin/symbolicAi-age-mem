@@ -1,0 +1,401 @@
+{
+  "config_assertions": [
+    {
+      "equals": "Trinity-RFT-AgeMem-M8",
+      "path": "project"
+    },
+    {
+      "equals": "agemem-e1-terminal-only-4b-format",
+      "path": "name"
+    },
+    {
+      "equals": "both",
+      "path": "mode"
+    },
+    {
+      "equals": false,
+      "path": "continue_from_checkpoint"
+    },
+    {
+      "equals": "multi_step_grpo",
+      "path": "algorithm.algorithm_type"
+    },
+    {
+      "equals": "step_wise_grpo",
+      "path": "algorithm.advantage_fn"
+    },
+    {
+      "equals": 2,
+      "path": "algorithm.repeat_times"
+    },
+    {
+      "equals": 1,
+      "path": "cluster.node_num"
+    },
+    {
+      "equals": 2,
+      "path": "cluster.gpu_per_node"
+    },
+    {
+      "equals": 3,
+      "path": "buffer.total_steps"
+    },
+    {
+      "equals": 2,
+      "path": "buffer.batch_size"
+    },
+    {
+      "equals": 4,
+      "path": "buffer.train_batch_size"
+    },
+    {
+      "equals": null,
+      "path": "buffer.trainer_input.experience_buffer.path"
+    },
+    {
+      "equals": "file",
+      "path": "buffer.explorer_input.taskset.storage_type"
+    },
+    {
+      "equals": "train",
+      "path": "buffer.explorer_input.taskset.split"
+    },
+    {
+      "equals": "id",
+      "path": "buffer.explorer_input.taskset.row_id_key"
+    },
+    {
+      "equals": [],
+      "path": "buffer.explorer_input.eval_tasksets"
+    },
+    {
+      "equals": "AgeMem_hotpot_workflow_training",
+      "path": "buffer.explorer_input.default_workflow_type"
+    },
+    {
+      "equals": "terminal_only",
+      "path": "buffer.explorer_input.taskset.workflow_args.reward_profile"
+    },
+    {
+      "equals": "hotpotqa_official",
+      "path": "buffer.explorer_input.taskset.workflow_args.terminal_reward_metric"
+    },
+    {
+      "equals": false,
+      "path": "buffer.explorer_input.taskset.workflow_args.milestone_reward_enabled"
+    },
+    {
+      "equals": true,
+      "path": "buffer.explorer_input.taskset.workflow_args.stage3_require_final_answer"
+    },
+    {
+      "equals": true,
+      "path": "buffer.explorer_input.taskset.workflow_args.stage3_repair_untagged_answer"
+    },
+    {
+      "equals": "fixed",
+      "path": "buffer.explorer_input.taskset.workflow_args.stage2_distractor_source"
+    },
+    {
+      "equals": {
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "chat_model": "qwen-max",
+        "embedding_dimensions": 256,
+        "embedding_model": "text-embedding-v4",
+        "provider": "dashscope",
+        "schema_version": "agemem.auxiliary_provider.v1",
+        "usage_tracking": true
+      },
+      "path": "buffer.explorer_input.taskset.workflow_args.auxiliary_provider"
+    },
+    {
+      "equals": true,
+      "path": "buffer.explorer_input.taskset.workflow_args.tool_trace_enabled"
+    },
+    {
+      "equals": 2,
+      "path": "explorer.runner_per_model"
+    },
+    {
+      "equals": 2,
+      "path": "explorer.max_repeat_times_per_runner"
+    },
+    {
+      "equals": 1,
+      "path": "explorer.rollout_model.engine_num"
+    },
+    {
+      "equals": 1,
+      "path": "explorer.rollout_model.tensor_parallel_size"
+    },
+    {
+      "equals": 7,
+      "path": "explorer.rollout_model.seed"
+    },
+    {
+      "equals": 0.6,
+      "path": "explorer.rollout_model.gpu_memory_utilization"
+    },
+    {
+      "equals": 2304,
+      "path": "trainer.trainer_config.actor_rollout_ref.actor.ppo_max_token_len_per_gpu"
+    },
+    {
+      "equals": false,
+      "path": "explorer.rollout_model.enable_thinking"
+    },
+    {
+      "equals": null,
+      "path": "model.lora_configs.0.path"
+    },
+    {
+      "equals": 16,
+      "path": "model.lora_configs.0.lora_rank"
+    },
+    {
+      "equals": 16,
+      "path": "model.lora_configs.0.lora_alpha"
+    },
+    {
+      "equals": "checkpoint",
+      "path": "synchronizer.sync_method"
+    },
+    {
+      "equals": 1,
+      "path": "synchronizer.sync_interval"
+    },
+    {
+      "equals": "verl",
+      "path": "trainer.trainer_type"
+    },
+    {
+      "equals": 1,
+      "path": "trainer.total_steps"
+    },
+    {
+      "equals": 1,
+      "path": "trainer.save_interval"
+    },
+    {
+      "equals": 1e-06,
+      "path": "trainer.trainer_config.actor_rollout_ref.actor.optim.lr"
+    },
+    {
+      "equals": 5120,
+      "path": "model.max_model_len"
+    },
+    {
+      "equals": 1024,
+      "path": "model.max_response_tokens"
+    }
+  ],
+  "credentials": {
+    "forbidden_repo_paths": [
+      ".env",
+      "config"
+    ],
+    "required_env": [
+      "DASHSCOPE_API_KEY"
+    ]
+  },
+  "dataset": {
+    "fixed_eval_rows": [
+      {
+        "content_sha256": "791cf4a4d6832d5f5c48f36754b0d0a7a76dacc2ebed1623faa2d5f7538187a2",
+        "hotpot_id": "5ab7c6995542993667794005",
+        "source_index": 4073
+      },
+      {
+        "content_sha256": "703b09387a0c408112713561f7579e2f57c1e7650b03c85d0b4f5a36b4e71782",
+        "hotpot_id": "5adc8c545542994734353734",
+        "source_index": 5204
+      }
+    ],
+    "fixed_train_rows": [
+      {
+        "content_sha256": "5b9560b5341609d6150a9ba002517c278cc5f8fb17ff2d654d9e56a071d45bb2",
+        "hotpot_id": "5a85aaee5542991dd0999e84",
+        "source_index": 60480
+      },
+      {
+        "content_sha256": "d3d692b281a4d85a22b89c779a94aeda7ee0c99082dc59c3c1b739ef829d3739",
+        "hotpot_id": "5a74b19355429916b01641dd",
+        "source_index": 64387
+      },
+      {
+        "content_sha256": "5a0e609fbc73d336719c252fefa09f3ba7220f92e556ffe0e6f75f8ef7c9e678",
+        "hotpot_id": "5abecbed5542997719eab5c5",
+        "source_index": 29294
+      },
+      {
+        "content_sha256": "b3cf9065c676d924ce31b9b406f3c8d5cc7ef3dc960fc8d6ec4244981e1ce57e",
+        "hotpot_id": "5a8ac7d055429950cd6afb8f",
+        "source_index": 14935
+      },
+      {
+        "content_sha256": "073dd5bf9f9236fd2720a729680817789fe634bd3903cd4388641e42c675bfa1",
+        "hotpot_id": "5a83df2655429933447460a1",
+        "source_index": 86169
+      },
+      {
+        "content_sha256": "8495e0aa48f14436815d9accc7d4ca6e27797d4cbdcfdcedad1c483883f48fb7",
+        "hotpot_id": "5a76f83e55429972597f1405",
+        "source_index": 71348
+      }
+    ],
+    "source_fingerprints": {
+      "test": "a00e503f3f17d4be",
+      "train": "c369f1b07b350d37",
+      "validation": "fbe86cb2d14cb199"
+    },
+    "source_split_sizes": {
+      "test": 7405,
+      "train": 90447,
+      "validation": 7405
+    }
+  },
+  "experiment_id": "e1_format_conditioned_4b_single_update",
+  "gpu": {
+    "minimum_count": 2,
+    "minimum_free_memory_mib": 47000,
+    "minimum_memory_mib": 48000,
+    "require_exact_count": true
+  },
+  "model": {
+    "config_assertions": {
+      "architectures.0": "Qwen3ForCausalLM",
+      "hidden_size": 2560,
+      "intermediate_size": 9728,
+      "model_type": "qwen3",
+      "num_attention_heads": 32,
+      "num_hidden_layers": 36,
+      "num_key_value_heads": 8,
+      "vocab_size": 151936
+    },
+    "expected_revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+    "manifest_filename": ".agemem_model_manifest.json",
+    "minimum_weight_bytes": 7000000000,
+    "repository_id": "Qwen/Qwen3-4B",
+    "required_files": [
+      "config.json",
+      "generation_config.json",
+      "merges.txt",
+      "model.safetensors.index.json",
+      "model-00001-of-00003.safetensors",
+      "model-00002-of-00003.safetensors",
+      "model-00003-of-00003.safetensors",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "vocab.json"
+    ]
+  },
+  "paths": {
+    "autodl_persistent_prefix": "/data/hjx/Age_mem",
+    "clean_job_relative_paths": [
+      "Trinity-RFT-AgeMem-M8/agemem-e0-terminal-only-4b-format-eval",
+      "Trinity-RFT-AgeMem-M8/agemem-e1-terminal-only-4b-format"
+    ],
+    "minimum_checkpoint_free_gib": 80
+  },
+  "runtime": {
+    "expected_test_counts": {
+      "all": 318,
+      "m8a": 142
+    },
+    "packages": [
+      {
+        "distribution": "agentscope",
+        "import_name": "agentscope",
+        "required_mode": "all",
+        "specifier": ">=1.0.5,<2"
+      },
+      {
+        "distribution": "datasets",
+        "import_name": "datasets",
+        "required_mode": "all",
+        "specifier": ">=4,<5"
+      },
+      {
+        "distribution": "openai",
+        "import_name": "openai",
+        "required_mode": "all",
+        "specifier": ">=1,<3"
+      },
+      {
+        "distribution": "pydantic",
+        "import_name": "pydantic",
+        "required_mode": "all",
+        "specifier": ">=2,<3"
+      },
+      {
+        "distribution": "PyYAML",
+        "import_name": "yaml",
+        "required_mode": "all",
+        "specifier": ">=6,<7"
+      },
+      {
+        "distribution": "trinity-rft",
+        "import_name": "trinity",
+        "required_mode": "autodl",
+        "specifier": "==0.3.1"
+      },
+      {
+        "distribution": "verl",
+        "import_name": "verl",
+        "required_mode": "autodl",
+        "specifier": "==0.5.0"
+      },
+      {
+        "distribution": "ray",
+        "import_name": "ray",
+        "required_mode": "autodl",
+        "specifier": ">=2.48.0"
+      },
+      {
+        "distribution": "vllm",
+        "import_name": "vllm",
+        "required_mode": "autodl",
+        "specifier": ">=0.9.1,<=0.10.2"
+      },
+      {
+        "distribution": "torch",
+        "import_name": "torch",
+        "required_mode": "autodl",
+        "specifier": ">=2.4,<2.9"
+      },
+      {
+        "distribution": "transformers",
+        "import_name": "transformers",
+        "required_mode": "autodl",
+        "specifier": ">=4.53,<4.58"
+      },
+      {
+        "distribution": "omegaconf",
+        "import_name": "omegaconf",
+        "required_mode": "autodl",
+        "specifier": ">=2.3,<3"
+      }
+    ]
+  },
+  "schema_version": "agemem.m8b_preflight_lock.v1",
+  "source_files": {
+    "checkpoint_eval_config": {
+      "path": "examples/agemem_hotpotqa/agemem_e1_4b_format_eval.yaml",
+      "sha256": "f38c923cd1e5547698bc1794b78cd20901450961762f68c690d4b62b44c6e956"
+    },
+    "config": {
+      "path": "examples/agemem_hotpotqa/agemem_e1_4b_format.yaml",
+      "sha256": "069877ab0831067648ea089cff8a482525063c68706e87219f3d867fa9980ed7"
+    },
+    "e0_config": {
+      "path": "examples/agemem_hotpotqa/agemem_e0_4b_format_eval.yaml",
+      "sha256": "c3dbb8e99e353d4e180d1e5e3a70ca037f5cb35e884857ec3ef144630a0870b9"
+    },
+    "smoke_manifest": {
+      "path": "data/splits/hotpotqa_smoke_manifest.json",
+      "sha256": "ca112d5786bd6c75bf1fb5a26fdb7c84c83fc713306526da1b2383d650d9d599"
+    }
+  },
+  "stage3_repair_untagged_answer": true,
+  "stage3_require_final_answer": true
+}
