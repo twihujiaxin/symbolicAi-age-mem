@@ -48,7 +48,7 @@ preflight_dir="$TRINITY_CHECKPOINT_ROOT_DIR/e1_4b_format_var_preflight/$AGEMEM_E
 project_dir="$TRINITY_CHECKPOINT_ROOT_DIR/Trinity-RFT-AgeMem-M8"
 e1_job="$project_dir/agemem-e1-terminal-only-4b-format-var"
 trainer_receipt="$e1_job/receipts/trainer_step_3.json"
-eval_receipt="$e1_job/receipts/bench_step_1_model_1.json"
+eval_receipt="$e1_job/receipts/bench_step_3_model_3.json"
 
 if [[ ! -d "$TRINITY_CHECKPOINT_ROOT_DIR" ]]; then
   printf 'Checkpoint root must already exist on persistent storage.\n' >&2
@@ -169,7 +169,7 @@ if [[ ! -s "$eval_receipt" ]]; then
   trinity run --config examples/agemem_hotpotqa/agemem_e1_4b_format_var_eval.yaml \
     2>&1 | tee "$log_root/e1_format_var_checkpoint_eval.log"
   if [[ ! -s "$eval_receipt" ]]; then
-    printf 'Format-variance 4B checkpoint eval did not persist bench_step_1_model_1.json\n' >&2
+    printf 'Format-variance 4B checkpoint eval did not persist bench_step_3_model_3.json\n' >&2
     exit 1
   fi
   stop_ray "$log_root/ray_eval_stop.log"

@@ -155,6 +155,8 @@ class E14BFormatVarContractTest(unittest.TestCase):
         self.assertIn("agemem_e1_4b_format_var.yaml", launcher)
         self.assertIn("configs/e1_4b_format_var.json", launcher)
         self.assertIn("trainer_step_3.json", launcher)
+        self.assertIn("bench_step_3_model_3.json", launcher)
+        self.assertNotIn("bench_step_1_model_1.json", launcher)
         self.assertIn("global_step_3", launcher)
         self.assertNotIn("agemem_e0_4b_format_var_eval.yaml", launcher)
         self.assertNotIn("agemem_e1_4b_format.yaml", launcher)
