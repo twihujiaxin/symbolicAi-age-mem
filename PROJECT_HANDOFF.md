@@ -1956,9 +1956,10 @@ snapshot 回归测试。该修复尚未完成全部测试、规范报告重生�
 `git status --short`，完成验证、提交和推送，再用新的完整 40 位 commit 更新
 `AGEMEM_EXPECTED_COMMIT`。
 
-当前 M8b 只锁定 `Qwen/Qwen2.5-1.5B-Instruct`。4B 的具体模型尚未冻结，必须使用
-独立的模型结构/file manifest、E0/E1/checkpoint-eval YAML、配置 digest、job 名称和
-GPU 门禁；不能只替换 `TRINITY_MODEL_PATH` 复用 1.5B lock。暂不进入 7B。
+当前 M8b 只锁定 `Qwen/Qwen2.5-1.5B-Instruct`。4B 已另锁 `Qwen/Qwen3-4B`
+revision `1cfa9a7208912126459214e8b04321603b3df60c`，文件为 `configs/e1_4b.json`
+与独立 E0/E1/checkpoint-eval YAML；不能只替换 `TRINITY_MODEL_PATH` 复用 1.5B lock。
+暂不进入 7B。
 
 ### 23.2 必须迁移的最小文件集合
 

@@ -15,6 +15,9 @@
 | `agemem_e1_repeat_eval.yaml` | 单个 repeat seed 的新进程 held-out 评测 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_stage3_answer_probe.yaml` | 同一 6 条 train 样本、T=0、最后一轮强制要求 `<answer>` 的冻结评测；不训练 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_checkpoint_eval.yaml` | M8b 新进程加载 E1 checkpoint 后的固定评测 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e0_4b_frozen_eval.yaml` | 独立 4B E0：同一 6+2 行、无 nudge | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_dry_run.yaml` | 独立 4B E1：Qwen3-4B、6 条、1 step、无 nudge | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_checkpoint_eval.yaml` | 4B E1 新进程 checkpoint 评测 | `AgeMem_hotpot_workflow_training` |
 | `agemem_eval.yaml`  | Bench 模式评估   | `AgeMem_hotpot_workflow_evaluation` |
 
 ## 快速开始
@@ -114,6 +117,18 @@ bash scripts/agemem_e1_scale.sh
 
 不要改冻结 dry-run YAML，不要打开 `stage3_require_final_answer`。
 
+**4B terminal-only E1（无 nudge，独立锁，Qwen3-4B）：**
+
+```bash
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
+export TRINITY_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash scripts/agemem_e1_4b.sh
+```
+
+必须先按 `docs/m8b_autodl_preflight.md` 下载冻结 revision 并生成
+`.agemem_model_manifest.json`。不要复用 1.5B checkpoint 根，不要改冻结 dry-run YAML。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

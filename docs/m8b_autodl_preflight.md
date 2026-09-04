@@ -61,7 +61,8 @@ GPU/runtime 项。严格 runtime suite 已冻结
 ## 组内远程服务器路径与环境
 
 当前模型目标限定为 1.5B 与 4B，不再考虑 7B。M8b 先执行锁定的 1.5B smoke；
-4B 后续使用独立模型 manifest 与配置锁。使用同机两张 RTX A6000 48GB（允许
+4B 使用独立锁 `configs/e1_4b.json` 与 `Qwen/Qwen3-4B`，不能只替换
+`TRINITY_MODEL_PATH`。使用同机两张 RTX A6000 48GB（允许
 四卡宿主机显式选择两张），并把模型、数据和 checkpoint 放在持久盘：
 
 ```bash
@@ -276,5 +277,43 @@ bash -n scripts/agemem_e1_scale.sh
 bash scripts/agemem_e1_scale.sh
 ```
 
-不要把这次扩大说成 DFA、E3 或 4B。
+不要把这次扩大说成 DFA、E3 或 4B。1.5B 24×8 已在
+`/data/hjx/Age_mem/checkpoints-e1-scale` 给出全 0 reward；不要复用该根目录。
+
+## 4B terminal-only E1（无 nudge，独立锁）
+
+Qwen2.5 没有官方 4B。独立锁冻结 `Qwen/Qwen3-4B` revision
+`1cfa9a7208912126459214e8b04321603b3df60c`。不能只改 `TRINITY_MODEL_PATH` 复用 1.5B
+YAML、job 名或 `configs/m8b_autodl_preflight.json`。
+
+科学问题与 1.5B 相同：同一 6 条 M5 train、K=2、1 trainer step、`terminal_only`、
+不加 `<answer>` nudge，看更大模型会不会自己套标签。Trainer 侧
+`ppo_max_token_len_per_gpu: 2304`、vLLM `gpu_memory_utilization: 0.6`，因为 1.5B
+在 4608 packing 下已经接近单卡 48GB。
+
+远端先下载并写 manifest（模型目录稳定后再 hash）：
+
+```bash
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
+export TRINITY_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+huggingface-cli download Qwen/Qwen3-4B \
+  --revision "$TRINITY_MODEL_REVISION" \
+  --local-dir "$TRINITY_MODEL_PATH"
+python scripts/agemem_m8b_model_manifest.py \
+  --model-path "$TRINITY_MODEL_PATH" \
+  --repository-id Qwen/Qwen3-4B \
+  --revision "$TRINITY_MODEL_REVISION"
+```
+
+然后使用空 checkpoint 根目录，不要复用 1.5B smoke/repeat/scale/probe：
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b.sh
+bash scripts/agemem_e1_4b.sh
+```
+
+启动器顺序：4B preflight → E0 → E1 单次更新 → 新进程 checkpoint eval。不要把这次
+说成 DFA、E3 或 1.5B 结果。nudge 不并入 4B 基线。
 
