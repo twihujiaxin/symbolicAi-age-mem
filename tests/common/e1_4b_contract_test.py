@@ -80,6 +80,8 @@ class E14BContractTest(unittest.TestCase):
             assertions["trainer.trainer_config.actor_rollout_ref.actor.ppo_max_token_len_per_gpu"],
             2304,
         )
+        self.assertEqual(assertions["model.max_model_len"], 5120)
+        self.assertEqual(assertions["model.max_response_tokens"], 1024)
         self.assertIs(assertions["buffer.explorer_input.taskset.workflow_args.milestone_reward_enabled"], False)
         self.assertEqual(
             [row["hotpot_id"] for row in lock["dataset"]["fixed_train_rows"]],
@@ -122,6 +124,42 @@ class E14BContractTest(unittest.TestCase):
         self.assertIn('name: "agemem-e1-terminal-only-4b-dry-run"', e1_text)
         self.assertIn("temperature: 0.6", e1_text)
         self.assertIn("total_steps: 1", e1_text)
+        self.assertIn("max_model_len: 5120", e1_text)
+        self.assertIn("max_response_tokens: 1024", e1_text)
+        self.assertNotIn("max_response_tokens: 512\n", e1_text)
+
+    def test_skipped_special_tokens_keep_exact_zero_width_offsets(self):
+        from trinity.common.action_event_contract import (
+            ActionContractError,
+            derive_response_token_char_offsets,
+        )
+
+        class _Tokenizer:
+            all_special_ids = [99]
+
+            def __call__(self, text, *, add_special_tokens=False, return_offsets_mapping=False):
+                del add_special_tokens
+                result = {"input_ids": [ord(character) for character in text]}
+                if return_offsets_mapping:
+                    result["offset_mapping"] = [
+                        (index, index + 1) for index in range(len(text))
+                    ]
+                return result
+
+            def decode(self, token_ids, *, skip_special_tokens=False, **kwargs):
+                del kwargs
+                chars = []
+                for token_id in token_ids:
+                    if skip_special_tokens and token_id in self.all_special_ids:
+                        continue
+                    chars.append(chr(token_id) if token_id != 99 else "")
+                return "".join(chars)
+
+        tokenizer = _Tokenizer()
+        offsets = derive_response_token_char_offsets(tokenizer, [99, 65, 66], "AB")
+        self.assertEqual(offsets, ((0, 0), (0, 1), (1, 2)))
+        with self.assertRaisesRegex(ActionContractError, "cannot derive exact"):
+            derive_response_token_char_offsets(tokenizer, [1, 2], "ab")
 
     def test_frozen_1p5b_dry_run_and_runtime_gate_are_untouched(self):
         smoke = json.loads(SMOKE_LOCK_PATH.read_text(encoding="utf-8"))

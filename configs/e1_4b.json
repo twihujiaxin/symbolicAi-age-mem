@@ -171,6 +171,14 @@
     {
       "equals": 1e-06,
       "path": "trainer.trainer_config.actor_rollout_ref.actor.optim.lr"
+    },
+    {
+      "equals": 5120,
+      "path": "model.max_model_len"
+    },
+    {
+      "equals": 1024,
+      "path": "model.max_response_tokens"
     }
   ],
   "credentials": {
@@ -365,15 +373,15 @@
   "source_files": {
     "checkpoint_eval_config": {
       "path": "examples/agemem_hotpotqa/agemem_e1_4b_checkpoint_eval.yaml",
-      "sha256": "3568e19268dbf6dd2d50f7721e70b523810718ab449c21afa2cb41f548200a99"
+      "sha256": "8a0dd2be46daaba895acf16b109d7548a409fc12c9a15b1f42ce8a29eea1a53a"
     },
     "config": {
       "path": "examples/agemem_hotpotqa/agemem_e1_4b_dry_run.yaml",
-      "sha256": "d2e2691f53597204514713d65c789222de836a1e77c2ae80711c9fe8cb574107"
+      "sha256": "35319bc20730fe6b2e7ba9ce01d0e33c484d781603c2e46489fe99d2adae72dc"
     },
     "e0_config": {
       "path": "examples/agemem_hotpotqa/agemem_e0_4b_frozen_eval.yaml",
-      "sha256": "c9dd7e9d071cf9543e96540775d396a5d0abc49add4e2e92fd9fd513dc313328"
+      "sha256": "acf5e80cf2db994d03e15b5b2f9989e4bd8957a9090391f2fd97d55d2d3bcac4"
     },
     "smoke_manifest": {
       "path": "data/splits/hotpotqa_smoke_manifest.json",

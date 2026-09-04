@@ -118,6 +118,81 @@ def _to_plain_sequence(value: Any) -> Any:
     return value
 
 
+def _special_token_id_set(tokenizer: Any) -> set[int]:
+    raw_ids = getattr(tokenizer, "all_special_ids", None)
+    if raw_ids is None:
+        return set()
+    try:
+        return {
+            int(item)
+            for item in raw_ids
+            if not isinstance(item, bool) and isinstance(item, int)
+        }
+    except TypeError:
+        return set()
+
+
+def _offsets_with_skipped_specials(
+    tokenizer: Any,
+    token_ids: Sequence[int],
+    response_text: str,
+) -> tuple[tuple[int, int], ...] | None:
+    """Map special tokens to zero-width spans when they are absent from text.
+
+    vLLM records ``response_text`` with ``skip_special_tokens=True``.  Qwen3
+    often inserts thinking/chat specials that survive in ``token_ids`` but not
+    in the detokenized string.  Offsets remain exact: specials cover no
+    characters, and the remaining IDs must re-encode ``response_text``.
+    """
+
+    special_ids = _special_token_id_set(tokenizer)
+    if not special_ids or not any(token_id in special_ids for token_id in token_ids):
+        return None
+    try:
+        decoded = tokenizer.decode(
+            token_ids,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )
+    except TypeError:
+        return None
+    if decoded != response_text:
+        return None
+    content_ids = [token_id for token_id in token_ids if token_id not in special_ids]
+    try:
+        encoded = tokenizer(
+            response_text,
+            add_special_tokens=False,
+            return_offsets_mapping=True,
+        )
+        encoded_ids = _normalize_tokenizer_output(encoded["input_ids"])
+        raw_offsets = _normalize_tokenizer_output(encoded["offset_mapping"])
+    except (KeyError, TypeError, ValueError, ActionContractError):
+        return None
+    if encoded_ids != content_ids:
+        return None
+    content_offsets = [(int(item[0]), int(item[1])) for item in raw_offsets]
+    if len(content_offsets) != len(content_ids):
+        return None
+    merged: list[tuple[int, int]] = []
+    content_index = 0
+    position = 0
+    for token_id in token_ids:
+        if token_id in special_ids:
+            merged.append((position, position))
+            continue
+        start, end = content_offsets[content_index]
+        if start != position:
+            return None
+        merged.append((start, end))
+        position = end
+        content_index += 1
+    try:
+        return _validate_response_offsets(merged, len(token_ids), len(response_text))
+    except ActionContractError:
+        return None
+
+
 def derive_response_token_char_offsets(
     tokenizer: Any,
     response_token_ids: Sequence[int],
@@ -151,6 +226,10 @@ def derive_response_token_char_offsets(
             return offsets
     except (ActionContractError, KeyError, TypeError, ValueError):
         pass
+
+    special_offsets = _offsets_with_skipped_specials(tokenizer, token_ids, response_text)
+    if special_offsets is not None:
+        return special_offsets
 
     decoded_prefixes: list[str] = [""]
     for end in range(1, len(token_ids) + 1):

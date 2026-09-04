@@ -13,9 +13,9 @@ algorithm:
 
 model:
   model_path: ${oc.env:TRINITY_MODEL_PATH,/data/hjx/Age_mem/models/Qwen3-4B}
-  max_model_len: 4608
+  max_model_len: 5120
   max_prompt_tokens: 4096
-  max_response_tokens: 512
+  max_response_tokens: 1024
   lora_configs:
   - name: lora
     lora_rank: 16
@@ -52,7 +52,7 @@ buffer:
         response_key: answer
       rollout_args:
         temperature: 0.6
-        max_tokens: 512
+        max_tokens: 1024
       workflow_args:
         reward_profile: terminal_only
         terminal_reward_metric: hotpotqa_official
