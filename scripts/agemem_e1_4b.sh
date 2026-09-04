@@ -60,8 +60,9 @@ fi
 if [[ -e "$project_dir/agemem-e0-terminal-only-frozen-eval" || \
       -e "$project_dir/agemem-e1-terminal-only-dry-run" || \
       -e "$project_dir/agemem-e1-terminal-only-scale" || \
-      -e "$project_dir/agemem-e1-terminal-only-repeat-s7" ]]; then
-  printf 'Refusing a checkpoint root that already contains 1.5B smoke, scale, or repeat jobs.\n' >&2
+      -e "$project_dir/agemem-e1-terminal-only-repeat-s7" || \
+      -e "$project_dir/agemem-e1-4b-stage3-answer-probe" ]]; then
+  printf 'Refusing a checkpoint root that already contains 1.5B smoke/scale/repeat or the 4B probe.\n' >&2
   exit 2
 fi
 if [[ -e "$e0_job" && ! -s "$e0_receipt" ]]; then

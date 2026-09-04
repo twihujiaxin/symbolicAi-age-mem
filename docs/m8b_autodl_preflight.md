@@ -317,3 +317,28 @@ bash scripts/agemem_e1_4b.sh
 启动器顺序：4B preflight → E0 → E1 单次更新 → 新进程 checkpoint eval。不要把这次
 说成 DFA、E3 或 1.5B 结果。nudge 不并入 4B 基线。
 
+4B 无 nudge E1 已在 `/data/hjx/Age_mem/checkpoints-e1-4b-006` /
+commit `2da2c1cbbe575c88d7fa1520099e89d3ea5b9f1b` 关闭：E0 与 checkpoint eval 的
+held-out F1 全 0，`training/reward_mean=0`，`grad_norm=0`。不要复用该根目录。
+
+## 4B Stage 3 `<answer>` probe（不训练，独立锁）
+
+与 1.5B probe 同一问法：同一 6 条 M5 train、T=0、最后一轮
+`stage3_require_final_answer`，看 Qwen3-4B **被要求时**会不会套 `<answer>`。
+不训练，不改 4B E1 dry-run：
+
+- 锁：`configs/e1_4b_stage3_answer_probe.json`；
+- 配置：`examples/agemem_hotpotqa/agemem_e1_4b_stage3_answer_probe.yaml`；
+- 启动器：`scripts/agemem_e1_4b_stage3_answer_probe.sh`；
+- job 名：`agemem-e1-4b-stage3-answer-probe`。
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-answer-probe
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_stage3_answer_probe.sh
+bash scripts/agemem_e1_4b_stage3_answer_probe.sh
+```
+
+必须使用空目录；脚本会拒绝已有 1.5B smoke/probe 或 4B E0/E1 job 的根。不要把
+这次 probe 并入 GRPO 基线，也不要说成 E3。
+

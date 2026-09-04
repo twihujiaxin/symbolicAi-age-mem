@@ -18,6 +18,7 @@
 | `agemem_e0_4b_frozen_eval.yaml` | 独立 4B E0：同一 6+2 行、无 nudge | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_4b_dry_run.yaml` | 独立 4B E1：Qwen3-4B、6 条、1 step、无 nudge | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_4b_checkpoint_eval.yaml` | 4B E1 新进程 checkpoint 评测 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_stage3_answer_probe.yaml` | 独立 4B Stage 3 `<answer>` probe：同一 6 条 train、T=0、不训练 | `AgeMem_hotpot_workflow_training` |
 | `agemem_eval.yaml`  | Bench 模式评估   | `AgeMem_hotpot_workflow_evaluation` |
 
 ## 快速开始
@@ -129,6 +130,20 @@ bash scripts/agemem_e1_4b.sh
 
 必须先按 `docs/m8b_autodl_preflight.md` 下载冻结 revision 并生成
 `.agemem_model_manifest.json`。不要复用 1.5B checkpoint 根，不要改冻结 dry-run YAML。
+4B 无 nudge E1 已在 `checkpoints-e1-4b-006` 关闭（reward/F1 全 0）；不要复用该根目录。
+
+**4B Stage 3 `<answer>` probe（不训练，不并入基线）：**
+
+```bash
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
+export TRINITY_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-answer-probe
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_stage3_answer_probe.sh
+bash scripts/agemem_e1_4b_stage3_answer_probe.sh
+```
+
+不要复用 `checkpoints-e1-4b-006` 或 1.5B probe 根目录。不要把这次 probe 说成 E3 或 4B E1 基线。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

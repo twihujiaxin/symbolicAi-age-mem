@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-E1：独立锁 Qwen3-4B，复跑无 nudge 的 terminal-only（6 条 / 1 step）
+E1：独立 4B Stage 3 `<answer>` format probe（不训练，不并入基线）
 
-状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。1.5B vanilla GRPO 已关闭：三 seed 与 24×8 的 train reward 均为 0（Stage 3 不套 `<answer>`）。格式 probe（nudge）mean F1 ≈ 0.21，该干预不并入基线。4B 已冻结为 `Qwen/Qwen3-4B` revision `1cfa9a7208912126459214e8b04321603b3df60c`，使用独立 YAML/job/digest/GPU 门禁。下一步是远端下载 4B、写模型 manifest，并用空目录跑 `scripts/agemem_e1_4b.sh`。不要进 E3，不要改冻结 1.5B dry-run YAML。部署根目录仍为 `/data/hjx/Age_mem`
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。1.5B 与 4B 的无 nudge terminal-only E1 均已关闭：train reward 与 held-out F1 全 0，日志无 `<answer>`。4B 证据在 commit `2da2c1cbbe575c88d7fa1520099e89d3ea5b9f1b`、根目录 `/data/hjx/Age_mem/checkpoints-e1-4b-006`。1.5B 格式 probe mean F1 ≈ 0.21，该干预不并入任何 GRPO 基线。下一步是独立 4B Stage 3 probe（同一 6 条 train、T=0、最后一轮 nudge）。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML。部署根目录仍为 `/data/hjx/Age_mem`
 
 ## Completed
 
@@ -213,9 +213,15 @@ E1：独立锁 Qwen3-4B，复跑无 nudge 的 terminal-only（6 条 / 1 step）
 - [x] 冻结 `Qwen/Qwen3-4B` revision `1cfa9a7208912126459214e8b04321603b3df60c`；独立 lock `configs/e1_4b.json`，不复用 1.5B `TRINITY_MODEL_PATH`
 - [x] 独立 E0/E1/checkpoint-eval YAML 与 job 名：`agemem-e0-terminal-only-4b-frozen-eval`、`agemem-e1-terminal-only-4b-dry-run`
 - [x] 同一 6 条 M5 train + 2 条 held-out、K=2、1 trainer step、`terminal_only`、无 `<answer>` nudge、`enable_thinking: false`
-- [x] 2×A6000 适配：`gpu_memory_utilization: 0.6`、`ppo_max_token_len_per_gpu: 2304`（rollout 仍 `max_model_len: 4608`）
+- [x] 2×A6000 适配：`gpu_memory_utilization: 0.6`、`ppo_max_token_len_per_gpu: 2304`；后续将 `max_response_tokens`/`max_model_len` 调到 1024/5120 仍不够（模型写满预算）
 - [x] 启动器 `scripts/agemem_e1_4b.sh` 走 4B preflight，拒绝 1.5B job 目录与 1.5B 模型路径；契约测试不计入 318
-- [ ] 远端尚未下载 4B 权重、尚未生成 `.agemem_model_manifest.json`、尚未跑 E0/E1
+- [x] 远端已在 `/data/hjx/Age_mem/checkpoints-e1-4b-006` / commit `2da2c1cbbe575c88d7fa1520099e89d3ea5b9f1b` 跑通 E0 → 1-step GRPO → checkpoint eval：E0/eval held-out F1 mean/max/min = 0，`training/reward_mean=0`，`grad_norm=0`，三次 log 无 `<answer>`；E0/eval 各跳过 2 次截断 tool-call。4B 无 nudge 基线科学结论已关闭。不要复用 `checkpoints-e1-4b`～`005`
+
+### 4B Stage 3 `<answer>` probe（不训练，独立锁）
+
+- [x] 独立 lock `configs/e1_4b_stage3_answer_probe.json`、YAML、启动器与契约测试；job 名 `agemem-e1-4b-stage3-answer-probe`
+- [x] 同一 6 条 M5 train、T=0、bench、K=2、`stage3_require_final_answer` / `stage3_repair_untagged_answer` 开启；不改 4B E1 dry-run，不复用 1.5B probe job
+- [ ] 远端尚未用空目录跑 `scripts/agemem_e1_4b_stage3_answer_probe.sh`；该结果不并入 GRPO 基线，不能当作 E3
 
 ### Stage 1/2 反捷径 benchmark
 
@@ -351,6 +357,15 @@ E1：独立锁 Qwen3-4B，复跑无 nudge 的 terminal-only（6 条 / 1 step）
 - `examples/agemem_hotpotqa/agemem_e1_4b_checkpoint_eval.yaml`
 - `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`STATUS.md`
 
+## Files changed in 4B Stage-3 answer probe
+
+- `configs/e1_4b_stage3_answer_probe.json`
+- `scripts/agemem_e1_4b_stage3_answer_probe.sh`
+- `tests/common/e1_4b_stage3_answer_probe_test.py`
+- `examples/agemem_hotpotqa/agemem_e1_4b_stage3_answer_probe.yaml`
+- `scripts/agemem_e1_4b.sh`、`trinity/common/e1_4b.py`（拒绝与 probe 共用 checkpoint 根）
+- `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`STATUS.md`
+
 ## Files changed in Stage 1/2 anti-shortcut extension
 
 - Stage 1：`AgeMem_code_agentscope/toy_hotpotqa/storage_baselines.py`、`tests/common/stage1_storage_baseline_test.py`
@@ -458,7 +473,7 @@ E1：独立锁 Qwen3-4B，复跑无 nudge 的 terminal-only（6 条 / 1 step）
 ## Failures and blockers
 
 - 无未解决的本地可执行测试失败；318 项中仍有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此 Windows 上严格 runtime gate 按设计为 FAIL
-- M8b 远程 smoke 已通过。1.5B vanilla E1（三 seed 与 24×8）train reward 全 0。当前阻塞是提交 4B 独立锁后，在远端下载 `Qwen/Qwen3-4B`、写模型 manifest，并用空目录 `/data/hjx/Age_mem/checkpoints-e1-4b` 跑 `bash scripts/agemem_e1_4b.sh`。运行前重核 `nvidia-smi`。不要进 E3，不要改冻结 1.5B dry-run YAML，不要把 nudge 并入 4B 基线
+- M8b 远程 smoke 已通过。1.5B vanilla E1（三 seed 与 24×8）与 4B vanilla E1（`checkpoints-e1-4b-006`）train reward / held-out F1 全 0。当前阻塞是提交 4B Stage 3 probe 独立锁后，用空目录 `/data/hjx/Age_mem/checkpoints-e1-4b-answer-probe` 跑 `bash scripts/agemem_e1_4b_stage3_answer_probe.sh`。运行前重核 `nvidia-smi`。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML，不要把 nudge 并入基线
 - DashScope provider 已冻结；货币成本仍须与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL 或真实 GPU 重复运行
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
@@ -466,4 +481,4 @@ E1：独立锁 Qwen3-4B，复跑无 nudge 的 terminal-only（6 条 / 1 step）
 
 ## Next recommended action
 
-1.5B vanilla GRPO 已关闭（reward 全 0）。4B 独立锁已写入仓库，远端尚未跑。提交并推送后，下载冻结 revision 的 `Qwen3-4B`，生成 manifest，用空目录 `/data/hjx/Age_mem/checkpoints-e1-4b` 跑 `bash scripts/agemem_e1_4b.sh`。不要改冻结 dry-run YAML，不要进 E3，不要打开 4B nudge。
+1.5B 与 4B 的无 nudge terminal-only E1 均已关闭（reward/F1 全 0）。下一步是独立 4B Stage 3 format probe：同一 6 条 train、T=0、最后一轮 nudge、不训练。提交并推送后，用空目录 `/data/hjx/Age_mem/checkpoints-e1-4b-answer-probe` 跑 `bash scripts/agemem_e1_4b_stage3_answer_probe.sh`。不要复用 `checkpoints-e1-4b-006`，不要改冻结 dry-run YAML，不要进 E3，不要把 nudge 并入基线。

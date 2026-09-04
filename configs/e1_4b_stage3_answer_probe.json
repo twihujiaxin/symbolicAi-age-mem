@@ -1,0 +1,28 @@
+{
+  "schema_version": "agemem.e1_4b_stage3_answer_probe.lock.v1",
+  "config": "examples/agemem_hotpotqa/agemem_e1_4b_stage3_answer_probe.yaml",
+  "config_sha256": "6fc2fa2c5667f756dcec6af7aba9e47d31459ff50f559ec7d846729f68dae975",
+  "job_name": "agemem-e1-4b-stage3-answer-probe",
+  "one_point_five_b_probe_job_name": "agemem-e1-stage3-answer-probe",
+  "e1_4b_e0_job_name": "agemem-e0-terminal-only-4b-frozen-eval",
+  "e1_4b_job_name": "agemem-e1-terminal-only-4b-dry-run",
+  "smoke_job_name": "agemem-e1-terminal-only-dry-run",
+  "reward_profile": "terminal_only",
+  "seed": 7,
+  "stage3_max_rounds": 2,
+  "stage3_require_final_answer": true,
+  "stage3_repair_untagged_answer": true,
+  "trainer_total_steps": 0,
+  "model": {
+    "repository_id": "Qwen/Qwen3-4B",
+    "expected_revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+  },
+  "source_train_row_ids": [
+    "5a85aaee5542991dd0999e84",
+    "5a74b19355429916b01641dd",
+    "5abecbed5542997719eab5c5",
+    "5a8ac7d055429950cd6afb8f",
+    "5a83df2655429933447460a1",
+    "5a76f83e55429972597f1405"
+  ]
+}
