@@ -33,6 +33,8 @@ FORBIDDEN_LEGACY_JOBS = (
     "agemem-e1-4b-stage3-answer-probe",
     "agemem-e0-terminal-only-4b-format-eval",
     "agemem-e1-terminal-only-4b-format",
+    "agemem-e0-terminal-only-4b-format-var-eval",
+    "agemem-e1-terminal-only-4b-format-var",
 )
 
 

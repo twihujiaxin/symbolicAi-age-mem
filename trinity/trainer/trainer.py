@@ -16,7 +16,10 @@ from trinity.algorithm import SAMPLE_STRATEGY
 from trinity.common.config import Config
 from trinity.common.constants import RunningStatus, SyncMethod, SyncStyle
 from trinity.common.experience import Experiences
-from trinity.common.runtime_receipt import write_training_receipt
+from trinity.common.runtime_receipt import (
+    experience_reward_metrics,
+    write_training_receipt,
+)
 from trinity.manager.state_manager import StateManager
 from trinity.manager.synchronizer import Synchronizer
 from trinity.utils.log import get_logger
@@ -28,17 +31,7 @@ from trinity.utils.timer import Timer
 def _experience_reward_metrics(exps: Experiences) -> Dict[str, float]:
     """Extract finite-checkable task reward evidence from a gathered batch."""
 
-    rewards = getattr(exps, "rewards", None)
-    if rewards is None:
-        return {}
-    try:
-        return {
-            "training/reward_mean": float(rewards.mean().item()),
-            "training/reward_min": float(rewards.min().item()),
-            "training/reward_max": float(rewards.max().item()),
-        }
-    except (AttributeError, TypeError, ValueError):
-        return {}
+    return experience_reward_metrics(exps)
 
 
 class Trainer:

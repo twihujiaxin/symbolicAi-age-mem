@@ -7,9 +7,11 @@ import math
 import numbers
 import os
 import re
+import statistics
 import uuid
+from collections import defaultdict
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Sequence
 
 
 TRAINING_RECEIPT_SCHEMA_VERSION = "trinity.training_update.v1"
@@ -47,6 +49,81 @@ def finite_scalar_metrics(metrics: Mapping[str, Any]) -> dict[str, float]:
             raise ValueError(f"metric {key!r} is not finite")
         normalized[str(key)] = numeric
     return {key: normalized[key] for key in sorted(normalized)}
+
+
+def _reward_values(rewards: Any) -> Optional[list[float]]:
+    if rewards is None:
+        return None
+    try:
+        if hasattr(rewards, "tolist"):
+            values = rewards.tolist()
+        else:
+            values = list(rewards)
+        parsed = [float(value) for value in values]
+    except (TypeError, ValueError):
+        return None
+    if not parsed or any(not math.isfinite(value) for value in parsed):
+        return None
+    return parsed
+
+
+def experience_reward_metrics(exps: Any) -> dict[str, float]:
+    """Summarize raw and last-step/group reward diversity for a trainer batch.
+
+    GRPO advantages are zero when every last-step reward in a task group is
+    identical. Flattened per-step rewards can hide that, so receipts also keep
+    last-step uniqueness and per-task group standard deviation.
+    """
+
+    rewards = _reward_values(getattr(exps, "rewards", None))
+    if not rewards:
+        return {}
+    metrics = {
+        "training/reward_mean": float(statistics.fmean(rewards)),
+        "training/reward_min": float(min(rewards)),
+        "training/reward_max": float(max(rewards)),
+    }
+    eids = getattr(exps, "eids", None)
+    if not isinstance(eids, Sequence) or len(eids) != len(rewards):
+        return metrics
+    last_by_run: dict[tuple[Any, Any, Any], tuple[int, float]] = {}
+    for eid, reward in zip(eids, rewards):
+        batch = getattr(eid, "batch", "")
+        task = getattr(eid, "task", "")
+        run = getattr(eid, "run", 0)
+        try:
+            step = int(getattr(eid, "step", 0) or 0)
+        except (TypeError, ValueError):
+            step = 0
+        key = (batch, task, run)
+        previous = last_by_run.get(key)
+        if previous is None or step >= previous[0]:
+            last_by_run[key] = (step, reward)
+    last_rewards = [item[1] for item in last_by_run.values()]
+    if not last_rewards:
+        return metrics
+    metrics["training/last_step_reward_mean"] = float(statistics.fmean(last_rewards))
+    metrics["training/last_step_reward_min"] = float(min(last_rewards))
+    metrics["training/last_step_reward_max"] = float(max(last_rewards))
+    metrics["training/last_step_unique_count"] = float(
+        len({round(value, 6) for value in last_rewards})
+    )
+    if len(last_rewards) > 1:
+        metrics["training/last_step_reward_std"] = float(statistics.pstdev(last_rewards))
+    else:
+        metrics["training/last_step_reward_std"] = 0.0
+    by_task: dict[tuple[Any, Any], list[float]] = defaultdict(list)
+    for (batch, task, _run), (_step, reward) in last_by_run.items():
+        by_task[(batch, task)].append(reward)
+    group_stds = [
+        0.0 if len(group) <= 1 else float(statistics.pstdev(group))
+        for group in by_task.values()
+    ]
+    if group_stds:
+        metrics["training/group_reward_std_mean"] = float(statistics.fmean(group_stds))
+        metrics["training/group_reward_std_min"] = float(min(group_stds))
+        metrics["training/group_reward_std_max"] = float(max(group_stds))
+    return metrics
 
 
 def _write_json(payload: Mapping[str, Any], output_path: Path) -> None:
@@ -152,6 +229,7 @@ def write_benchmark_receipt(
 __all__ = [
     "BENCHMARK_RECEIPT_SCHEMA_VERSION",
     "TRAINING_RECEIPT_SCHEMA_VERSION",
+    "experience_reward_metrics",
     "finite_scalar_metrics",
     "write_benchmark_receipt",
     "write_training_receipt",

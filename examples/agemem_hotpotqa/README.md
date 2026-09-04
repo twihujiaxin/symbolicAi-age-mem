@@ -22,6 +22,9 @@
 | `agemem_e0_4b_format_eval.yaml` | 独立 format-conditioned 4B E0：同一 6+2 行、nudge 打开、不训练 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_4b_format.yaml` | 独立 format-conditioned 4B GRPO：Qwen3-4B、6 条、1 step、nudge 打开 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_4b_format_eval.yaml` | format-conditioned 4B 新进程 checkpoint 评测（nudge 打开） | `AgeMem_hotpot_workflow_training` |
+| `agemem_e0_4b_format_var_eval.yaml` | format-variance 4B E0 锁文件（启动器跳过；K=2 held-out 已测） | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_format_var.yaml` | format-variance 4B GRPO：K=4、3 step、nudge 打开 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_format_var_eval.yaml` | format-variance 4B 新进程 checkpoint 评测（nudge 打开） | `AgeMem_hotpot_workflow_training` |
 | `agemem_eval.yaml`  | Bench 模式评估   | `AgeMem_hotpot_workflow_evaluation` |
 
 ## 快速开始
@@ -160,6 +163,20 @@ bash scripts/agemem_e1_4b_format.sh
 ```
 
 必须使用空目录。不要复用 `checkpoints-e1-4b-006`、probe 根或 1.5B 根。不要改冻结 dry-run YAML。论文里与 vanilla E1（全 0）分开报；不要把这次说成 E3。
+4B format 1-step 已在 `checkpoints-e1-4b-format` 关闭：冻结+nudge held-out mean F1 0.5，但组内 reward 全 0.4，1-step 没有超过 E0。
+
+**format-variance 4B GRPO（K=4、3 step，独立锁，非基线）：**
+
+```bash
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
+export TRINITY_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-format-var
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_format_var.sh
+bash scripts/agemem_e1_4b_format_var.sh
+```
+
+必须使用空目录。不要复用 `checkpoints-e1-4b-format`。先看 `training/group_reward_std_mean` 是否大于 0，再看 held-out 是否超过 0.5。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

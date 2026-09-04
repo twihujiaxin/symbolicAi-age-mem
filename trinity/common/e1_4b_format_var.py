@@ -1,4 +1,4 @@
-"""Helpers for the independent format-conditioned 4B GRPO protocol.
+"""Helpers for the format-variance 4B GRPO protocol.
 
 These helpers are not imported by the frozen M8b 318-count runtime gate.
 """
@@ -9,22 +9,29 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from trinity.common.e1_4b_format import (
+    FORMAT_E0_JOB,
+    FORMAT_E1_JOB,
+    VANILLA_E0_JOB,
+    VANILLA_E1_JOB,
+)
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-LOCK_PATH = REPOSITORY_ROOT / "configs" / "e1_4b_format.json"
-VANILLA_LOCK_PATH = REPOSITORY_ROOT / "configs" / "e1_4b.json"
-E0_YAML = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e0_4b_format_eval.yaml"
-E1_YAML = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_format.yaml"
+LOCK_PATH = REPOSITORY_ROOT / "configs" / "e1_4b_format_var.json"
+FORMAT_LOCK_PATH = REPOSITORY_ROOT / "configs" / "e1_4b_format.json"
+E0_YAML = (
+    REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e0_4b_format_var_eval.yaml"
+)
+E1_YAML = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_format_var.yaml"
 EVAL_YAML = (
-    REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_format_eval.yaml"
+    REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_format_var_eval.yaml"
 )
 
 EXPECTED_REPOSITORY = "Qwen/Qwen3-4B"
 EXPECTED_REVISION = "1cfa9a7208912126459214e8b04321603b3df60c"
-FORMAT_E0_JOB = "agemem-e0-terminal-only-4b-format-eval"
-FORMAT_E1_JOB = "agemem-e1-terminal-only-4b-format"
-VANILLA_E0_JOB = "agemem-e0-terminal-only-4b-frozen-eval"
-VANILLA_E1_JOB = "agemem-e1-terminal-only-4b-dry-run"
+VAR_E0_JOB = "agemem-e0-terminal-only-4b-format-var-eval"
+VAR_E1_JOB = "agemem-e1-terminal-only-4b-format-var"
 FORBIDDEN_FOREIGN_JOBS = (
     "agemem-e0-terminal-only-frozen-eval",
     "agemem-e1-terminal-only-dry-run",
@@ -36,8 +43,8 @@ FORBIDDEN_FOREIGN_JOBS = (
     "agemem-e1-4b-stage3-answer-probe",
     VANILLA_E0_JOB,
     VANILLA_E1_JOB,
-    "agemem-e0-terminal-only-4b-format-var-eval",
-    "agemem-e1-terminal-only-4b-format-var",
+    FORMAT_E0_JOB,
+    FORMAT_E1_JOB,
 )
 
 
@@ -54,6 +61,9 @@ def yaml_requires_nudge(text: str) -> bool:
         and "Qwen2.5-1.5B-Instruct" not in text
         and VANILLA_E0_JOB not in text
         and VANILLA_E1_JOB not in text
+        and FORMAT_E0_JOB not in text
+        and f'"{FORMAT_E1_JOB}"' not in text
+        and f"/{FORMAT_E1_JOB}/" not in text
     )
 
 

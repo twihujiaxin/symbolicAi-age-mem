@@ -363,3 +363,28 @@ bash scripts/agemem_e1_4b_format.sh
 必须使用空目录。先看 1-step `training/reward_mean` 与 held-out `task_score`。
 不要把这次并入 vanilla E1 基线，也不要说成 E3。
 
+format 1-step 已在 `/data/hjx/Age_mem/checkpoints-e1-4b-format` /
+commit `f1607feec6fa55478a82fda4dd8cbe17c841c67e` 关闭：E0 held-out mean F1 0.5，
+train reward 全是 0.4，`grad_norm=0`，eval 仍是 0.5。不要复用该根目录。
+
+## format-variance 4B GRPO（K=4、3 step，独立锁，非基线）
+
+同一 6 条 M5 train、打开 Stage 3 nudge，但 K=4 且 3 个 trainer step，覆盖全部 6 题，
+让 GRPO 组内有机会出现非零 reward 方差。启动器跳过 E0。不改 K=2 format YAML：
+
+- 锁：`configs/e1_4b_format_var.json`；
+- 配置：`examples/agemem_hotpotqa/agemem_e1_4b_format_var.yaml`、
+  `agemem_e1_4b_format_var_eval.yaml`；
+- 启动器：`scripts/agemem_e1_4b_format_var.sh`；
+- job 名：`agemem-e1-terminal-only-4b-format-var`。
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-format-var
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_format_var.sh
+bash scripts/agemem_e1_4b_format_var.sh
+```
+
+必须使用空目录。先看 `training/group_reward_std_mean` 是否大于 0，再看 held-out
+是否超过 0.5。不要把这次并入 vanilla E1 或 K=2 format 基线，也不要说成 E3。
+
