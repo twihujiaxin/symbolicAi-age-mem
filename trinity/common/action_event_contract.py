@@ -254,6 +254,145 @@ def _offsets_from_convert_tokens_to_string(
         return None
 
 
+_GPT2_UNICODE_TO_BYTE: dict[str, int] | None = None
+
+
+def _gpt2_unicode_to_byte() -> dict[str, int]:
+    """Inverse of GPT-2 / Qwen ``bytes_to_unicode`` (byte-level BPE alphabet)."""
+
+    global _GPT2_UNICODE_TO_BYTE
+    if _GPT2_UNICODE_TO_BYTE is None:
+        bs = (
+            list(range(ord("!"), ord("~") + 1))
+            + list(range(ord("¡"), ord("¬") + 1))
+            + list(range(ord("®"), ord("ÿ") + 1))
+        )
+        present = set(bs)
+        cs = bs[:]
+        n = 0
+        for byte in range(256):
+            if byte not in present:
+                bs.append(byte)
+                cs.append(256 + n)
+                n += 1
+        _GPT2_UNICODE_TO_BYTE = {chr(code): byte for byte, code in zip(bs, cs)}
+    return _GPT2_UNICODE_TO_BYTE
+
+
+def _unicode_to_byte_map(tokenizer: Any) -> dict[str, int]:
+    byte_decoder = getattr(tokenizer, "byte_decoder", None)
+    if isinstance(byte_decoder, dict) and byte_decoder:
+        mapped: dict[str, int] = {}
+        for key, value in byte_decoder.items():
+            if not isinstance(key, str) or len(key) != 1:
+                return _gpt2_unicode_to_byte()
+            if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 255:
+                return _gpt2_unicode_to_byte()
+            mapped[key] = value
+        if mapped:
+            return mapped
+    return _gpt2_unicode_to_byte()
+
+
+def _utf8_complete_prefix(data: bytes) -> bytes:
+    """Longest prefix of *data* that is valid UTF-8."""
+
+    for extra in range(0, min(3, len(data)) + 1):
+        end = len(data) - extra
+        try:
+            data[:end].decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        return data[:end]
+    return b""
+
+
+def _offsets_from_byte_level_tokens(
+    tokenizer: Any,
+    token_ids: Sequence[int],
+    response_text: str,
+) -> tuple[tuple[int, int], ...] | None:
+    """Exact offsets for GPT-2 / Qwen byte-level BPE.
+
+    Incremental ``decode(ids[:k])`` is not a character prefix when a UTF-8
+    code point is split across tokens: incomplete bytes become U+FFFD, then
+    disappear when the character completes.  Mapping each visible token back
+    to bytes and emitting characters only when a UTF-8 sequence completes
+    keeps contiguous exact spans.  Accepted only when the reconstructed
+    string equals ``response_text``.
+    """
+
+    convert_ids = getattr(tokenizer, "convert_ids_to_tokens", None)
+    if not callable(convert_ids):
+        return None
+    special_ids = _special_token_id_set(tokenizer)
+    special_tokens = {
+        token
+        for token in (getattr(tokenizer, "all_special_tokens", None) or ())
+        if isinstance(token, str)
+    }
+    try:
+        raw_tokens = convert_ids(list(token_ids))
+    except TypeError:
+        try:
+            raw_tokens = [convert_ids(token_id) for token_id in token_ids]
+        except TypeError:
+            return None
+    if isinstance(raw_tokens, str) or len(raw_tokens) != len(token_ids):
+        return None
+    unicode_to_byte = _unicode_to_byte_map(tokenizer)
+    byte_chunks: list[bytes] = []
+    for token, token_id in zip(raw_tokens, token_ids):
+        if not isinstance(token, str):
+            return None
+        if token_id in special_ids or token in special_tokens:
+            byte_chunks.append(b"")
+            continue
+        try:
+            byte_chunks.append(bytes(unicode_to_byte[character] for character in token))
+        except KeyError:
+            return None
+    raw = b"".join(byte_chunks)
+    try:
+        reconstructed = raw.decode("utf-8")
+        replace_tail = False
+    except UnicodeDecodeError:
+        reconstructed = raw.decode("utf-8", errors="replace")
+        replace_tail = True
+    if reconstructed != response_text:
+        return None
+    offsets: list[tuple[int, int]] = []
+    pending = b""
+    char_pos = 0
+    for chunk in byte_chunks:
+        pending += chunk
+        complete = _utf8_complete_prefix(pending)
+        new_text = complete.decode("utf-8")
+        start = char_pos
+        char_pos += len(new_text)
+        offsets.append((start, char_pos))
+        pending = pending[len(complete) :]
+    if pending:
+        if not replace_tail:
+            return None
+        replacement = pending.decode("utf-8", errors="replace")
+        owner = max(
+            (index for index, chunk in enumerate(byte_chunks) if chunk),
+            default=None,
+        )
+        if owner is None or not replacement:
+            return None
+        start, _ = offsets[owner]
+        char_pos += len(replacement)
+        offsets[owner] = (start, char_pos)
+        for index in range(owner + 1, len(offsets)):
+            offsets[index] = (char_pos, char_pos)
+    try:
+        return _validate_response_offsets(offsets, len(token_ids), len(response_text))
+    except ActionContractError:
+        return None
+
+
 def derive_response_token_char_offsets(
     tokenizer: Any,
     response_token_ids: Sequence[int],
@@ -262,9 +401,10 @@ def derive_response_token_char_offsets(
     """Derive exact token/character alignment from the generation tokenizer.
 
     Fast-tokenizer offsets are preferred and accepted only when re-encoding the
-    response produces the exact generated token IDs.  A strict prefix-decode
-    fallback supports simple/slow tokenizers.  Approximate offsets are never
-    fabricated.
+    response produces the exact generated token IDs.  Byte-level BPE (Qwen3)
+    uses UTF-8 completion so a character split across tokens still gets
+    exact contiguous spans.  A strict prefix-decode fallback supports
+    simple/slow tokenizers.  Approximate offsets are never fabricated.
     """
 
     token_ids = _as_int_list(response_token_ids, name="response_token_ids")
@@ -297,6 +437,10 @@ def derive_response_token_char_offsets(
     )
     if string_offsets is not None:
         return string_offsets
+
+    byte_offsets = _offsets_from_byte_level_tokens(tokenizer, token_ids, response_text)
+    if byte_offsets is not None:
+        return byte_offsets
 
     decoded_prefixes: list[str] = [""]
     for end in range(1, len(token_ids) + 1):

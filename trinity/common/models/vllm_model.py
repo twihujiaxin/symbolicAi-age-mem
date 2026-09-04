@@ -120,19 +120,49 @@ class vLLMRolloutModel(InferenceModel):
         self.api_server_port = None
         self.api_server = None
 
-    def _response_metadata(
+    def _decode_response_tokens(self, token_ids: Sequence[int]) -> Optional[str]:
+        try:
+            decoded = self.tokenizer.decode(
+                list(token_ids),
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False,
+            )
+        except TypeError:
+            decoded = self.tokenizer.decode(list(token_ids))
+        if isinstance(decoded, str):
+            return decoded
+        return None
+
+    def _response_text_and_metadata(
         self,
         token_ids: Sequence[int],
         response_text: str,
         record_action_metadata: bool,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> tuple[str, Optional[Dict[str, Any]]]:
         if not record_action_metadata:
-            return None
+            return response_text, None
         try:
-            return response_metadata_for_generation(
+            return response_text, response_metadata_for_generation(
                 self.tokenizer, token_ids, response_text
             )
         except ActionContractError as exc:
+            aligned = self._decode_response_tokens(token_ids)
+            if aligned is not None and aligned != response_text:
+                try:
+                    metadata = response_metadata_for_generation(
+                        self.tokenizer, token_ids, aligned
+                    )
+                except ActionContractError:
+                    pass
+                else:
+                    self.logger.warning(
+                        "aligned response_text to tokenizer.decode for offsets "
+                        "(vllm_text_len=%s decode_text_len=%s token_count=%s)",
+                        len(response_text) if isinstance(response_text, str) else None,
+                        len(aligned),
+                        len(token_ids) if token_ids is not None else None,
+                    )
+                    return aligned, metadata
             token_count = len(token_ids) if token_ids is not None else None
             text_len = len(response_text) if isinstance(response_text, str) else None
             self.logger.error(
@@ -228,36 +258,39 @@ class vLLMRolloutModel(InferenceModel):
         output = await self._generate_internal(
             prompt={"prompt_token_ids": token_ids}, lora_request=lora_request, **kwargs
         )
-        experiences = [
-            Experience(
-                tokens=torch.cat(
-                    (
-                        torch.tensor(output.prompt_token_ids, dtype=torch.int32),
-                        torch.tensor(output.outputs[i].token_ids, dtype=torch.int32),
-                    )
-                ),
-                logprobs=torch.cat(
-                    (
-                        torch.tensor(
-                            [
-                                list(logprob_dict.values())[0].logprob
-                                for logprob_dict in output.outputs[i].logprobs
-                            ],
-                            dtype=torch.float32,
-                        ),
-                    )
-                ),
-                prompt_length=len(output.prompt_token_ids),
-                prompt_text=self.tokenizer.decode(output.prompt_token_ids),
-                response_text=output.outputs[i].text,
-                info=self._response_metadata(
-                    output.outputs[i].token_ids,
-                    output.outputs[i].text,
-                    record_action_metadata,
-                ),
+        experiences = []
+        prompt_text = self.tokenizer.decode(output.prompt_token_ids)
+        for i in range(len(output.outputs)):
+            response_text, info = self._response_text_and_metadata(
+                output.outputs[i].token_ids,
+                output.outputs[i].text,
+                record_action_metadata,
             )
-            for i in range(len(output.outputs))
-        ]
+            experiences.append(
+                Experience(
+                    tokens=torch.cat(
+                        (
+                            torch.tensor(output.prompt_token_ids, dtype=torch.int32),
+                            torch.tensor(output.outputs[i].token_ids, dtype=torch.int32),
+                        )
+                    ),
+                    logprobs=torch.cat(
+                        (
+                            torch.tensor(
+                                [
+                                    list(logprob_dict.values())[0].logprob
+                                    for logprob_dict in output.outputs[i].logprobs
+                                ],
+                                dtype=torch.float32,
+                            ),
+                        )
+                    ),
+                    prompt_length=len(output.prompt_token_ids),
+                    prompt_text=prompt_text,
+                    response_text=response_text,
+                    info=info,
+                )
+            )
         return experiences
 
     async def chat_mm(
@@ -327,37 +360,39 @@ class vLLMRolloutModel(InferenceModel):
         }
 
         output = await self._generate_internal(prompt=vllm_inputs, **kwargs)
-        experiences = [
-            Experience(
-                tokens=torch.cat(
-                    (
-                        torch.tensor(output.prompt_token_ids, dtype=torch.int32),
-                        torch.tensor(output.outputs[i].token_ids, dtype=torch.int32),
-                    )
-                ),
-                logprobs=torch.cat(
-                    (
-                        torch.tensor(
-                            [
-                                list(logprob_dict.values())[0].logprob
-                                for logprob_dict in output.outputs[i].logprobs
-                            ],
-                            dtype=torch.float32,
-                        ),
-                    )
-                ),
-                prompt_length=len(output.prompt_token_ids),
-                prompt_text=mm_inputs["prompt"],
-                response_text=output.outputs[i].text,
-                info=self._response_metadata(
-                    output.outputs[i].token_ids,
-                    output.outputs[i].text,
-                    record_action_metadata,
-                ),
-                multi_modal_inputs=mm_inputs["multi_modal_inputs"],
+        experiences = []
+        for i in range(len(output.outputs)):
+            response_text, info = self._response_text_and_metadata(
+                output.outputs[i].token_ids,
+                output.outputs[i].text,
+                record_action_metadata,
             )
-            for i in range(len(output.outputs))
-        ]
+            experiences.append(
+                Experience(
+                    tokens=torch.cat(
+                        (
+                            torch.tensor(output.prompt_token_ids, dtype=torch.int32),
+                            torch.tensor(output.outputs[i].token_ids, dtype=torch.int32),
+                        )
+                    ),
+                    logprobs=torch.cat(
+                        (
+                            torch.tensor(
+                                [
+                                    list(logprob_dict.values())[0].logprob
+                                    for logprob_dict in output.outputs[i].logprobs
+                                ],
+                                dtype=torch.float32,
+                            ),
+                        )
+                    ),
+                    prompt_length=len(output.prompt_token_ids),
+                    prompt_text=mm_inputs["prompt"],
+                    response_text=response_text,
+                    info=info,
+                    multi_modal_inputs=mm_inputs["multi_modal_inputs"],
+                )
+            )
         return experiences
 
     async def logprobs(

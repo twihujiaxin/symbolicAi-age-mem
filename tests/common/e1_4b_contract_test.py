@@ -194,6 +194,78 @@ class E14BContractTest(unittest.TestCase):
         offsets = derive_response_token_char_offsets(_BpeTokenizer(), [10, 11], "ab")
         self.assertEqual(offsets, ((0, 1), (1, 2)))
 
+    def test_byte_level_utf8_split_tokens_keep_exact_offsets(self):
+        from trinity.common.action_event_contract import (
+            ActionContractError,
+            derive_response_token_char_offsets,
+        )
+
+        bs = (
+            list(range(ord("!"), ord("~") + 1))
+            + list(range(ord("¡"), ord("¬") + 1))
+            + list(range(ord("®"), ord("ÿ") + 1))
+        )
+        present = set(bs)
+        cs = bs[:]
+        n = 0
+        for byte in range(256):
+            if byte not in present:
+                bs.append(byte)
+                cs.append(256 + n)
+                n += 1
+        byte_to_unicode = dict(zip(bs, [chr(code) for code in cs]))
+
+        class _Utf8SplitTokenizer:
+            all_special_ids = [99]
+            all_special_tokens = ["<special>"]
+            pieces = {
+                1: byte_to_unicode[0xE4],
+                2: byte_to_unicode[0xB8],
+                3: byte_to_unicode[0xAD],
+                4: byte_to_unicode[ord("A")],
+                99: "<special>",
+            }
+
+            def __call__(self, text, *, add_special_tokens=False, return_offsets_mapping=False):
+                del add_special_tokens, text
+                result = {"input_ids": [0]}
+                if return_offsets_mapping:
+                    result["offset_mapping"] = [(0, 1)]
+                return result
+
+            def decode(self, token_ids, *, skip_special_tokens=False, **kwargs):
+                del kwargs
+                unicode_to_byte = {value: key for key, value in byte_to_unicode.items()}
+                raw = bytearray()
+                for token_id in token_ids:
+                    piece = self.pieces[token_id]
+                    if skip_special_tokens and token_id in self.all_special_ids:
+                        continue
+                    if piece == "<special>":
+                        continue
+                    raw.extend(unicode_to_byte[character] for character in piece)
+                return bytes(raw).decode("utf-8", errors="replace")
+
+            def convert_ids_to_tokens(self, token_ids):
+                return [self.pieces[token_id] for token_id in token_ids]
+
+            def convert_tokens_to_string(self, tokens):
+                unicode_to_byte = {value: key for key, value in byte_to_unicode.items()}
+                raw = bytes(unicode_to_byte[token] for token in tokens)
+                return raw.decode("utf-8", errors="replace")
+
+        tokenizer = _Utf8SplitTokenizer()
+        self.assertEqual(tokenizer.decode([1]), "\ufffd")
+        self.assertEqual(tokenizer.decode([1, 2, 3, 4]), "中A")
+        offsets = derive_response_token_char_offsets(tokenizer, [1, 2, 3, 4], "中A")
+        self.assertEqual(offsets, ((0, 0), (0, 0), (0, 1), (1, 2)))
+        special_offsets = derive_response_token_char_offsets(
+            tokenizer, [1, 99, 2, 3, 4], "中A"
+        )
+        self.assertEqual(special_offsets, ((0, 0), (0, 0), (0, 0), (0, 1), (1, 2)))
+        with self.assertRaisesRegex(ActionContractError, "cannot derive exact"):
+            derive_response_token_char_offsets(tokenizer, [1, 2, 3, 4], "ab")
+
     def test_frozen_1p5b_dry_run_and_runtime_gate_are_untouched(self):
         smoke = json.loads(SMOKE_LOCK_PATH.read_text(encoding="utf-8"))
         self.assertEqual(_source_digest(DRY_RUN), smoke["source_files"]["config"]["sha256"])
