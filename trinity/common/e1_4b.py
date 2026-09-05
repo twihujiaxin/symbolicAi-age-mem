@@ -35,6 +35,8 @@ FORBIDDEN_LEGACY_JOBS = (
     "agemem-e1-terminal-only-4b-format",
     "agemem-e0-terminal-only-4b-format-var-eval",
     "agemem-e1-terminal-only-4b-format-var",
+    "agemem-e0-terminal-only-4b-format-group-eval",
+    "agemem-e1-terminal-only-4b-format-group",
 )
 
 

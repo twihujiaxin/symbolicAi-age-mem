@@ -38,6 +38,8 @@ FORBIDDEN_FOREIGN_JOBS = (
     VANILLA_E1_JOB,
     "agemem-e0-terminal-only-4b-format-var-eval",
     "agemem-e1-terminal-only-4b-format-var",
+    "agemem-e0-terminal-only-4b-format-group-eval",
+    "agemem-e1-terminal-only-4b-format-group",
 )
 
 

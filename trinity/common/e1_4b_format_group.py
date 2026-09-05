@@ -1,4 +1,4 @@
-"""Helpers for the format-variance 4B GRPO protocol.
+"""Helpers for the format-group 4B GRPO protocol.
 
 These helpers are not imported by the frozen M8b 318-count runtime gate.
 """
@@ -15,23 +15,25 @@ from trinity.common.e1_4b_format import (
     VANILLA_E0_JOB,
     VANILLA_E1_JOB,
 )
+from trinity.common.e1_4b_format_var import VAR_E0_JOB, VAR_E1_JOB
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-LOCK_PATH = REPOSITORY_ROOT / "configs" / "e1_4b_format_var.json"
+LOCK_PATH = REPOSITORY_ROOT / "configs" / "e1_4b_format_group.json"
+VAR_LOCK_PATH = REPOSITORY_ROOT / "configs" / "e1_4b_format_var.json"
 FORMAT_LOCK_PATH = REPOSITORY_ROOT / "configs" / "e1_4b_format.json"
 E0_YAML = (
-    REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e0_4b_format_var_eval.yaml"
+    REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e0_4b_format_group_eval.yaml"
 )
-E1_YAML = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_format_var.yaml"
+E1_YAML = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_format_group.yaml"
 EVAL_YAML = (
-    REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_format_var_eval.yaml"
+    REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_format_group_eval.yaml"
 )
 
 EXPECTED_REPOSITORY = "Qwen/Qwen3-4B"
 EXPECTED_REVISION = "1cfa9a7208912126459214e8b04321603b3df60c"
-VAR_E0_JOB = "agemem-e0-terminal-only-4b-format-var-eval"
-VAR_E1_JOB = "agemem-e1-terminal-only-4b-format-var"
+GROUP_E0_JOB = "agemem-e0-terminal-only-4b-format-group-eval"
+GROUP_E1_JOB = "agemem-e1-terminal-only-4b-format-group"
 FORBIDDEN_FOREIGN_JOBS = (
     "agemem-e0-terminal-only-frozen-eval",
     "agemem-e1-terminal-only-dry-run",
@@ -45,8 +47,8 @@ FORBIDDEN_FOREIGN_JOBS = (
     VANILLA_E1_JOB,
     FORMAT_E0_JOB,
     FORMAT_E1_JOB,
-    "agemem-e0-terminal-only-4b-format-group-eval",
-    "agemem-e1-terminal-only-4b-format-group",
+    VAR_E0_JOB,
+    VAR_E1_JOB,
 )
 
 
@@ -66,8 +68,8 @@ def yaml_requires_nudge(text: str) -> bool:
         and FORMAT_E0_JOB not in text
         and f'"{FORMAT_E1_JOB}"' not in text
         and f"/{FORMAT_E1_JOB}/" not in text
-        and "agemem-e0-terminal-only-4b-format-group-eval" not in text
-        and "agemem-e1-terminal-only-4b-format-group" not in text
+        and VAR_E0_JOB not in text
+        and VAR_E1_JOB not in text
     )
 
 

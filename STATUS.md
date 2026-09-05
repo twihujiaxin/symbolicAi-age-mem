@@ -235,7 +235,14 @@ E1：format-conditioned 4B 1-step 已关闭；下一步是 K=4 / 3-step 组内�
 - [x] 独立 lock `configs/e1_4b_format_var.json`、YAML、启动器与契约测试；job 名 `agemem-e0-terminal-only-4b-format-var-eval`、`agemem-e1-terminal-only-4b-format-var`
 - [x] 同一 6 条 M5 train、打开 Stage 3 nudge、K=4、`train_batch_size=8`、3 trainer steps（覆盖全部 6 题）；train T=0.6，checkpoint eval T=0 且同样带 nudge
 - [x] 启动器跳过 E0（冻结+nudge held-out 0.5 已在 K=2 臂测过）；收据增加 last-step / 组内 `reward_std`；不改冻结 dry-run 或 K=2 format YAML
-- [ ] 远端尚未跑：新的空 `TRINITY_CHECKPOINT_ROOT_DIR`（例如 `/data/hjx/Age_mem/checkpoints-e1-4b-format-var`），先看 `training/group_reward_std_mean` 是否 > 0，再看 held-out 是否超过 0.5
+- [x] 远端已在 `/data/hjx/Age_mem/checkpoints-e1-4b-format-var` 跑完 3 step：每个 trainer step 仍是 `reward_mean=max=min=0.4`，`group_reward_std_mean=0`，`last_step_unique_count=1`，`grad_norm=0`；eval `bench_step_3_model_3.json` held-out F1 **0.5**。原因不是 F1 算错，而是 `train_batch_size=8` 按 flattened step 切片，3×8=24 步全来自 explorer step 1 的前 2 题（Magazine / Mike Ness，官方 F1 都是 0.4）；后 4 题只在 explorer dump 里，没进 trainer
+
+### format-group 4B GRPO（独立锁，非基线）
+
+- [x] 独立 lock `configs/e1_4b_format_group.json`、YAML、启动器与契约测试；job 名 `agemem-e0-terminal-only-4b-format-group-eval`、`agemem-e1-terminal-only-4b-format-group`
+- [x] 同一 6 条 M5 train、K=4、3 trainer steps、nudge 打开；`consume_put_batch: true`，每个 trainer step 读一整份 explorer `put_batch`（2 题 × K 的全部 multi-turn step），`train_batch_size=8` 只留给 veRL mini-batch
+- [x] 不改冻结 dry-run、K=2 format 或 format-var YAML；其他 4B 启动器拒绝与这条臂共用 checkpoint 根；契约测试不计入 318
+- [ ] 远端尚未跑：新的空 `TRINITY_CHECKPOINT_ROOT_DIR`（例如 `/data/hjx/Age_mem/checkpoints-e1-4b-format-group`）。先看 `training/last_step_run_count` 是否为 **8**、`training/experience_count` 是否远大于 8，再看组内 std 与 held-out 是否超过 0.5。完整一组仍不能保证 K 内有方差
 
 ### Stage 1/2 反捷径 benchmark
 
@@ -405,6 +412,20 @@ E1：format-conditioned 4B 1-step 已关闭；下一步是 K=4 / 3-step 组内�
 - vanilla / K=2 format / probe 启动器拒绝与这条臂共用 checkpoint 根
 - `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`STATUS.md`
 
+## Files changed in format-group 4B GRPO lock
+
+- `trinity/common/config.py`、`trinity/buffer/storage/queue.py`、`trinity/buffer/reader/queue_reader.py`（`consume_put_batch`，默认 false）
+- `trinity/common/runtime_receipt.py`（`training/experience_count`、`training/last_step_run_count`）
+- `configs/e1_4b_format_group.json`
+- `trinity/common/e1_4b_format_group.py`
+- `scripts/agemem_e1_4b_format_group.sh`
+- `tests/common/e1_4b_format_group_contract_test.py`
+- `examples/agemem_hotpotqa/agemem_e0_4b_format_group_eval.yaml`
+- `examples/agemem_hotpotqa/agemem_e1_4b_format_group.yaml`
+- `examples/agemem_hotpotqa/agemem_e1_4b_format_group_eval.yaml`
+- vanilla / K=2 format / format-var / probe 启动器拒绝与这条臂共用 checkpoint 根
+- `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`STATUS.md`
+
 ## Files changed in Stage 1/2 anti-shortcut extension
 
 - Stage 1：`AgeMem_code_agentscope/toy_hotpotqa/storage_baselines.py`、`tests/common/stage1_storage_baseline_test.py`
@@ -512,7 +533,7 @@ E1：format-conditioned 4B 1-step 已关闭；下一步是 K=4 / 3-step 组内�
 ## Failures and blockers
 
 - 无未解决的本地可执行测试失败；318 项中仍有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此 Windows 上严格 runtime gate 按设计为 FAIL
-- M8b 远程 smoke 已通过。1.5B vanilla E1（三 seed 与 24×8）与 4B vanilla E1（`checkpoints-e1-4b-006`）train reward / held-out F1 全 0。4B Stage 3 probe mean F1 ≈ 0.32。4B format 1-step（`checkpoints-e1-4b-format`）冻结+nudge held-out mean F1 0.5，但 `reward_max=min=0.4`、`grad_norm=0`，1-step 没有超过 E0。nudge 不并入基线。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML
+- M8b 远程 smoke 已通过。1.5B vanilla E1（三 seed 与 24×8）与 4B vanilla E1（`checkpoints-e1-4b-006`）train reward / held-out F1 全 0。4B Stage 3 probe mean F1 ≈ 0.32。4B format 1-step 与 format-var 的 trainer 收据全是 0.4：官方 F1 对前 2 题确实是 0.4，但队列按 step 切片，后 4 题没进优化器。nudge 不并入基线。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML
 - DashScope provider 已冻结；货币成本仍须与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL 或真实 GPU 重复运行
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
@@ -520,4 +541,4 @@ E1：format-conditioned 4B 1-step 已关闭；下一步是 K=4 / 3-step 组内�
 
 ## Next recommended action
 
-1.5B/4B vanilla E1 与 format probe 已关闭。format-conditioned 4B 1-step 已关闭：冻结+nudge held-out mean F1 0.5，但组内 reward 全 0.4，GRPO 没有更新。下一步是 **K=4 / 3-step** 方差臂：`bash scripts/agemem_e1_4b_format_var.sh`，空目录 `/data/hjx/Age_mem/checkpoints-e1-4b-format-var`。先看 `training/group_reward_std_mean` 是否大于 0，再看 eval 是否超过 0.5。不要把 nudge 写进冻结 dry-run，不要进 E3，不要改 `parse_answer`。
+1.5B/4B vanilla E1 与 format probe 已关闭。format 1-step 与 format-var（K=4 / 3-step）都已关闭：trainer 收据全是 0.4，因为队列按 `train_batch_size=8` 切 flattened step，只吃到前 2 题。下一步是 **format-group**：`bash scripts/agemem_e1_4b_format_group.sh`，空目录 `/data/hjx/Age_mem/checkpoints-e1-4b-format-group`。先看 `training/last_step_run_count==8`，不要复用 `checkpoints-e1-4b-format-var`。不要把 nudge 写进冻结 dry-run，不要进 E3，不要改 `parse_answer`。

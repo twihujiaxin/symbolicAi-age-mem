@@ -135,6 +135,12 @@ class StorageConfig:
     capacity: int = 10000
     max_read_timeout: float = 1800
     use_priority_queue: bool = False
+    # When true, each trainer read returns one explorer ``put_batch`` intact
+    # instead of slicing ``buffer.train_batch_size`` flattened step experiences.
+    # AgeMem multi-turn GRPO needs this so one trainer step contains every
+    # step of ``batch_size × K`` trajectories. Default false keeps Trinity's
+    # original step-count semantics for frozen configs.
+    consume_put_batch: bool = False
     reuse_cooldown_time: Optional[float] = None
     replay_buffer_kwargs: dict = field(
         default_factory=lambda: {"priority_fn": "linear_decay", "decay": 2.0}

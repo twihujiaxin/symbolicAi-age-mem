@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Independent Qwen3-4B terminal-only E1: E0 → 6-row/1-step GRPO → checkpoint eval.
-# No <answer> nudge. Does not reuse 1.5B YAML, job names, or checkpoint roots.
+# Format-group Qwen3-4B GRPO: 6-row K=4, 3 trainer steps, Stage-3 nudge.
+# Each trainer step consumes one explorer put_batch (2 tasks x K, all steps).
+# Skips E0. Does not reuse format-var, K=2 format, or vanilla 4B E1.
 required_names=(
   AGEMEM_EXPECTED_COMMIT
   CUDA_DEVICE_ORDER
@@ -37,21 +38,18 @@ if [[ ! "$CUDA_VISIBLE_DEVICES" =~ ^[0-9]+,[0-9]+$ ]]; then
   exit 2
 fi
 if [[ "$TRINITY_MODEL_PATH" == *Qwen2.5-1.5B-Instruct* ]]; then
-  printf 'Refusing the 1.5B model path; 4B E1 requires the locked Qwen3-4B directory.\n' >&2
+  printf 'Refusing the 1.5B model path; format-group 4B requires the locked Qwen3-4B directory.\n' >&2
   exit 2
 fi
 
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 python_bin="${AGEMEM_PYTHON_BIN:-python}"
-lock_path="$repository_root/configs/e1_4b.json"
-log_root="$TRINITY_CHECKPOINT_ROOT_DIR/e1_4b_logs/$AGEMEM_EXPECTED_COMMIT"
-preflight_dir="$TRINITY_CHECKPOINT_ROOT_DIR/e1_4b_preflight/$AGEMEM_EXPECTED_COMMIT"
+log_root="$TRINITY_CHECKPOINT_ROOT_DIR/e1_4b_format_group_logs/$AGEMEM_EXPECTED_COMMIT"
+preflight_dir="$TRINITY_CHECKPOINT_ROOT_DIR/e1_4b_format_group_preflight/$AGEMEM_EXPECTED_COMMIT"
 project_dir="$TRINITY_CHECKPOINT_ROOT_DIR/Trinity-RFT-AgeMem-M8"
-e0_job="$project_dir/agemem-e0-terminal-only-4b-frozen-eval"
-e1_job="$project_dir/agemem-e1-terminal-only-4b-dry-run"
-e0_receipt="$e0_job/receipts/bench_step_0_model_0.json"
-trainer_receipt="$e1_job/receipts/trainer_step_1.json"
-eval_receipt="$e1_job/receipts/bench_step_1_model_1.json"
+e1_job="$project_dir/agemem-e1-terminal-only-4b-format-group"
+trainer_receipt="$e1_job/receipts/trainer_step_3.json"
+eval_receipt="$e1_job/receipts/bench_step_3_model_3.json"
 
 if [[ ! -d "$TRINITY_CHECKPOINT_ROOT_DIR" ]]; then
   printf 'Checkpoint root must already exist on persistent storage.\n' >&2
@@ -61,22 +59,21 @@ if [[ -e "$project_dir/agemem-e0-terminal-only-frozen-eval" || \
       -e "$project_dir/agemem-e1-terminal-only-dry-run" || \
       -e "$project_dir/agemem-e1-terminal-only-scale" || \
       -e "$project_dir/agemem-e1-terminal-only-repeat-s7" || \
+      -e "$project_dir/agemem-e1-terminal-only-repeat-s17" || \
+      -e "$project_dir/agemem-e1-terminal-only-repeat-s27" || \
+      -e "$project_dir/agemem-e1-stage3-answer-probe" || \
       -e "$project_dir/agemem-e1-4b-stage3-answer-probe" || \
+      -e "$project_dir/agemem-e0-terminal-only-4b-frozen-eval" || \
+      -e "$project_dir/agemem-e1-terminal-only-4b-dry-run" || \
       -e "$project_dir/agemem-e0-terminal-only-4b-format-eval" || \
       -e "$project_dir/agemem-e1-terminal-only-4b-format" || \
       -e "$project_dir/agemem-e0-terminal-only-4b-format-var-eval" || \
-      -e "$project_dir/agemem-e1-terminal-only-4b-format-var" || \
-      -e "$project_dir/agemem-e0-terminal-only-4b-format-group-eval" || \
-      -e "$project_dir/agemem-e1-terminal-only-4b-format-group" ]]; then
-  printf 'Refusing a checkpoint root that already contains 1.5B smoke/scale/repeat, the 4B probe, or format-conditioned 4B jobs.\n' >&2
-  exit 2
-fi
-if [[ -e "$e0_job" && ! -s "$e0_receipt" ]]; then
-  printf 'Refusing to reuse incomplete 4B E0 job directory: %s\n' "$e0_job" >&2
+      -e "$project_dir/agemem-e1-terminal-only-4b-format-var" ]]; then
+  printf 'Refusing a checkpoint root that already contains 1.5B, vanilla 4B, probe, K=2 format, or format-var jobs.\n' >&2
   exit 2
 fi
 if [[ -e "$e1_job" && ! -s "$trainer_receipt" ]]; then
-  printf 'Refusing to reuse incomplete 4B E1 job directory: %s\n' "$e1_job" >&2
+  printf 'Refusing to reuse incomplete format-group 4B job directory: %s\n' "$e1_job" >&2
   exit 2
 fi
 
@@ -86,7 +83,7 @@ if [[ "$(git rev-parse HEAD)" != "$AGEMEM_EXPECTED_COMMIT" ]]; then
   exit 2
 fi
 if [[ -n "$(git status --porcelain)" ]]; then
-  printf 'Refusing to run 4B E1 on a dirty worktree.\n' >&2
+  printf 'Refusing to run format-group 4B GRPO on a dirty worktree.\n' >&2
   exit 2
 fi
 
@@ -95,7 +92,7 @@ import json
 import os
 from pathlib import Path
 
-lock = json.loads(Path("configs/e1_4b.json").read_text(encoding="utf-8"))
+lock = json.loads(Path("configs/e1_4b_format_group.json").read_text(encoding="utf-8"))
 expected = lock["model"]["expected_revision"]
 actual = os.environ["TRINITY_MODEL_REVISION"]
 if actual != expected:
@@ -103,21 +100,30 @@ if actual != expected:
         f"TRINITY_MODEL_REVISION {actual} does not match locked 4B revision {expected}"
     )
 if lock["model"]["repository_id"] != "Qwen/Qwen3-4B":
-    raise SystemExit("4B lock repository_id drifted")
-if lock.get("stage3_require_final_answer") or lock.get("stage3_repair_untagged_answer"):
-    raise SystemExit("4B E1 must not enable Stage-3 answer nudges.")
+    raise SystemExit("format-group 4B lock repository_id drifted")
+if lock["experiment_id"] != "e1_format_conditioned_4b_complete_group":
+    raise SystemExit("format-group 4B experiment_id drifted")
+if not lock.get("stage3_require_final_answer") or not lock.get("stage3_repair_untagged_answer"):
+    raise SystemExit("format-group 4B GRPO must enable Stage-3 answer nudges.")
+assertions = {entry["path"]: entry["equals"] for entry in lock["config_assertions"]}
+if assertions.get("algorithm.repeat_times") != 4:
+    raise SystemExit("format-group 4B must use K=4")
+if assertions.get("trainer.total_steps") != 3:
+    raise SystemExit("format-group 4B must train 3 steps")
+if assertions.get("buffer.trainer_input.experience_buffer.consume_put_batch") is not True:
+    raise SystemExit("format-group 4B must consume one explorer put_batch per trainer step")
 PY
 
 "$python_bin" -c 'import flash_attn; v=flash_attn.__version__; assert v=="2.8.1", v'
-"$python_bin" -m unittest tests.common.e1_4b_contract_test
+"$python_bin" -m unittest tests.common.e1_4b_format_group_contract_test
 
 mkdir -p "$preflight_dir" "$log_root"
 chmod 700 "$preflight_dir" "$log_root"
 
 "$python_bin" scripts/agemem_m8b_preflight.py \
   --mode autodl \
-  --lock configs/e1_4b.json \
-  --config examples/agemem_hotpotqa/agemem_e1_4b_dry_run.yaml \
+  --lock configs/e1_4b_format_group.json \
+  --config examples/agemem_hotpotqa/agemem_e1_4b_format_group.yaml \
   --expected-commit "$AGEMEM_EXPECTED_COMMIT" \
   --model-path "$TRINITY_MODEL_PATH" \
   --model-revision "$TRINITY_MODEL_REVISION" \
@@ -126,7 +132,7 @@ chmod 700 "$preflight_dir" "$log_root"
   --output "$preflight_dir/preflight_report.json"
 
 if ray status >/dev/null 2>&1; then
-  printf 'A Ray cluster is already running; stop it before 4B E1.\n' >&2
+  printf 'A Ray cluster is already running; stop it before format-group 4B GRPO.\n' >&2
   exit 2
 fi
 
@@ -148,28 +154,16 @@ stop_ray() {
   ray_started=0
 }
 
-if [[ ! -s "$e0_receipt" ]]; then
-  start_ray "$log_root/ray_e0_start.log"
-  trinity run --config examples/agemem_hotpotqa/agemem_e0_4b_frozen_eval.yaml \
-    2>&1 | tee "$log_root/e0_frozen_eval.log"
-  if [[ ! -s "$e0_receipt" ]]; then
-    printf '4B E0 did not persist bench_step_0_model_0.json\n' >&2
-    exit 1
-  fi
-fi
-
-if [[ ! -s "$trainer_receipt" || ! -d "$e1_job/global_step_1" ]]; then
-  if [[ "$ray_started" -ne 1 ]]; then
-    start_ray "$log_root/ray_e1_start.log"
-  fi
-  trinity run --config examples/agemem_hotpotqa/agemem_e1_4b_dry_run.yaml \
-    2>&1 | tee "$log_root/e1_single_update.log"
+if [[ ! -s "$trainer_receipt" || ! -d "$e1_job/global_step_3" ]]; then
+  start_ray "$log_root/ray_e1_start.log"
+  trinity run --config examples/agemem_hotpotqa/agemem_e1_4b_format_group.yaml \
+    2>&1 | tee "$log_root/e1_format_group_update.log"
   if [[ ! -s "$trainer_receipt" ]]; then
-    printf '4B E1 did not persist trainer_step_1.json\n' >&2
+    printf 'Format-group 4B GRPO did not persist trainer_step_3.json\n' >&2
     exit 1
   fi
-  if [[ ! -d "$e1_job/global_step_1" ]]; then
-    printf '4B E1 did not persist global_step_1\n' >&2
+  if [[ ! -d "$e1_job/global_step_3" ]]; then
+    printf 'Format-group 4B GRPO did not persist global_step_3\n' >&2
     exit 1
   fi
   stop_ray "$log_root/ray_e1_stop.log"
@@ -177,15 +171,15 @@ fi
 
 if [[ ! -s "$eval_receipt" ]]; then
   start_ray "$log_root/ray_eval_start.log"
-  trinity run --config examples/agemem_hotpotqa/agemem_e1_4b_checkpoint_eval.yaml \
-    2>&1 | tee "$log_root/e1_checkpoint_eval.log"
+  trinity run --config examples/agemem_hotpotqa/agemem_e1_4b_format_group_eval.yaml \
+    2>&1 | tee "$log_root/e1_format_group_checkpoint_eval.log"
   if [[ ! -s "$eval_receipt" ]]; then
-    printf '4B checkpoint eval did not persist bench_step_1_model_1.json\n' >&2
+    printf 'Format-group 4B checkpoint eval did not persist bench_step_3_model_3.json\n' >&2
     exit 1
   fi
   stop_ray "$log_root/ray_eval_stop.log"
 fi
 
-printf '4B terminal-only E1 finished.\n'
+printf 'Format-group 4B GRPO finished.\n'
 printf 'Logs: %s\n' "$log_root"
 printf 'Preflight: %s\n' "$preflight_dir/preflight_report.json"

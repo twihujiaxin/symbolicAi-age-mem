@@ -25,6 +25,9 @@
 | `agemem_e0_4b_format_var_eval.yaml` | format-variance 4B E0 锁文件（启动器跳过；K=2 held-out 已测） | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_4b_format_var.yaml` | format-variance 4B GRPO：K=4、3 step、nudge 打开 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_4b_format_var_eval.yaml` | format-variance 4B 新进程 checkpoint 评测（nudge 打开） | `AgeMem_hotpot_workflow_training` |
+| `agemem_e0_4b_format_group_eval.yaml` | format-group 4B E0 锁文件（启动器跳过） | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_format_group.yaml` | format-group 4B GRPO：K=4、3 step、nudge 打开、每个 trainer step 吃完整一组 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_format_group_eval.yaml` | format-group 4B 新进程 checkpoint 评测（nudge 打开） | `AgeMem_hotpot_workflow_training` |
 | `agemem_eval.yaml`  | Bench 模式评估   | `AgeMem_hotpot_workflow_evaluation` |
 
 ## 快速开始
@@ -176,7 +179,24 @@ bash -n scripts/agemem_e1_4b_format_var.sh
 bash scripts/agemem_e1_4b_format_var.sh
 ```
 
-必须使用空目录。不要复用 `checkpoints-e1-4b-format`。先看 `training/group_reward_std_mean` 是否大于 0，再看 held-out 是否超过 0.5。
+必须使用空目录。不要复用 `checkpoints-e1-4b-format`。K=4 / 3-step 已在
+`checkpoints-e1-4b-format-var` 关闭：三个 trainer step 仍全是 0.4，因为队列按
+`train_batch_size=8` 切 flattened step，只吃到前 2 题。不要复用该根目录。
+
+**format-group 4B GRPO（完整一组 / trainer step，独立锁，非基线）：**
+
+```bash
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
+export TRINITY_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-format-group
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_format_group.sh
+bash scripts/agemem_e1_4b_format_group.sh
+```
+
+必须使用空目录。不要复用 `checkpoints-e1-4b-format-var`。先看
+`training/last_step_run_count` 是否为 8（2 题 × K=4），以及
+`training/experience_count` 是否远大于 8。完整一组仍不能保证 K 内有方差。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

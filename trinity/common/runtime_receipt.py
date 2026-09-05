@@ -82,6 +82,7 @@ def experience_reward_metrics(exps: Any) -> dict[str, float]:
         "training/reward_mean": float(statistics.fmean(rewards)),
         "training/reward_min": float(min(rewards)),
         "training/reward_max": float(max(rewards)),
+        "training/experience_count": float(len(rewards)),
     }
     eids = getattr(exps, "eids", None)
     if not isinstance(eids, Sequence) or len(eids) != len(rewards):
@@ -102,6 +103,7 @@ def experience_reward_metrics(exps: Any) -> dict[str, float]:
     last_rewards = [item[1] for item in last_by_run.values()]
     if not last_rewards:
         return metrics
+    metrics["training/last_step_run_count"] = float(len(last_rewards))
     metrics["training/last_step_reward_mean"] = float(statistics.fmean(last_rewards))
     metrics["training/last_step_reward_min"] = float(min(last_rewards))
     metrics["training/last_step_reward_max"] = float(max(last_rewards))

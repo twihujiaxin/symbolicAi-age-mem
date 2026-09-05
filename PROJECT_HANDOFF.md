@@ -1844,7 +1844,7 @@ M0
 Codex 当前只应执行：
 
 ```text
-E1：独立 format-variance 4B GRPO（K=4、3 step，nudge 打开，非基线，不进入 E3）
+E1：独立 format-group 4B GRPO（K=4、3 step，每个 trainer step 吃完整一组，nudge 打开，非基线，不进入 E3）
 ```
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆盖其实现，也不要
@@ -1857,10 +1857,12 @@ M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆�
 mean F1 ≈ 0.32）。format-conditioned 4B 1-step 已在
 `f1607feec6fa55478a82fda4dd8cbe17c841c67e` /
 `/data/hjx/Age_mem/checkpoints-e1-4b-format` 关闭（冻结+nudge held-out mean F1 0.5，
-组内 reward 全 0.4，`grad_norm=0`）。当前由用户主动运行
-`bash scripts/agemem_e1_4b_format_var.sh`，使用新的空 checkpoint 根（例如
-`/data/hjx/Age_mem/checkpoints-e1-4b-format-var`）。不要调用
-`autodl_m8b_smoke.sh`、`agemem_e1_4b.sh`、probe 或 K=2 format 启动器做这件事。
+组内 reward 全 0.4，`grad_norm=0`）。format-variance 4B K=4 / 3-step 已在
+`/data/hjx/Age_mem/checkpoints-e1-4b-format-var` 关闭（三个 trainer step 仍全是
+0.4：`train_batch_size=8` 按 flattened step 切片，只吃到前 2 题）。当前由用户主动运行
+`bash scripts/agemem_e1_4b_format_group.sh`，使用新的空 checkpoint 根（例如
+`/data/hjx/Age_mem/checkpoints-e1-4b-format-group`）。不要调用
+`autodl_m8b_smoke.sh`、`agemem_e1_4b.sh`、probe、K=2 format 或 format-var 启动器做这件事。
 
 当前及后续顺序是：
 

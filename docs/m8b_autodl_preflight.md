@@ -388,3 +388,29 @@ bash scripts/agemem_e1_4b_format_var.sh
 必须使用空目录。先看 `training/group_reward_std_mean` 是否大于 0，再看 held-out
 是否超过 0.5。不要把这次并入 vanilla E1 或 K=2 format 基线，也不要说成 E3。
 
+format-var 已在 `/data/hjx/Age_mem/checkpoints-e1-4b-format-var` 关闭：三个
+trainer step 仍全是 0.4，因为队列按 flattened step 切片，只吃到前 2 题。
+不要复用该根目录。
+
+## format-group 4B GRPO（完整一组 / trainer step，独立锁，非基线）
+
+同一 6 条 M5 train、打开 Stage 3 nudge、K=4、3 个 trainer step，但 trainer 每次
+读取一整份 explorer `put_batch`（2 题 × K 的全部 multi-turn step），而不是
+`train_batch_size=8` 条 flattened step。启动器跳过 E0。不改 format-var YAML：
+
+- 锁：`configs/e1_4b_format_group.json`；
+- 配置：`examples/agemem_hotpotqa/agemem_e1_4b_format_group.yaml`、
+  `agemem_e1_4b_format_group_eval.yaml`；
+- 启动器：`scripts/agemem_e1_4b_format_group.sh`；
+- job 名：`agemem-e1-terminal-only-4b-format-group`。
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-format-group
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_format_group.sh
+bash scripts/agemem_e1_4b_format_group.sh
+```
+
+必须使用空目录。先看 `training/last_step_run_count` 是否为 8，再看 held-out
+是否超过 0.5。不要把这次并入 vanilla E1、K=2 format 或 format-var 基线，也不要说成 E3。
+
