@@ -194,9 +194,10 @@ bash -n scripts/agemem_e1_4b_format_group.sh
 bash scripts/agemem_e1_4b_format_group.sh
 ```
 
-必须使用空目录。不要复用 `checkpoints-e1-4b-format-var`。先看
-`training/last_step_run_count` 是否为 8（2 题 × K=4），以及
-`training/experience_count` 是否远大于 8。完整一组仍不能保证 K 内有方差。
+必须使用空目录。不要复用 `checkpoints-e1-4b-format-var`。format-group 已在
+`checkpoints-e1-4b-format-group` / `af0f395` 关闭：三个 step 的
+`last_step_run_count` 均为 8；step 1 出现非零组内 std 与 `grad_norm`；eval held-out
+F1 仍是 0.5。不要复用该根目录。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

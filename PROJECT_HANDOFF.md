@@ -1844,7 +1844,7 @@ M0
 Codex 当前只应执行：
 
 ```text
-E1：独立 format-group 4B GRPO（K=4、3 step，每个 trainer step 吃完整一组，nudge 打开，非基线，不进入 E3）
+E1：format-group 4B GRPO 已关闭（完整一组已证实；held-out 仍 0.5；非基线，不进入 E3）
 ```
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆盖其实现，也不要
@@ -1859,10 +1859,14 @@ mean F1 ≈ 0.32）。format-conditioned 4B 1-step 已在
 `/data/hjx/Age_mem/checkpoints-e1-4b-format` 关闭（冻结+nudge held-out mean F1 0.5，
 组内 reward 全 0.4，`grad_norm=0`）。format-variance 4B K=4 / 3-step 已在
 `/data/hjx/Age_mem/checkpoints-e1-4b-format-var` 关闭（三个 trainer step 仍全是
-0.4：`train_batch_size=8` 按 flattened step 切片，只吃到前 2 题）。当前由用户主动运行
-`bash scripts/agemem_e1_4b_format_group.sh`，使用新的空 checkpoint 根（例如
-`/data/hjx/Age_mem/checkpoints-e1-4b-format-group`）。不要调用
-`autodl_m8b_smoke.sh`、`agemem_e1_4b.sh`、probe、K=2 format 或 format-var 启动器做这件事。
+0.4：`train_batch_size=8` 按 flattened step 切片，只吃到前 2 题）。format-group 4B 已在
+`af0f39506db03a558fa12b2f0cefd6d790692a93` /
+`/data/hjx/Age_mem/checkpoints-e1-4b-format-group` 关闭：三个 step 的
+`last_step_run_count` 均为 8，`experience_count` 为 28/29/32；step 1 出现
+`group_reward_std_mean≈0.130`、`grad_norm≈0.318`；step 2/3 组内 std 为 0；
+held-out F1 仍是 0.5。不要调用 `autodl_m8b_smoke.sh`、`agemem_e1_4b.sh`、probe、
+K=2 format、format-var 或 format-group 启动器重做已关闭的臂。下一步等用户指定；
+不要进入 E3。
 
 当前及后续顺序是：
 

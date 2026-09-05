@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-E1：format-conditioned 4B 1-step 已关闭；下一步是 K=4 / 3-step 组内方差臂（非基线）
+E1：format-group 4B 已关闭（完整一组已证实；held-out 仍 0.5；非基线）
 
-状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。无 nudge 的 terminal-only E1 均已关闭（reward/F1 全 0）。格式 probe 与 format-conditioned 冻结评测证明 nudge 能写出 `<answer>`。4B format 1-step（`f1607feec6fa55478a82fda4dd8cbe17c841c67e` / `checkpoints-e1-4b-format`）：E0 held-out F1 mean/max/min = 0.5/1.0/0.0；train `reward_mean=max=min=0.4`，`grad_norm=0`；checkpoint eval 仍是 0.5。组内 reward 无方差，GRPO 没有更新。该干预不并入 vanilla GRPO 基线。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML。部署根目录仍为 `/data/hjx/Age_mem`
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。无 nudge 的 terminal-only E1 均已关闭（reward/F1 全 0）。format 1-step / format-var 因队列切片只吃到前 2 题。format-group（`af0f39506db03a558fa12b2f0cefd6d790692a93` / `checkpoints-e1-4b-format-group`）三个 step 的 `last_step_run_count` 均为 8；step 1 出现非零组内 std 与 `grad_norm`；eval held-out F1 仍是 0.5。nudge 不并入 vanilla GRPO 基线。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML。部署根目录仍为 `/data/hjx/Age_mem`
 
 ## Completed
 
@@ -242,7 +242,7 @@ E1：format-conditioned 4B 1-step 已关闭；下一步是 K=4 / 3-step 组内�
 - [x] 独立 lock `configs/e1_4b_format_group.json`、YAML、启动器与契约测试；job 名 `agemem-e0-terminal-only-4b-format-group-eval`、`agemem-e1-terminal-only-4b-format-group`
 - [x] 同一 6 条 M5 train、K=4、3 trainer steps、nudge 打开；`consume_put_batch: true`，每个 trainer step 读一整份 explorer `put_batch`（2 题 × K 的全部 multi-turn step），`train_batch_size=8` 只留给 veRL mini-batch
 - [x] 不改冻结 dry-run、K=2 format 或 format-var YAML；其他 4B 启动器拒绝与这条臂共用 checkpoint 根；契约测试不计入 318
-- [ ] 远端尚未跑：新的空 `TRINITY_CHECKPOINT_ROOT_DIR`（例如 `/data/hjx/Age_mem/checkpoints-e1-4b-format-group`）。先看 `training/last_step_run_count` 是否为 **8**、`training/experience_count` 是否远大于 8，再看组内 std 与 held-out 是否超过 0.5。完整一组仍不能保证 K 内有方差
+- [x] 远端已在 `/data/hjx/Age_mem/checkpoints-e1-4b-format-group` / commit `af0f39506db03a558fa12b2f0cefd6d790692a93` 跑完 3 step + eval。三个 trainer step 的 `last_step_run_count` 均为 **8**，`experience_count` 为 28 / 29 / 32（完整 2×K 组，不是切成 8 条 step）。step 1：`reward` 0.40–1.0，`last_step_unique_count=2`，`group_reward_std_mean≈0.130`，`grad_norm≈0.318`，`pg_loss≈-0.022`（第一次出现非零 GRPO 更新）。step 2：8 条 last-step 全 0，`group_std=0`，`pg_loss=0`。step 3：last-step 有 0 与 0.8，但两组内部 std 都是 0，`pg_loss=0`。eval `bench_step_3_model_3.json` held-out F1 仍是 **0.5 / 1.0 / 0.0**（`failed_count: 0`，2 条）。完整一组修复已证实；一次有信号的更新没有超过冻结+nudge 线
 
 ### Stage 1/2 反捷径 benchmark
 
@@ -533,7 +533,7 @@ E1：format-conditioned 4B 1-step 已关闭；下一步是 K=4 / 3-step 组内�
 ## Failures and blockers
 
 - 无未解决的本地可执行测试失败；318 项中仍有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此 Windows 上严格 runtime gate 按设计为 FAIL
-- M8b 远程 smoke 已通过。1.5B vanilla E1（三 seed 与 24×8）与 4B vanilla E1（`checkpoints-e1-4b-006`）train reward / held-out F1 全 0。4B Stage 3 probe mean F1 ≈ 0.32。4B format 1-step 与 format-var 的 trainer 收据全是 0.4：官方 F1 对前 2 题确实是 0.4，但队列按 step 切片，后 4 题没进优化器。nudge 不并入基线。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML
+- M8b 远程 smoke 已通过。1.5B vanilla E1 与 4B vanilla E1 train reward / held-out F1 全 0。4B Stage 3 probe mean F1 ≈ 0.32。format 1-step / format-var 因队列切片只吃到前 2 题、收据全 0.4。format-group 三个 step 都是完整 8-run 组，step 1 出现非零 `group_std` 与 `grad_norm`，但 eval held-out 仍是 0.5。nudge 不并入基线。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML
 - DashScope provider 已冻结；货币成本仍须与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL 或真实 GPU 重复运行
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
@@ -541,4 +541,4 @@ E1：format-conditioned 4B 1-step 已关闭；下一步是 K=4 / 3-step 组内�
 
 ## Next recommended action
 
-1.5B/4B vanilla E1 与 format probe 已关闭。format 1-step 与 format-var（K=4 / 3-step）都已关闭：trainer 收据全是 0.4，因为队列按 `train_batch_size=8` 切 flattened step，只吃到前 2 题。下一步是 **format-group**：`bash scripts/agemem_e1_4b_format_group.sh`，空目录 `/data/hjx/Age_mem/checkpoints-e1-4b-format-group`。先看 `training/last_step_run_count==8`，不要复用 `checkpoints-e1-4b-format-var`。不要把 nudge 写进冻结 dry-run，不要进 E3，不要改 `parse_answer`。
+1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 **format-group** 均已关闭。完整一组修复已证实（`last_step_run_count=8`），且 step 1 第一次出现非零 GRPO 更新，但 held-out 仍是 0.5。下一步等用户指定新臂；不要进 E3，不要把 nudge 写进冻结 dry-run，不要改 `parse_answer`。

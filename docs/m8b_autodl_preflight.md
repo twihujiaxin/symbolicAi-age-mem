@@ -414,3 +414,8 @@ bash scripts/agemem_e1_4b_format_group.sh
 必须使用空目录。先看 `training/last_step_run_count` 是否为 8，再看 held-out
 是否超过 0.5。不要把这次并入 vanilla E1、K=2 format 或 format-var 基线，也不要说成 E3。
 
+format-group 已在 `/data/hjx/Age_mem/checkpoints-e1-4b-format-group` /
+commit `af0f39506db03a558fa12b2f0cefd6d790692a93` 关闭：三个 step 都是完整 8-run
+组；step 1 `group_reward_std_mean≈0.130`、`grad_norm≈0.318`；step 2/3 组内 std
+为 0；eval held-out F1 仍是 0.5。不要复用该根目录。
+
