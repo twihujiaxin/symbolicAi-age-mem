@@ -111,6 +111,11 @@ class E14BFormatGroupContractTest(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("consume_put_batch: bool = False", config_py)
+        queue_py = (
+            REPOSITORY_ROOT / "trinity" / "buffer" / "storage" / "queue.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("if not exp_list:", queue_py)
+        self.assertIn("consume_put_batch must do the same", queue_py)
 
     def test_yaml_matches_lock_and_keeps_nudge(self):
         lock = load_lock()

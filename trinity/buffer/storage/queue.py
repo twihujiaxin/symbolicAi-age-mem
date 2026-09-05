@@ -309,6 +309,11 @@ class QueueStorage:
 
     async def put_batch(self, exp_list: List) -> None:
         """Put batch of experience."""
+        # Explorer's initial sync_weight finishes batch 0 before any rollout.
+        # That writes an empty list. The sliced reader treats extend([]) as a
+        # no-op; consume_put_batch must do the same or the trainer exits immediately.
+        if not exp_list:
+            return
         await self.queue.put(exp_list)
         if self.writer is not None:
             self.writer.write(exp_list)
@@ -348,6 +353,8 @@ class QueueStorage:
                 raise StopAsyncIteration("Queue is closed and no more items to get.")
             try:
                 exp_list = await asyncio.wait_for(self.queue.get(), timeout=1.0)
+                if not exp_list:
+                    continue
                 return list(exp_list)
             except asyncio.TimeoutError:
                 if time.time() - start_time > timeout:
