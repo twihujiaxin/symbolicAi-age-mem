@@ -89,6 +89,8 @@ if [[ "$(git rev-parse HEAD)" != "$AGEMEM_EXPECTED_COMMIT" ]]; then
 fi
 if [[ -n "$(git status --porcelain)" ]]; then
   printf 'Refusing to run format-conditioned 4B diagnosis on a dirty worktree.\n' >&2
+  printf 'select --write-yaml 会改锁并生成 32-dev YAML，必须先提交这些 freeze 文件。\n' >&2
+  git status --porcelain >&2
   exit 2
 fi
 

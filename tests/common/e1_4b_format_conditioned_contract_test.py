@@ -82,13 +82,13 @@ HELD_OUT_IDS = [
 
 
 class E14BFormatConditionedContractTest(unittest.TestCase):
-    def test_lock_copies_scale_train_and_keeps_selection_pending(self):
+    def test_lock_copies_scale_train_and_tracks_selection_status(self):
         lock = load_lock()
         scale = load_scale_lock()
+        status = str(lock["selection_status"])
         self.assertEqual(lock["schema_version"], "agemem.e1_4b_format_conditioned.lock.v1")
         self.assertEqual(lock["experiment_id"], "e1_format_conditioned_4b_protocol")
-        self.assertEqual(lock["selection_status"], "pending")
-        self.assertFalse(selection_is_frozen(lock))
+        self.assertIn(status, {"pending", "frozen"})
         self.assertTrue(lock["stage3_require_final_answer"])
         self.assertTrue(lock["stage3_repair_untagged_answer"])
         self.assertEqual(lock["reward_profile"], "terminal_only")
@@ -118,12 +118,24 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
         self.assertTrue(train_rows_match_scale(lock, scale))
         self.assertEqual(lock["held_out_row_ids"], HELD_OUT_IDS)
         self.assertEqual(lock["excluded_validation_ids"], VIEWED_VALIDATION_IDS)
-        self.assertEqual(lock["fixed_dev_rows"], [])
-        self.assertEqual(lock["fixed_test_rows"], [])
         self.assertEqual(
             json.loads(SCALE_LOCK_PATH.read_text(encoding="utf-8"))["fixed_train_rows"],
             lock["fixed_train_rows"],
         )
+        if status == "pending":
+            self.assertFalse(selection_is_frozen(lock))
+            self.assertEqual(lock["fixed_dev_rows"], [])
+            self.assertEqual(lock["fixed_test_rows"], [])
+        else:
+            self.assertTrue(selection_is_frozen(lock))
+            excluded = set(VIEWED_VALIDATION_IDS)
+            dev_ids = [str(row["hotpot_id"]) for row in lock["fixed_dev_rows"]]
+            test_ids = [str(row["hotpot_id"]) for row in lock["fixed_test_rows"]]
+            self.assertEqual(len(dev_ids), 32)
+            self.assertEqual(len(test_ids), 128)
+            self.assertTrue(excluded.isdisjoint(dev_ids))
+            self.assertTrue(excluded.isdisjoint(test_ids))
+            self.assertTrue(set(dev_ids).isdisjoint(test_ids))
 
     def test_signal_and_heldout_yamls_match_lock(self):
         lock = load_lock()
@@ -159,18 +171,47 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
             self.assertIn(row_id, heldout)
         self.assertNotIn("consume_put_batch", heldout)
 
-    def test_memory_yamls_wait_for_remote_freeze(self):
+    def test_memory_yamls_match_selection_status(self):
         lock = load_lock()
-        for path in (MEM_NORMAL_YAML, MEM_NO_RETRIEVE_YAML, MEM_GOLD_YAML):
-            self.assertFalse(path.exists(), msg=path.name)
         self.assertTrue(job_requires_frozen_selection(MEM_NORMAL_JOB))
         self.assertTrue(job_requires_frozen_selection("mem-gold-support"))
         self.assertFalse(job_requires_frozen_selection(SIGNAL_JOB))
         self.assertFalse(job_requires_frozen_selection("heldout"))
-        with self.assertRaises(ValueError):
-            write_mem_yamls(lock)
-        for key in ("mem_normal_config", "mem_no_retrieve_config", "mem_gold_support_config"):
-            self.assertIsNone(lock["source_files"][key]["sha256"])
+        if lock["selection_status"] == "pending":
+            for path in (MEM_NORMAL_YAML, MEM_NO_RETRIEVE_YAML, MEM_GOLD_YAML):
+                self.assertFalse(path.exists(), msg=path.name)
+            with self.assertRaises(ValueError):
+                write_mem_yamls(lock)
+            for key in (
+                "mem_normal_config",
+                "mem_no_retrieve_config",
+                "mem_gold_support_config",
+            ):
+                self.assertIsNone(lock["source_files"][key]["sha256"])
+            return
+        self.assertTrue(selection_is_frozen(lock))
+        sources = lock["source_files"]
+        self.assertTrue(MEM_NORMAL_YAML.is_file())
+        self.assertTrue(MEM_NO_RETRIEVE_YAML.is_file())
+        self.assertTrue(MEM_GOLD_YAML.is_file())
+        self.assertEqual(_source_digest(MEM_NORMAL_YAML), sources["mem_normal_config"]["sha256"])
+        self.assertEqual(
+            _source_digest(MEM_NO_RETRIEVE_YAML),
+            sources["mem_no_retrieve_config"]["sha256"],
+        )
+        self.assertEqual(_source_digest(MEM_GOLD_YAML), sources["mem_gold_support_config"]["sha256"])
+        normal = MEM_NORMAL_YAML.read_text(encoding="utf-8")
+        no_retrieve = MEM_NO_RETRIEVE_YAML.read_text(encoding="utf-8")
+        gold = MEM_GOLD_YAML.read_text(encoding="utf-8")
+        self.assertNotIn("stage3_disable_ltm_retrieve", normal)
+        self.assertNotIn("stage3_inject_gold_supporting", normal)
+        self.assertIn("stage3_disable_ltm_retrieve: true", no_retrieve)
+        self.assertIn("stage3_inject_gold_supporting: true", gold)
+        self.assertNotIn("consume_put_batch", normal)
+        for row in lock["fixed_dev_rows"]:
+            self.assertIn(row["hotpot_id"], normal)
+            self.assertIn(row["hotpot_id"], no_retrieve)
+            self.assertIn(row["hotpot_id"], gold)
 
     def test_diagnosis_flags_default_false_and_stay_out_of_frozen_yamls(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
