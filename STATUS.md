@@ -414,7 +414,7 @@ E1：format-group 4B 已关闭（完整一组已证实；held-out 仍 0.5；非�
 
 ## Files changed in format-group 4B GRPO lock
 
-- `trinity/common/config.py`、`trinity/buffer/storage/queue.py`、`trinity/buffer/reader/queue_reader.py`（`consume_put_batch`，默认 false）
+- `trinity/common/config.py`、`trinity/buffer/storage/queue.py`、`trinity/buffer/reader/queue_reader.py`（`consume_put_batch`，默认 false；空 `put_batch` 跳过，避免启动 sync 的 batch 0 空列表把 trainer 秒退）
 - `trinity/common/runtime_receipt.py`（`training/experience_count`、`training/last_step_run_count`）
 - `configs/e1_4b_format_group.json`
 - `trinity/common/e1_4b_format_group.py`
@@ -424,7 +424,8 @@ E1：format-group 4B 已关闭（完整一组已证实；held-out 仍 0.5；非�
 - `examples/agemem_hotpotqa/agemem_e1_4b_format_group.yaml`
 - `examples/agemem_hotpotqa/agemem_e1_4b_format_group_eval.yaml`
 - vanilla / K=2 format / format-var / probe 启动器拒绝与这条臂共用 checkpoint 根
-- `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`STATUS.md`
+- 远端关闭记录：`af0f395` 跑完 3 step + eval；`d817333` 写入本文件与交接文档
+- `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`STATUS.md`、`PROJECT_HANDOFF.md`
 
 ## Files changed in Stage 1/2 anti-shortcut extension
 

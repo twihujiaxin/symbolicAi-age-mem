@@ -2,10 +2,10 @@
 
 > 面向：VS Code 中的 Codex 插件  
 > 项目方向：AgeMem 式可学习记忆管理 + GLARE 式 LTLf/DFA 逻辑奖励  
-> 文档版本：v2.1<br>
-> 更新时间：2026-09-03<br>
+> 文档版本：v2.2<br>
+> 更新时间：2026-09-05<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7 已完成；目标模型限定为 1.5B 与 4B、暂不考虑 7B；M8a、1.5B M8b-prep 与 Stage 1/2 反捷径 canary/stress 离线门禁已实现，4B 将使用独立模型/config lock。部署目标已从 AutoDL 改为组内远程 GPU 服务器，工作区根目录为 `/data/hjx/Age_mem`。1.5B 远程准备已推进到步骤十二“使用冻结 tokenizer 重跑反捷径 stress”；本地已将 Stage 2 统一预算改为 19、重生成 lexical stress 报告，并把 runtime gate 锁更新为 `m8a=142`、`all=318`。该修复包含在当前提交中；远程冻结 Qwen tokenizer 重跑、真实严格预检、E0、E1 单次更新和 checkpoint 新进程重载均尚未执行
+> 当前状态：M0～M7、M8a、M8b-prep 已完成。1.5B M8b smoke 已通过。1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 format-group 均已关闭。format-group（`af0f395` / `checkpoints-e1-4b-format-group`）证实每个 trainer step 吃完整 2×K 组（`last_step_run_count=8`）；step 1 出现非零 GRPO 更新，held-out F1 仍为 0.5。nudge 不并入基线。不要进 E3。下一步等用户指定新臂。部署根 `/data/hjx/Age_mem`。冻结 runtime gate 仍为 318。
 
 ---
 
@@ -169,12 +169,15 @@ M4 已完成：Memory Oracle AP + 手工 DFA + 离线奖励
 M5 已完成：真实 HotpotQA 数据适配与 Oracle Benchmark
 M6 已完成：自然语言三元组抽取、显式状态跟踪与 False Reject 收尾
 M7 已完成：Group Critic 与自动机离线验证；真实 LLM 调用为 0
-M8a 本地门禁实现已完成，但仍有两项未关闭：组内远程 GPU 服务器 runtime/E1 smoke 尚未执行；在线 `ActionCreditRecord` 自动生成器尚未实现（后者属于 E3/E4）
+M8a 本地门禁实现已完成。1.5B 组内远程 M8b smoke（E0/E1/checkpoint 新进程评测）已通过；在线 `ActionCreditRecord` 自动生成器尚未实现（属于 E3/E4）
 M8b-prep 已完成：模型/数据/配置锁、严格预检、provider 遥测、运行时 receipt、E0/E1/checkpoint eval 与 fail-closed 一键脚本
 Stage 1/2 反捷径 sidecar 已完成：保留固定 v2 CI canary，并新增 16-task/50-seed/3-budget Stage 1 与成对反事实 Stage 2 stress；两套报告均不改写 E1 或 M3～M7 artifact
+E1 后续臂（均非基线、均不进入 E3）：1.5B/4B vanilla terminal-only 全 0；Stage-3 format probe 能写出 `<answer>`；format 1-step / format-var held-out 0.5 但因队列切片无有效 GRPO 更新；format-group 完整 2×K 组已证实，step 1 有非零更新，held-out 仍 0.5
 ```
 
-“已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a/M8b-prep 只表示上卡前契约、门禁和执行编排已建立，不表示远程服务器预检、E0、E1、optimizer update 或 checkpoint 重载已通过。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
+“已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a/M8b-prep 只表示上卡前契约；1.5B smoke 与后续 4B 各臂的关闭证据以 `STATUS.md` 为准。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
+
+截至 2026-09-05：不要重跑已关闭的 smoke / vanilla E1 / probe / format / format-var / format-group 启动器；不要进入 E3。下一步等用户指定。
 
 ---
 
@@ -1533,19 +1536,10 @@ D:\Project\Age-Mem\AgeMem
 请完整阅读 PROJECT_HANDOFF.md、STATUS.md、
 docs/m8a_terminal_only_preflight.md 和 docs/m8b_autodl_preflight.md。
 
-M0～M7、M8a 和 M8b-prep 已完成。只执行组内远程服务器 M8b GPU smoke，
-不要重做准备实现，不要开始 E3/E4/E5，也不要扩大到全量 HotpotQA。
-
-先核对固定代码 commit、`TRINITY_MODEL_REVISION` 和模型 SHA-256 manifest，
-再由用户主动运行 `bash scripts/autodl_m8b_smoke.sh`。该脚本必须依次完成
-严格 preflight、冻结的 318 项 0-SKIP runtime gate、E0 model-version-0 评测、
-E1 单次 optimizer update、Ray 重启、model-version-1 checkpoint 新进程评测
-和只读 postflight；不要手工跳过或并行运行阶段。
-
-任何 action_id/token span/old_logprobs/policy version、rollout memory 隔离、
-provider 遥测、reward profile、NaN/Inf、receipt、checkpoint shard、LoRA 差异或
-`process_execution_id` 门禁失败时立即停止，不继续租卡长跑。只按 metadata usage
-与 provider 账单对账，不伪造成本，也不声称端到端无外部模型。
+M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成。1.5B/4B vanilla E1、
+format probe、format 1-step、format-var 与 format-group 均已关闭。
+不要重做这些臂，不要开始 E3/E4/E5，也不要扩大到全量 HotpotQA。
+下一步等用户指定新臂。不要把 nudge 写进冻结 dry-run，不要改 parse_answer。
 ```
 
 ### 16.3 M1 提示词
@@ -1841,10 +1835,11 @@ M0
 
 ## 22. 当前立即执行阶段
 
-Codex 当前只应执行：
+Codex 当前不要启动新的 GPU 作业，也不要进入 E3：
 
 ```text
 E1：format-group 4B GRPO 已关闭（完整一组已证实；held-out 仍 0.5；非基线，不进入 E3）
+下一步等用户指定新臂
 ```
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆盖其实现，也不要
@@ -1976,7 +1971,10 @@ revision `1cfa9a7208912126459214e8b04321603b3df60c`，文件为 `configs/e1_4b.j
 `TRINITY_MODEL_PATH` 复用 1.5B lock 或 1.5B probe。format-conditioned 4B GRPO
 使用 `configs/e1_4b_format.json`，不能复用 `configs/e1_4b.json`（该锁断言 nudge
 关闭）。组内方差臂使用 `configs/e1_4b_format_var.json`（K=4、3 step），不能复用
-K=2 format 锁或 `checkpoints-e1-4b-format`。暂不进入 7B。
+K=2 format 锁或 `checkpoints-e1-4b-format`。完整一组臂使用
+`configs/e1_4b_format_group.json`（`consume_put_batch: true`），不能复用
+`checkpoints-e1-4b-format-var`；该臂已在 `af0f395` /
+`/data/hjx/Age_mem/checkpoints-e1-4b-format-group` 关闭。暂不进入 7B。
 
 ### 23.2 必须迁移的最小文件集合
 
