@@ -28,6 +28,7 @@ from trinity.utils.log import get_logger
 
 from .memory_store import MemoryManager, chat_client
 from .distractors import DISTRACTOR_SOURCES, resolve_stage2_distractors
+from .workflow_metrics import extract_sentences_from_supporting_facts
 from .workflow_prompt import (
     TOOL_CALL_SYS_PROMPT,
     SUMMARY_CONTEXT_SYS_PROMPT,
@@ -161,6 +162,12 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         )
         self.stage3_repair_untagged_answer = bool(
             self.workflow_args.get("stage3_repair_untagged_answer", False)
+        )
+        self.stage3_disable_ltm_retrieve = bool(
+            self.workflow_args.get("stage3_disable_ltm_retrieve", False)
+        )
+        self.stage3_inject_gold_supporting = bool(
+            self.workflow_args.get("stage3_inject_gold_supporting", False)
         )
         self.stage1_max_rounds = self.workflow_args.get("stage1_max_rounds", 5)
         self.stage2_max_rounds = self.workflow_args.get("stage2_max_rounds", 5)
@@ -441,29 +448,41 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 top_k = int(args.get("top_k", 3))
                 metadata_filter = args.get("metadata_filter", {})
 
-                items = self.memory_manager.retrieve(query, top_k, metadata_filter)
-                retrieved_block = "\n".join(
-                    f"- {it.content} (Memory ID: {it.memory_id})" for it in items
-                )
-                if retrieved_block:
-                    result_text = f"[retrieved memories]\n{retrieved_block}"
+                if self.current_stage == 3 and self.stage3_disable_ltm_retrieve:
+                    reply_note = "ltm_retrieve_disabled:stage3_diagnosis"
+                    result_text = f"[memory tool result]\n{reply_note}"
+                    self._append_context("tool", result_text)
+                    self._last_tool_result = {
+                        "effect_applied": False,
+                        "outcome": "disabled",
+                        "retrieved_count": 0,
+                        "items": [],
+                        "result_text": result_text,
+                    }
                 else:
-                    result_text = "[no related memories found]"
-                self._append_context("tool", result_text)
-                self._last_tool_result = {
-                    "effect_applied": bool(items),
-                    "outcome": "retrieved" if items else "no_matches",
-                    "retrieved_count": len(items),
-                    "items": [
-                        {
-                            "memory_id": item.memory_id,
-                            "content": item.content,
-                            "metadata": dict(item.metadata or {}),
-                        }
-                        for item in items
-                    ],
-                    "result_text": result_text,
-                }
+                    items = self.memory_manager.retrieve(query, top_k, metadata_filter)
+                    retrieved_block = "\n".join(
+                        f"- {it.content} (Memory ID: {it.memory_id})" for it in items
+                    )
+                    if retrieved_block:
+                        result_text = f"[retrieved memories]\n{retrieved_block}"
+                    else:
+                        result_text = "[no related memories found]"
+                    self._append_context("tool", result_text)
+                    self._last_tool_result = {
+                        "effect_applied": bool(items),
+                        "outcome": "retrieved" if items else "no_matches",
+                        "retrieved_count": len(items),
+                        "items": [
+                            {
+                                "memory_id": item.memory_id,
+                                "content": item.content,
+                                "metadata": dict(item.metadata or {}),
+                            }
+                            for item in items
+                        ],
+                        "result_text": result_text,
+                    }
 
             elif name == "Add_memory":
                 # ADD：为新记忆生成唯一 ID，并记录产生它的训练阶段。
@@ -585,6 +604,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         response_text: str,
         nudged: bool,
         repaired: bool = False,
+        task_score: Optional[float] = None,
     ) -> None:
         if not self.stage3_require_final_answer:
             return
@@ -603,6 +623,8 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             "stage": 3,
             "task_id": getattr(self.task, "task_id", ""),
         }
+        if task_score is not None:
+            payload["task_score"] = float(task_score)
         try:
             append_stage3_final_turn_record(self.tool_trace_recorder.path, payload)
         except Exception:
@@ -630,6 +652,8 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     "trace_step": step_index,
                 }
             )
+            if stage == 3 and self.stage3_inject_gold_supporting:
+                info["privileged_gold_supporting"] = True
             experience.info = info
             prepare_experience_action_drafts(
                 experience,
@@ -1599,6 +1623,20 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         """
         stage_experiences = []
 
+        if self.stage3_inject_gold_supporting:
+            sentences = extract_sentences_from_supporting_facts(
+                self.supporting_facts or {},
+                self.context_info or {},
+            )
+            if sentences:
+                evidence = "\n".join(f"- {sentence}" for sentence in sentences)
+            else:
+                evidence = "[none extracted]"
+            self._append_context(
+                "user",
+                f"[privileged gold supporting evidence]\n{evidence}",
+            )
+
         # User asks the formal question.
         self._append_context("user", self.question)
 
@@ -1675,6 +1713,12 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 if final_answer:
                     found_final_answer = True
                     task_score = await self._get_answer_score(final_answer)
+                    self._record_stage3_final_turn(
+                        round_index=r,
+                        response_text=response_text,
+                        nudged=nudge_this_round,
+                        task_score=task_score,
+                    )
                     break
                 continue
 
@@ -1706,6 +1750,12 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             if final_answer:
                 found_final_answer = True
                 task_score = await self._get_answer_score(final_answer)
+                self._record_stage3_final_turn(
+                    round_index=r,
+                    response_text=response_text,
+                    nudged=nudge_this_round,
+                    task_score=task_score,
+                )
                 if not collected_exp_in_advance:
                     stage_experiences.extend(exps)
                 break
@@ -1753,6 +1803,13 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             if final_answer:
                 found_final_answer = True
                 task_score = await self._get_answer_score(final_answer)
+                self._record_stage3_final_turn(
+                    round_index=repair_round,
+                    response_text=response_text,
+                    nudged=False,
+                    repaired=True,
+                    task_score=task_score,
+                )
             if exps:
                 stage_experiences.extend(exps)
 

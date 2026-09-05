@@ -2,9 +2,9 @@
 
 ## Current milestone
 
-E1：format-group 4B 已关闭（完整一组已证实；held-out 仍 0.5；非基线）
+E1：format-conditioned 4B 协议已锁定；冻结诊断代码已落地（尚未上 GPU）
 
-状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。无 nudge 的 terminal-only E1 均已关闭（reward/F1 全 0）。format 1-step / format-var 因队列切片只吃到前 2 题。format-group（`af0f39506db03a558fa12b2f0cefd6d790692a93` / `checkpoints-e1-4b-format-group`）三个 step 的 `last_step_run_count` 均为 8；step 1 出现非零组内 std 与 `grad_norm`；eval held-out F1 仍是 0.5。nudge 不并入 vanilla GRPO 基线。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML。部署根目录仍为 `/data/hjx/Age_mem`
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。format-group 已关闭（完整一组已证实；held-out 仍 0.5）。本轮锁定独立 format-conditioned 协议：复制已冻结的 24 条 train、nudge 打开、terminal_only + official F1；32-dev / 128-test 待远端 `HOTPOTQA_PATH` 冻结。可立即跑 24×K=4 学习信号诊断与 2 条 held-out 回归；32-dev 三条记忆必要性条件在 freeze 之后。不要启动 36-step pilot、Oracle DFA、E4/E5。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML。nudge 不并入 vanilla GRPO 基线。部署根目录仍为 `/data/hjx/Age_mem`
 
 ## Completed
 
@@ -244,6 +244,17 @@ E1：format-group 4B 已关闭（完整一组已证实；held-out 仍 0.5；非�
 - [x] 不改冻结 dry-run、K=2 format 或 format-var YAML；其他 4B 启动器拒绝与这条臂共用 checkpoint 根；契约测试不计入 318
 - [x] 远端已在 `/data/hjx/Age_mem/checkpoints-e1-4b-format-group` / commit `af0f39506db03a558fa12b2f0cefd6d790692a93` 跑完 3 step + eval。三个 trainer step 的 `last_step_run_count` 均为 **8**，`experience_count` 为 28 / 29 / 32（完整 2×K 组，不是切成 8 条 step）。step 1：`reward` 0.40–1.0，`last_step_unique_count=2`，`group_reward_std_mean≈0.130`，`grad_norm≈0.318`，`pg_loss≈-0.022`（第一次出现非零 GRPO 更新）。step 2：8 条 last-step 全 0，`group_std=0`，`pg_loss=0`。step 3：last-step 有 0 与 0.8，但两组内部 std 都是 0，`pg_loss=0`。eval `bench_step_3_model_3.json` held-out F1 仍是 **0.5 / 1.0 / 0.0**（`failed_count: 0`，2 条）。完整一组修复已证实；一次有信号的更新没有超过冻结+nudge 线
 
+### format-conditioned 4B 协议与冻结诊断（独立锁，非基线，尚未上 GPU）
+
+- [x] 独立 lock `configs/e1_4b_format_conditioned.json`（schema `agemem.e1_4b_format_conditioned.lock.v1`）：Qwen3-4B revision `1cfa9a7208912126459214e8b04321603b3df60c`，nudge 打开，`terminal_only` + `hotpotqa_official`
+- [x] train 24 条 **复制** `e1_scale.fixed_train_rows`；不改 `configs/e1_scale.json`。held-out 仍是原来 2 条 validation ID。32-dev / 128-test `selection_status: pending`，选择 seed `20260905`，排除已看过的 smoke/held-out validation ID
+- [x] 远端选择器 `scripts/agemem_e1_4b_format_conditioned_select.py` 从 labeled `validation` 选 32 then 128，冻结后才生成三条 32 行 memory-necessity YAML
+- [x] 诊断专用 workflow 开关默认 false：`stage3_disable_ltm_retrieve`、`stage3_inject_gold_supporting`；冻结 dry-run / vanilla / 已关闭 format-group YAML 不含这些字符串
+- [x] 五个 bench 作业（无 optimizer、不用 `consume_put_batch`）：`agemem-e1-4b-fc-signal-diag`（24 train，K=4，T=0.6）、`heldout-regression`（2 条，K=1，T=0）、以及 freeze 后的 `mem-normal` / `mem-no-retrieve` / `mem-gold-support`（同一 32-dev，K=1，T=0）
+- [x] 启动器 `scripts/agemem_e1_4b_format_conditioned_diag.sh`、CPU 报告 `scripts/agemem_e1_4b_format_conditioned_diag_report.py`、契约测试不计入 318；其他 4B 启动器拒绝新 job 名
+- [ ] 远端 GPU：新空目录 `/data/hjx/Age_mem/checkpoints-e1-4b-format-conditioned`；先 `nvidia-smi`；用户点头后再启动。signal 与 held-out 可先跑；memory-necessity 必须先 freeze
+- [ ] 诊断之后才做（本轮不实现 YAML）：24-train / 36-step format-group-pilot（3 epoch，seeds 7→17/27，在冻结 32-dev 上 0/12/24/36 eval）；然后 ActionCredit + Oracle DFA vs flat vs terminal；然后 E4/E5
+
 ### Stage 1/2 反捷径 benchmark
 
 - [x] 新增复用 M2 `MemoryStore` 的 `TokenBudgetMemoryStore`：按 active-content token 而非条目数计费，单条整段写入不能绕过预算；ADD/UPDATE/restore 超预算 fail closed，UPDATE 按 token 差额计费，soft delete、snapshot/restore 与版本历史保持可审计
@@ -427,6 +438,22 @@ E1：format-group 4B 已关闭（完整一组已证实；held-out 仍 0.5；非�
 - 远端关闭记录：`af0f395` 跑完 3 step + eval；`d817333` 写入本文件与交接文档
 - `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`STATUS.md`、`PROJECT_HANDOFF.md`
 
+## Files changed in format-conditioned 4B protocol + frozen diagnosis
+
+- `configs/e1_4b_format_conditioned.json`（24 train 已冻结；32/128 pending）
+- `trinity/common/e1_4b_format_conditioned.py`
+- `trinity/common/workflows/memory_context/train_hotpotQA.py`（`stage3_disable_ltm_retrieve` / `stage3_inject_gold_supporting`，默认 false）
+- `scripts/agemem_e1_4b_format_conditioned_select.py`
+- `scripts/agemem_e1_4b_format_conditioned_diag.sh`
+- `scripts/agemem_e1_4b_format_conditioned_diag_report.py`
+- `tests/common/e1_4b_format_conditioned_contract_test.py`（不计入 318）
+- `examples/agemem_hotpotqa/agemem_e1_4b_fc_signal_diag.yaml`
+- `examples/agemem_hotpotqa/agemem_e1_4b_fc_heldout_regression.yaml`
+- 三条 32-dev YAML 在远端 freeze 后生成，当前不入库
+- vanilla / K=2 format / format-var / format-group / probe 启动器拒绝新 job 名
+- 未改 `scripts/agemem_m8b_runtime_gate.py` 的 `M8A_MODULES` 或 318 计数
+- `examples/agemem_hotpotqa/README.md`、`docs/m8b_autodl_preflight.md`、`STATUS.md`、`PROJECT_HANDOFF.md`
+
 ## Files changed in Stage 1/2 anti-shortcut extension
 
 - Stage 1：`AgeMem_code_agentscope/toy_hotpotqa/storage_baselines.py`、`tests/common/stage1_storage_baseline_test.py`
@@ -534,7 +561,7 @@ E1：format-group 4B 已关闭（完整一组已证实；held-out 仍 0.5；非�
 ## Failures and blockers
 
 - 无未解决的本地可执行测试失败；318 项中仍有 3 个只能在完整 Linux runtime 关闭的 SKIP，因此 Windows 上严格 runtime gate 按设计为 FAIL
-- M8b 远程 smoke 已通过。1.5B vanilla E1 与 4B vanilla E1 train reward / held-out F1 全 0。4B Stage 3 probe mean F1 ≈ 0.32。format 1-step / format-var 因队列切片只吃到前 2 题、收据全 0.4。format-group 三个 step 都是完整 8-run 组，step 1 出现非零 `group_std` 与 `grad_norm`，但 eval held-out 仍是 0.5。nudge 不并入基线。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML
+- M8b 远程 smoke 已通过。1.5B vanilla E1 与 4B vanilla E1 train reward / held-out F1 全 0。4B Stage 3 probe mean F1 ≈ 0.32。format 1-step / format-var 因队列切片只吃到前 2 题、收据全 0.4。format-group 三个 step 都是完整 8-run 组，step 1 出现非零 `group_std` 与 `grad_norm`，但 eval held-out 仍是 0.5。format-conditioned 4B 协议与冻结诊断代码已落地，GPU 作业尚未启动。nudge 不并入基线。不要进 E3，不要改冻结 1.5B/4B E1 dry-run YAML
 - DashScope provider 已冻结；货币成本仍须与 provider 账单对账，不得把 E1 声称为端到端无外部模型
 - 当前 Windows 环境不能验证完整 Config/Ray/vLLM/veRL 或真实 GPU 重复运行
 - 在线 `ActionCreditRecord` 当前只有 schema、精确 join 和 buffer validation；E3/E4 的 AP/DFA reward operator 尚未实现
@@ -542,4 +569,4 @@ E1：format-group 4B 已关闭（完整一组已证实；held-out 仍 0.5；非�
 
 ## Next recommended action
 
-1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 **format-group** 均已关闭。完整一组修复已证实（`last_step_run_count=8`），且 step 1 第一次出现非零 GRPO 更新，但 held-out 仍是 0.5。下一步等用户指定新臂；不要进 E3，不要把 nudge 写进冻结 dry-run，不要改 `parse_answer`。
+format-conditioned 4B 协议已锁定。用户点头并确认 `nvidia-smi` 后，在空目录 `/data/hjx/Age_mem/checkpoints-e1-4b-format-conditioned` 上先跑 `signal` 与 `heldout`；32-dev 三条记忆条件必须先在远端 `HOTPOTQA_PATH` 上 `python scripts/agemem_e1_4b_format_conditioned_select.py --write-yaml`。不要启动 36-step pilot、Oracle DFA、E4/E5；不要进 E3；不要把 nudge 写进冻结 dry-run；不要改 `parse_answer`。

@@ -49,6 +49,11 @@ FORBIDDEN_FOREIGN_JOBS = (
     FORMAT_E1_JOB,
     VAR_E0_JOB,
     VAR_E1_JOB,
+    "agemem-e1-4b-fc-signal-diag",
+    "agemem-e1-4b-fc-heldout-regression",
+    "agemem-e1-4b-fc-mem-normal",
+    "agemem-e1-4b-fc-mem-no-retrieve",
+    "agemem-e1-4b-fc-mem-gold-support",
 )
 
 

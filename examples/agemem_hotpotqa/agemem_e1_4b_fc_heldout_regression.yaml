@@ -1,0 +1,169 @@
+# Format-conditioned 4B held-out regression. Same 2 validation IDs as closed format-group, K=1, T=0, Stage-3 nudge, no optimizer.
+project: "Trinity-RFT-AgeMem-M8"
+name: "agemem-e1-4b-fc-heldout-regression"
+mode: bench
+checkpoint_root_dir: ${oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}
+continue_from_checkpoint: false
+
+algorithm:
+  algorithm_type: multi_step_grpo
+  advantage_fn: step_wise_grpo
+  repeat_times: 1
+
+model:
+  model_path: ${oc.env:TRINITY_MODEL_PATH,/data/hjx/Age_mem/models/Qwen3-4B}
+  max_model_len: 5120
+  max_prompt_tokens: 4096
+  max_response_tokens: 1024
+
+cluster:
+  node_num: 1
+  gpu_per_node: 2
+
+buffer:
+  total_epochs: 1
+  total_steps: 1
+  batch_size: 2
+  train_batch_size: 4
+  explorer_input:
+    taskset:
+      name: hotpotqa_fc_heldout_2
+      storage_type: file
+      path: ${oc.env:HOTPOTQA_PATH,/root/autodl-tmp/data/hotpot_qa/fullwiki}
+      split: validation
+      row_indices: [4073, 5204]
+      row_id_key: id
+      expected_row_ids:
+      - 5ab7c6995542993667794005
+      - 5adc8c545542994734353734
+      expected_dataset_fingerprint: fbe86cb2d14cb199
+      format:
+        prompt_key: question
+        response_key: answer
+      rollout_args:
+        temperature: 0.0
+        max_tokens: 1024
+      workflow_args:
+        reward_profile: terminal_only
+        terminal_reward_metric: hotpotqa_official
+        milestone_reward_enabled: false
+        stage3_require_final_answer: true
+        stage3_repair_untagged_answer: true
+        auxiliary_provider:
+          schema_version: agemem.auxiliary_provider.v1
+          provider: dashscope
+          base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+          embedding_model: text-embedding-v4
+          embedding_dimensions: 256
+          chat_model: qwen-max
+          usage_tracking: true
+        auto_summary_threshold: 0.8
+        max_tool_rounds_per_turn: 4
+        max_context_tokens: 4096
+        stage2_distractor_messages: 1
+        stage2_distractor_source: fixed
+        stage1_max_rounds: 2
+        stage2_max_rounds: 2
+        stage3_max_rounds: 2
+        tool_trace_enabled: true
+        tool_trace_console: false
+        tool_trace_max_string_chars: 8192
+        tool_trace_ray_timeout_seconds: 5.0
+    eval_tasksets:
+    - name: hotpotqa_fc_heldout_2
+      storage_type: file
+      path: ${oc.env:HOTPOTQA_PATH,/root/autodl-tmp/data/hotpot_qa/fullwiki}
+      split: validation
+      repeat_times: 1
+      row_indices: [4073, 5204]
+      row_id_key: id
+      expected_row_ids:
+      - 5ab7c6995542993667794005
+      - 5adc8c545542994734353734
+      expected_dataset_fingerprint: fbe86cb2d14cb199
+      format:
+        prompt_key: question
+        response_key: answer
+      rollout_args:
+        temperature: 0.0
+        max_tokens: 1024
+      workflow_args:
+        reward_profile: terminal_only
+        terminal_reward_metric: hotpotqa_official
+        milestone_reward_enabled: false
+        stage3_require_final_answer: true
+        stage3_repair_untagged_answer: true
+        auxiliary_provider:
+          schema_version: agemem.auxiliary_provider.v1
+          provider: dashscope
+          base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+          embedding_model: text-embedding-v4
+          embedding_dimensions: 256
+          chat_model: qwen-max
+          usage_tracking: true
+        auto_summary_threshold: 0.8
+        max_tool_rounds_per_turn: 4
+        max_context_tokens: 4096
+        stage2_distractor_messages: 1
+        stage2_distractor_source: fixed
+        stage1_max_rounds: 2
+        stage2_max_rounds: 2
+        stage3_max_rounds: 2
+        tool_trace_enabled: true
+        tool_trace_console: false
+        tool_trace_max_string_chars: 8192
+        tool_trace_ray_timeout_seconds: 5.0
+    default_workflow_type: AgeMem_hotpot_workflow_training
+    default_eval_workflow_type: AgeMem_hotpot_workflow_training
+  trainer_input:
+    experience_buffer:
+      name: agemem_e1_4b_fc_heldout_regression_buffer
+      storage_type: queue
+      path: null
+
+explorer:
+  eval_on_startup: true
+  bench_on_latest_checkpoint: false
+  eval_interval: 1
+  runner_per_model: 2
+  max_repeat_times_per_runner: 1
+  max_timeout: 900
+  rollout_model:
+    engine_num: 1
+    tensor_parallel_size: 1
+    enable_prefix_caching: true
+    enforce_eager: true
+    enable_history: true
+    dtype: bfloat16
+    seed: 7
+    gpu_memory_utilization: 0.6
+    enable_chunked_prefill: true
+    enable_thinking: false
+
+log:
+  level: INFO
+
+synchronizer:
+  sync_method: checkpoint
+  sync_interval: 1
+  sync_timeout: 900
+
+trainer:
+  trainer_type: verl
+  total_steps: 1
+  save_interval: 1
+  trainer_config:
+    actor_rollout_ref:
+      model:
+        use_remove_padding: true
+        enable_gradient_checkpointing: true
+      actor:
+        use_dynamic_bsz: true
+        ppo_max_token_len_per_gpu: 2304
+        ulysses_sequence_parallel_size: 1
+        optim:
+          lr: 0.000001
+      ref:
+        log_prob_use_dynamic_bsz: ${trainer.trainer_config.actor_rollout_ref.actor.use_dynamic_bsz}
+        log_prob_max_token_len_per_gpu: ${trainer.trainer_config.actor_rollout_ref.actor.ppo_max_token_len_per_gpu}
+        ulysses_sequence_parallel_size: 1

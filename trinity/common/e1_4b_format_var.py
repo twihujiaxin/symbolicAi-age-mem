@@ -47,6 +47,11 @@ FORBIDDEN_FOREIGN_JOBS = (
     FORMAT_E1_JOB,
     "agemem-e0-terminal-only-4b-format-group-eval",
     "agemem-e1-terminal-only-4b-format-group",
+    "agemem-e1-4b-fc-signal-diag",
+    "agemem-e1-4b-fc-heldout-regression",
+    "agemem-e1-4b-fc-mem-normal",
+    "agemem-e1-4b-fc-mem-no-retrieve",
+    "agemem-e1-4b-fc-mem-gold-support",
 )
 
 

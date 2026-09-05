@@ -67,8 +67,13 @@ if [[ -e "$project_dir/agemem-e0-terminal-only-frozen-eval" || \
       -e "$project_dir/agemem-e0-terminal-only-4b-format-eval" || \
       -e "$project_dir/agemem-e1-terminal-only-4b-format" || \
       -e "$project_dir/agemem-e0-terminal-only-4b-format-group-eval" || \
-      -e "$project_dir/agemem-e1-terminal-only-4b-format-group" ]]; then
-  printf 'Refusing a checkpoint root that already contains 1.5B, vanilla 4B, probe, K=2 format, or format-group jobs.\n' >&2
+      -e "$project_dir/agemem-e1-terminal-only-4b-format-group" || \
+      -e "$project_dir/agemem-e1-4b-fc-signal-diag" || \
+      -e "$project_dir/agemem-e1-4b-fc-heldout-regression" || \
+      -e "$project_dir/agemem-e1-4b-fc-mem-normal" || \
+      -e "$project_dir/agemem-e1-4b-fc-mem-no-retrieve" || \
+      -e "$project_dir/agemem-e1-4b-fc-mem-gold-support" ]]; then
+  printf 'Refusing a checkpoint root that already contains 1.5B, vanilla 4B, probe, K=2 format, format-group, or format-conditioned diagnosis jobs.\n' >&2
   exit 2
 fi
 if [[ -e "$e1_job" && ! -s "$trainer_receipt" ]]; then

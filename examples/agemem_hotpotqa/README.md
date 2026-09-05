@@ -28,6 +28,9 @@
 | `agemem_e0_4b_format_group_eval.yaml` | format-group 4B E0 锁文件（启动器跳过） | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_4b_format_group.yaml` | format-group 4B GRPO：K=4、3 step、nudge 打开、每个 trainer step 吃完整一组 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_4b_format_group_eval.yaml` | format-group 4B 新进程 checkpoint 评测（nudge 打开） | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_fc_signal_diag.yaml` | format-conditioned 4B 学习信号诊断：24 train、K=4、T=0.6、不训练 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_fc_heldout_regression.yaml` | format-conditioned 4B 2 条 held-out 回归：K=1、T=0、不训练 | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_fc_mem_*.yaml` | freeze 后生成的 32-dev 记忆必要性 YAML（normal / no-retrieve / gold-support） | `AgeMem_hotpot_workflow_training` |
 | `agemem_eval.yaml`  | Bench 模式评估   | `AgeMem_hotpot_workflow_evaluation` |
 
 ## 快速开始
@@ -198,6 +201,26 @@ bash scripts/agemem_e1_4b_format_group.sh
 `checkpoints-e1-4b-format-group` / `af0f395` 关闭：三个 step 的
 `last_step_run_count` 均为 8；step 1 出现非零组内 std 与 `grad_norm`；eval held-out
 F1 仍是 0.5。不要复用该根目录。
+
+**format-conditioned 4B 协议 + 冻结诊断（独立锁，非基线，先诊断再训练）：**
+
+```bash
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
+export TRINITY_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-format-conditioned
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+python scripts/agemem_e1_4b_format_conditioned_select.py --write-yaml
+bash -n scripts/agemem_e1_4b_format_conditioned_diag.sh
+bash scripts/agemem_e1_4b_format_conditioned_diag.sh signal
+bash scripts/agemem_e1_4b_format_conditioned_diag.sh heldout
+bash scripts/agemem_e1_4b_format_conditioned_diag.sh mem-normal
+bash scripts/agemem_e1_4b_format_conditioned_diag.sh mem-no-retrieve
+bash scripts/agemem_e1_4b_format_conditioned_diag.sh mem-gold-support
+```
+
+必须使用空目录。Windows 不能 freeze 32+128。signal 与 held-out 不依赖 freeze；
+三条 memory-necessity 在 `selection_status != frozen` 时启动器会拒绝。不要启动
+36-step pilot。CPU 报告：`scripts/agemem_e1_4b_format_conditioned_diag_report.py`。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

@@ -419,3 +419,28 @@ commit `af0f39506db03a558fa12b2f0cefd6d790692a93` 关闭：三个 step 都是完
 组；step 1 `group_reward_std_mean≈0.130`、`grad_norm≈0.318`；step 2/3 组内 std
 为 0；eval held-out F1 仍是 0.5。不要复用该根目录。
 
+## format-conditioned 4B 协议 + 冻结诊断（独立锁，非基线）
+
+新协议复制已冻结的 24 条 scale train，nudge 打开，official F1。32-dev / 128-test
+待远端从 labeled validation 冻结（seed `20260905`，排除已看过的 smoke/held-out
+validation ID）。本轮只跑冻结诊断，不训练：
+
+- 锁：`configs/e1_4b_format_conditioned.json`；
+- 可立即跑：`agemem_e1_4b_fc_signal_diag.yaml`（24×K=4，T=0.6）、
+  `agemem_e1_4b_fc_heldout_regression.yaml`（2 条，T=0）；
+- freeze 后：同一 32-dev 的 normal / no-retrieve / gold-support；
+- 启动器：`scripts/agemem_e1_4b_format_conditioned_diag.sh <alias>`；
+- 选择器：`scripts/agemem_e1_4b_format_conditioned_select.py --write-yaml`；
+- 报告：`scripts/agemem_e1_4b_format_conditioned_diag_report.py`。
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-format-conditioned
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+python scripts/agemem_e1_4b_format_conditioned_select.py --write-yaml
+bash -n scripts/agemem_e1_4b_format_conditioned_diag.sh
+bash scripts/agemem_e1_4b_format_conditioned_diag.sh signal
+```
+
+必须使用空目录。先 `nvidia-smi`，不要杀其他用户的 GPU 进程。不要启动 36-step
+pilot、Oracle DFA、E4 或 E5。`flash-attn==2.8.1`。
+
