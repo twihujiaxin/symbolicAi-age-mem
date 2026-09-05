@@ -347,8 +347,13 @@ def validate_e1_trajectory_credit_contract(
     algorithm_type: str,
     advantage_fn: str,
     repeat_times: int,
+    require_group: bool = True,
 ) -> None:
-    """Fail closed if an E1 config is not trajectory-level multi-step GRPO."""
+    """Fail closed if an E1 config is not trajectory-level multi-step GRPO.
+
+    Frozen bench diagnosis may use K=1 at T=0. GRPO training still requires a
+    group of at least two rollouts.
+    """
 
     if not profile.is_terminal_only:
         return
@@ -356,10 +361,11 @@ def validate_e1_trajectory_credit_contract(
         raise RewardProfileConfigError("E1 requires algorithm_type='multi_step_grpo'")
     if advantage_fn != "step_wise_grpo":
         raise RewardProfileConfigError("E1 requires advantage_fn='step_wise_grpo'")
+    minimum_repeat = 2 if require_group else 1
     if (
         isinstance(repeat_times, bool)
         or not isinstance(repeat_times, int)
-        or repeat_times < 2
+        or repeat_times < minimum_repeat
     ):
         raise RewardProfileConfigError("E1 GRPO repeat_times must be at least 2")
 

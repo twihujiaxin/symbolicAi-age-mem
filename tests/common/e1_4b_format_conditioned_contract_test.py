@@ -342,6 +342,25 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
             self.assertEqual(summary["action_contract_join_failures"], 0)
             self.assertEqual(summary["retrieve_used_by_following_response"], 1)
 
+    def test_bench_mode_allows_k1_repeat_times(self):
+        config_py = (REPOSITORY_ROOT / "trinity" / "common" / "config.py").read_text(
+            encoding="utf-8"
+        )
+        profiles = (
+            REPOSITORY_ROOT
+            / "trinity"
+            / "common"
+            / "workflows"
+            / "memory_reward"
+            / "reward_profiles.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('require_group=self.mode != "bench"', config_py)
+        self.assertIn("require_group: bool = True", profiles)
+        self.assertIn("minimum_repeat = 2 if require_group else 1", profiles)
+        heldout = HELDOUT_YAML.read_text(encoding="utf-8")
+        self.assertIn("mode: bench", heldout)
+        self.assertIn("repeat_times: 1", heldout)
+
     def test_scale_lock_file_was_not_edited(self):
         scale = json.loads(SCALE_LOCK_PATH.read_text(encoding="utf-8"))
         self.assertEqual(scale["schema_version"], "agemem.e1_scale.lock.v1")

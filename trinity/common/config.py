@@ -892,6 +892,7 @@ class Config:
             algorithm_type=self.algorithm.algorithm_type,
             advantage_fn=self.algorithm.advantage_fn,
             repeat_times=self.algorithm.repeat_times,
+            require_group=self.mode != "bench",
         )
         max_repeats = self.explorer.max_repeat_times_per_runner
         if max_repeats is not None and (
