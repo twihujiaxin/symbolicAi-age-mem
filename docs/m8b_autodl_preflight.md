@@ -441,6 +441,26 @@ bash -n scripts/agemem_e1_4b_format_conditioned_diag.sh
 bash scripts/agemem_e1_4b_format_conditioned_diag.sh signal
 ```
 
-必须使用空目录。先 `nvidia-smi`，不要杀其他用户的 GPU 进程。不要启动 36-step
-pilot、Oracle DFA、E4 或 E5。`flash-attn==2.8.1`。
+必须使用空目录。先 `nvidia-smi`，不要杀其他用户的 GPU 进程。诊断已关闭。
+`flash-attn==2.8.1`。
+
+## format-conditioned 4B 36-step GRPO pilot（独立锁，非基线）
+
+诊断之后的下一训练切片：24 train、K=4、36 trainer step、`consume_put_batch`，
+在冻结 32-dev 上 eval 0/12/24/36。seed 7；17/27 仍不跑。
+
+- 锁：`configs/e1_4b_fc_pilot.json`；
+- 训练：`examples/agemem_hotpotqa/agemem_e1_4b_fc_pilot.yaml`；
+- 启动器：`scripts/agemem_e1_4b_fc_pilot.sh`；
+- checkpoint 根必须是空的 `/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot`。
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_fc_pilot.sh
+bash scripts/agemem_e1_4b_fc_pilot.sh
+```
+
+必须使用空目录。先 `nvidia-smi`，不要杀其他用户的 GPU 进程。不要复用诊断根。
+不要实现 Oracle DFA、E4 或 E5。`flash-attn==2.8.1`。
 

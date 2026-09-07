@@ -79,10 +79,17 @@ def _last_turn_by_execution(rows: Sequence[Mapping[str, Any]]) -> list[dict[str,
     return list(latest.values())
 
 
+def _group_key(row: Mapping[str, Any]) -> str:
+    hotpot_id = str(row.get("hotpot_id") or "").strip()
+    if hotpot_id:
+        return hotpot_id
+    return str(row.get("task_id") or "")
+
+
 def _signal_groups(last_turns: Sequence[Mapping[str, Any]]) -> dict[str, list[float]]:
     groups: dict[str, list[float]] = defaultdict(list)
     for row in last_turns:
-        task_id = str(row.get("task_id") or "")
+        task_id = _group_key(row)
         if "task_score" in row and row["task_score"] is not None:
             score = float(row["task_score"])
         else:

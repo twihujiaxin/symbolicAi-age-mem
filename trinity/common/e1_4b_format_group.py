@@ -54,6 +54,11 @@ FORBIDDEN_FOREIGN_JOBS = (
     "agemem-e1-4b-fc-mem-normal",
     "agemem-e1-4b-fc-mem-no-retrieve",
     "agemem-e1-4b-fc-mem-gold-support",
+    "agemem-e0-4b-fc-pilot-eval",
+    "agemem-e1-4b-fc-pilot",
+    "agemem-e1-4b-fc-pilot-eval-s12",
+    "agemem-e1-4b-fc-pilot-eval-s24",
+    "agemem-e1-4b-fc-pilot-eval-s36",
 )
 
 

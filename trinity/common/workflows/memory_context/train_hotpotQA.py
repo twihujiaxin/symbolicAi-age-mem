@@ -622,6 +622,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             "round": round_index,
             "stage": 3,
             "task_id": getattr(self.task, "task_id", ""),
+            "hotpot_id": str((self.task.raw_task or {}).get("id") or ""),
         }
         if task_score is not None:
             payload["task_score"] = float(task_score)

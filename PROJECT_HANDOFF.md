@@ -5,7 +5,7 @@
 > 文档版本：v2.2<br>
 > 更新时间：2026-09-05<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7、M8a、M8b-prep 已完成。1.5B M8b smoke 已通过。1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 format-group 均已关闭。format-conditioned 4B 协议已锁定（24 train 复制 scale；32/128 pending），冻结诊断代码已落地、尚未上 GPU。nudge 不并入基线。不要进 E3。不要启动 36-step pilot / Oracle DFA / E4 / E5，直到诊断跑完。部署根 `/data/hjx/Age_mem`。冻结 runtime gate 仍为 318。
+> 当前状态：M0～M7、M8a、M8b-prep 已完成。1.5B M8b smoke 已通过。1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 format-group 均已关闭。format-conditioned 4B 冻结诊断已关闭（`d34532aa`：train F1 0.381，held-out 0.5，32-dev gold 0.573 vs normal 0.246）。36-step pilot 代码已落地、尚未上 GPU。nudge 不并入基线。不要进 E3。不要实现 Oracle DFA / E4 / E5。部署根 `/data/hjx/Age_mem`。冻结 runtime gate 仍为 318。
 
 ---
 
@@ -172,12 +172,12 @@ M7 已完成：Group Critic 与自动机离线验证；真实 LLM 调用为 0
 M8a 本地门禁实现已完成。1.5B 组内远程 M8b smoke（E0/E1/checkpoint 新进程评测）已通过；在线 `ActionCreditRecord` 自动生成器尚未实现（属于 E3/E4）
 M8b-prep 已完成：模型/数据/配置锁、严格预检、provider 遥测、运行时 receipt、E0/E1/checkpoint eval 与 fail-closed 一键脚本
 Stage 1/2 反捷径 sidecar 已完成：保留固定 v2 CI canary，并新增 16-task/50-seed/3-budget Stage 1 与成对反事实 Stage 2 stress；两套报告均不改写 E1 或 M3～M7 artifact
-E1 后续臂（均非基线、均不进入 E3）：1.5B/4B vanilla terminal-only 全 0；Stage-3 format probe 能写出 `<answer>`；format 1-step / format-var held-out 0.5 但因队列切片无有效 GRPO 更新；format-group 完整 2×K 组已证实，step 1 有非零更新，held-out 仍 0.5；format-conditioned 4B 协议 + 冻结诊断代码已落地（24 train 已知，32/128 pending）
+E1 后续臂（均非基线、均不进入 E3）：1.5B/4B vanilla terminal-only 全 0；Stage-3 format probe 能写出 `<answer>`；format 1-step / format-var held-out 0.5 但因队列切片无有效 GRPO 更新；format-group 完整 2×K 组已证实，step 1 有非零更新，held-out 仍 0.5；format-conditioned 4B 冻结诊断已关闭（train F1 0.381，32-dev gold 0.573 ≈ 2.3× normal；no-retrieve ≈ normal）
 ```
 
 “已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a/M8b-prep 只表示上卡前契约；1.5B smoke 与后续 4B 各臂的关闭证据以 `STATUS.md` 为准。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
 
-截至 2026-09-05：不要重跑已关闭的 smoke / vanilla E1 / probe / format / format-var / format-group 启动器；不要进入 E3。下一步是远端 freeze 32+128 并跑冻结诊断，不要启动 36-step pilot。
+截至 2026-09-06：不要重跑已关闭的 smoke / vanilla E1 / probe / format / format-var / format-group / format-conditioned 诊断启动器；不要进入 E3。下一步是 36-step pilot，不要实现 Oracle DFA / E4 / E5。
 
 ---
 
@@ -1538,8 +1538,8 @@ docs/m8a_terminal_only_preflight.md 和 docs/m8b_autodl_preflight.md。
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成。1.5B/4B vanilla E1、
 format probe、format 1-step、format-var 与 format-group 均已关闭。
-format-conditioned 4B 协议已锁定；冻结诊断尚未上 GPU。
-不要重做已关闭的臂，不要开始 36-step pilot / Oracle DFA / E3/E4/E5，
+format-conditioned 4B 冻结诊断已关闭。36-step pilot 代码已落地、尚未上 GPU。
+不要重做已关闭的臂，不要开始 Oracle DFA / E3/E4/E5，
 也不要扩大到全量 HotpotQA。不要把 nudge 写进冻结 dry-run，不要改 parse_answer。
 ```
 
@@ -1839,8 +1839,8 @@ M0
 Codex 当前不要启动新的 GPU 作业，也不要进入 E3：
 
 ```text
-E1：format-conditioned 4B 协议已锁定；冻结诊断代码已落地（尚未上 GPU）
-下一步：用户确认 GPU 后跑 signal + held-out；32-dev 三条记忆条件先远端 freeze
+E1：format-conditioned 4B 冻结诊断已关闭；36-step pilot 代码已落地（尚未上 GPU）
+下一步：用户确认 GPU 后，在空目录 checkpoints-e1-4b-fc-pilot 跑 seed 7 的 36-step
 ```
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆盖其实现，也不要
@@ -1860,11 +1860,15 @@ mean F1 ≈ 0.32）。format-conditioned 4B 1-step 已在
 `/data/hjx/Age_mem/checkpoints-e1-4b-format-group` 关闭：三个 step 的
 `last_step_run_count` 均为 8，`experience_count` 为 28/29/32；step 1 出现
 `group_reward_std_mean≈0.130`、`grad_norm≈0.318`；step 2/3 组内 std 为 0；
-held-out F1 仍是 0.5。format-conditioned 4B 诊断协议已锁定到
-`configs/e1_4b_format_conditioned.json` 与空 checkpoint 根
-`/data/hjx/Age_mem/checkpoints-e1-4b-format-conditioned`。不要调用
-`autodl_m8b_smoke.sh`、`agemem_e1_4b.sh`、probe、K=2 format、format-var 或
-format-group 启动器重做已关闭的臂。不要进入 E3；不要实现 36-step pilot YAML。
+held-out F1 仍是 0.5。format-conditioned 4B 冻结诊断已在
+`d34532aa34a80bf165fee2ef662053d9c441e3f8` /
+`/data/hjx/Age_mem/checkpoints-e1-4b-format-conditioned` 关闭：train F1 0.381，
+held-out 0.5，32-dev gold 0.573 vs normal 0.246 ≈ no-retrieve 0.231。36-step
+pilot 锁到 `configs/e1_4b_fc_pilot.json` 与空 checkpoint 根
+`/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot`。不要调用
+`autodl_m8b_smoke.sh`、`agemem_e1_4b.sh`、probe、K=2 format、format-var、
+format-group 或 format-conditioned 诊断启动器重做已关闭的臂。不要进入 E3；
+不要实现 Oracle DFA / E4 / E5 YAML。
 
 当前及后续顺序是：
 
@@ -1978,9 +1982,9 @@ K=2 format 锁或 `checkpoints-e1-4b-format`。完整一组臂使用
 `configs/e1_4b_format_group.json`（`consume_put_batch: true`），不能复用
 `checkpoints-e1-4b-format-var`；该臂已在 `af0f395` /
 `/data/hjx/Age_mem/checkpoints-e1-4b-format-group` 关闭。独立诊断协议使用
-`configs/e1_4b_format_conditioned.json`（24 train 复制 scale；32/128 pending），
-checkpoint 根必须是空的 `/data/hjx/Age_mem/checkpoints-e1-4b-format-conditioned`。
-暂不进入 7B。
+`configs/e1_4b_format_conditioned.json`（远端已 freeze 32/128，commit `d34532aa`）。
+36-step pilot 使用 `configs/e1_4b_fc_pilot.json`，checkpoint 根必须是空的
+`/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot`。暂不进入 7B。
 
 ### 23.2 必须迁移的最小文件集合
 

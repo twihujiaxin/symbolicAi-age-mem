@@ -31,6 +31,7 @@
 | `agemem_e1_4b_fc_signal_diag.yaml` | format-conditioned 4B 学习信号诊断：24 train、K=4、T=0.6、不训练 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_4b_fc_heldout_regression.yaml` | format-conditioned 4B 2 条 held-out 回归：K=1、T=0、不训练 | `AgeMem_hotpot_workflow_training` |
 | `agemem_e1_4b_fc_mem_*.yaml` | freeze 后生成的 32-dev 记忆必要性 YAML（normal / no-retrieve / gold-support） | `AgeMem_hotpot_workflow_training` |
+| `agemem_e1_4b_fc_pilot.yaml` | format-conditioned 4B 36-step GRPO pilot：24 train、K=4、consume_put_batch、nudge 打开 | `AgeMem_hotpot_workflow_training` |
 | `agemem_eval.yaml`  | Bench 模式评估   | `AgeMem_hotpot_workflow_evaluation` |
 
 ## 快速开始
@@ -219,8 +220,23 @@ bash scripts/agemem_e1_4b_format_conditioned_diag.sh mem-gold-support
 ```
 
 必须使用空目录。Windows 不能 freeze 32+128。signal 与 held-out 不依赖 freeze；
-三条 memory-necessity 在 `selection_status != frozen` 时启动器会拒绝。不要启动
-36-step pilot。CPU 报告：`scripts/agemem_e1_4b_format_conditioned_diag_report.py`。
+三条 memory-necessity 在 `selection_status != frozen` 时启动器会拒绝。CPU 报告：
+`scripts/agemem_e1_4b_format_conditioned_diag_report.py`。该诊断已在远端
+`d34532aa` / `checkpoints-e1-4b-format-conditioned` 关闭。
+
+**format-conditioned 4B 36-step GRPO pilot（独立锁，非基线，诊断之后）：**
+
+```bash
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
+export TRINITY_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_fc_pilot.sh
+bash scripts/agemem_e1_4b_fc_pilot.sh
+```
+
+必须使用空目录，不要复用 `checkpoints-e1-4b-format-conditioned`。远端 format-conditioned
+锁必须已经 `frozen`。seed 7；17/27 仍不跑。不要实现 Oracle DFA / E4 / E5。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

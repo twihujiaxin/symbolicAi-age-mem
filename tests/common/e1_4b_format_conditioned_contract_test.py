@@ -220,6 +220,7 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
         self.assertIn("extract_sentences_from_supporting_facts", workflow)
         self.assertIn("privileged_gold_supporting", workflow)
         self.assertIn("ltm_retrieve_disabled:stage3_diagnosis", workflow)
+        self.assertIn('"hotpot_id"', workflow)
         for path in FROZEN_CLEAN_YAMLS:
             text = path.read_text(encoding="utf-8")
             for flag in DIAGNOSIS_FLAG_STRINGS:
@@ -245,6 +246,7 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
         self.assertIn("source_split=\"validation\"", selector.replace(" ", ""))
         self.assertIn("benchmark_split=\"dev\"", selector.replace(" ", ""))
         self.assertIn("group_std", report)
+        self.assertIn("hotpot_id", report)
         self.assertIn("used_by_following_response", report)
         self.assertNotIn("autodl_m8b_smoke.sh", launcher)
         self.assertNotIn("agemem_e1_dry_run.yaml", launcher)

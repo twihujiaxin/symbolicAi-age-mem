@@ -77,7 +77,12 @@ if [[ -e "$project_dir/agemem-e0-terminal-only-frozen-eval" || \
       -e "$project_dir/agemem-e0-terminal-only-4b-format-var-eval" || \
       -e "$project_dir/agemem-e1-terminal-only-4b-format-var" || \
       -e "$project_dir/agemem-e0-terminal-only-4b-format-group-eval" || \
-      -e "$project_dir/agemem-e1-terminal-only-4b-format-group" ]]; then
+      -e "$project_dir/agemem-e1-terminal-only-4b-format-group" || \
+      -e "$project_dir/agemem-e0-4b-fc-pilot-eval" || \
+      -e "$project_dir/agemem-e1-4b-fc-pilot" || \
+      -e "$project_dir/agemem-e1-4b-fc-pilot-eval-s12" || \
+      -e "$project_dir/agemem-e1-4b-fc-pilot-eval-s24" || \
+      -e "$project_dir/agemem-e1-4b-fc-pilot-eval-s36" ]]; then
   printf 'Refusing a checkpoint root that already contains 1.5B, vanilla 4B, probe, format, format-var, or format-group jobs.\n' >&2
   exit 2
 fi

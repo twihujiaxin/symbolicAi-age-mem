@@ -84,6 +84,7 @@ FROZEN_CLEAN_YAMLS = (
     EXAMPLES_DIR / "agemem_e1_4b_format.yaml",
     EXAMPLES_DIR / "agemem_e1_4b_format_var.yaml",
     EXAMPLES_DIR / "agemem_e1_4b_format_group.yaml",
+    EXAMPLES_DIR / "agemem_e1_4b_fc_pilot.yaml",
 )
 
 _WORKFLOW_ARG_LINES = (

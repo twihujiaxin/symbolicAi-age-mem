@@ -1,0 +1,44 @@
+{
+  "schema_version": "agemem.e1_4b_fc_pilot.lock.v1",
+  "experiment_id": "e1_format_conditioned_4b_36step_pilot",
+  "checkpoint_root": "/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot",
+  "protocol_lock": "configs/e1_4b_format_conditioned.json",
+  "stage3_require_final_answer": true,
+  "stage3_repair_untagged_answer": true,
+  "reward_profile": "terminal_only",
+  "terminal_reward_metric": "hotpotqa_official",
+  "seed": 7,
+  "later_seeds": [
+    17,
+    27
+  ],
+  "trainer_total_steps": 36,
+  "save_interval": 12,
+  "eval_steps": [
+    0,
+    12,
+    24,
+    36
+  ],
+  "repeat_times": 4,
+  "batch_size": 2,
+  "consume_put_batch": true,
+  "train_batch_size": 8,
+  "model": {
+    "repository_id": "Qwen/Qwen3-4B",
+    "expected_revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+  },
+  "jobs": {
+    "e0": "agemem-e0-4b-fc-pilot-eval",
+    "train": "agemem-e1-4b-fc-pilot",
+    "eval_s12": "agemem-e1-4b-fc-pilot-eval-s12",
+    "eval_s24": "agemem-e1-4b-fc-pilot-eval-s24",
+    "eval_s36": "agemem-e1-4b-fc-pilot-eval-s36"
+  },
+  "source_files": {
+    "train_config": {
+      "path": "examples/agemem_hotpotqa/agemem_e1_4b_fc_pilot.yaml",
+      "sha256": "6351b191e48e959751de97a3b925fc2c6439e4b471030eacf0bac6e4187f1015"
+    }
+  }
+}

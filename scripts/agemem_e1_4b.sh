@@ -72,7 +72,12 @@ if [[ -e "$project_dir/agemem-e0-terminal-only-frozen-eval" || \
       -e "$project_dir/agemem-e1-4b-fc-heldout-regression" || \
       -e "$project_dir/agemem-e1-4b-fc-mem-normal" || \
       -e "$project_dir/agemem-e1-4b-fc-mem-no-retrieve" || \
-      -e "$project_dir/agemem-e1-4b-fc-mem-gold-support" ]]; then
+      -e "$project_dir/agemem-e1-4b-fc-mem-gold-support" || \
+      -e "$project_dir/agemem-e0-4b-fc-pilot-eval" || \
+      -e "$project_dir/agemem-e1-4b-fc-pilot" || \
+      -e "$project_dir/agemem-e1-4b-fc-pilot-eval-s12" || \
+      -e "$project_dir/agemem-e1-4b-fc-pilot-eval-s24" || \
+      -e "$project_dir/agemem-e1-4b-fc-pilot-eval-s36" ]]; then
   printf 'Refusing a checkpoint root that already contains 1.5B smoke/scale/repeat, the 4B probe, format-conditioned GRPO, or format-conditioned diagnosis jobs.\n' >&2
   exit 2
 fi
