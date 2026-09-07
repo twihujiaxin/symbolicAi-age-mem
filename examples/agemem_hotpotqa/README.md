@@ -235,8 +235,23 @@ bash -n scripts/agemem_e1_4b_fc_pilot.sh
 bash scripts/agemem_e1_4b_fc_pilot.sh
 ```
 
-必须使用空目录，不要复用 `checkpoints-e1-4b-format-conditioned`。远端 format-conditioned
-锁必须已经 `frozen`。seed 7；17/27 仍不跑。不要实现 Oracle DFA / E4 / E5。
+该臂已关闭：E0/s12/s24 32-dev F1 均为 0.246。不要复用诊断根，不要训到 36，
+不要从 step 24 resume。seed 7；17/27 仍不跑。不要实现 Oracle DFA / E4 / E5。
+
+**format-conditioned 4B question-retrieve（独立锁，非基线）：**
+
+```bash
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
+export TRINITY_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_fc_question_retrieve.sh
+bash scripts/agemem_e1_4b_fc_question_retrieve.sh
+```
+
+必须使用独立空根。远端 format-conditioned 锁必须已经 `frozen`。不注入 gold
+supporting。对照 32-dev mem-normal 0.246 与 gold-support 0.573。不要实现
+Oracle DFA / E4 / E5。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

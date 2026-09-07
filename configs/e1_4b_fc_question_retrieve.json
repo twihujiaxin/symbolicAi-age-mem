@@ -1,0 +1,23 @@
+{
+  "schema_version": "agemem.e1_4b_fc_question_retrieve.lock.v1",
+  "experiment_id": "e1_format_conditioned_4b_question_retrieve",
+  "checkpoint_root": "/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve",
+  "protocol_lock": "configs/e1_4b_format_conditioned.json",
+  "stage3_require_final_answer": true,
+  "stage3_repair_untagged_answer": true,
+  "stage3_question_retrieve": true,
+  "stage3_index_observed_context": true,
+  "stage3_question_retrieve_top_k": 8,
+  "stage3_inject_gold_supporting": false,
+  "reward_profile": "terminal_only",
+  "terminal_reward_metric": "hotpotqa_official",
+  "seed": 7,
+  "repeat_times": 1,
+  "model": {
+    "repository_id": "Qwen/Qwen3-4B",
+    "expected_revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+  },
+  "jobs": {
+    "bench": "agemem-e1-4b-fc-question-retrieve"
+  }
+}

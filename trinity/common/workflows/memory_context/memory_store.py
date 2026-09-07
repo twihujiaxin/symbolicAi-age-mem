@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -112,6 +113,23 @@ def _cosine_similarity(a: List[float], b: List[float]) -> float:
     if na == 0.0 or nb == 0.0:
         return 0.0
     return dot / (na * nb)
+
+
+_LEXICAL_TOKEN = re.compile(r"[A-Za-z0-9]+")
+
+
+def lexical_overlap(query: str, content: str) -> float:
+    """Query-term coverage in ``content``. Gold labels are not used."""
+    query_tokens = {token.lower() for token in _LEXICAL_TOKEN.findall(query) if len(token) > 1}
+    if not query_tokens:
+        return 0.0
+    content_tokens = {token.lower() for token in _LEXICAL_TOKEN.findall(content) if len(token) > 1}
+    return len(query_tokens & content_tokens) / len(query_tokens)
+
+
+def hybrid_retrieve_score(cosine: float, lexical: float) -> float:
+    """Sum of cosine and lexical overlap, both in [0, 1]."""
+    return float(cosine) + float(lexical)
 
 
 @dataclass
@@ -311,6 +329,9 @@ class VersionedRolloutVectorStore:
 
     def history(self, memory_id: Optional[str] = None) -> List[MemoryItem]:
         return [self._to_item(record) for record in self._backend.history(memory_id)]
+
+    def get_all(self) -> List[MemoryItem]:
+        return [self._to_item(record) for record in self._backend.get_all()]
 
 
 class MemoryManager:
@@ -543,6 +564,37 @@ class MemoryManager:
                 q_emb, top_k=top_k, metadata_filter=metadata_filter
             )
         ]
+
+    def list_memories(self) -> List[MemoryItem]:
+        """Return active LTM items for this rollout."""
+        return self._store.get_all()
+
+    def retrieve_hybrid(
+        self,
+        query: str,
+        top_k: int = 5,
+        metadata_filter: Optional[Dict[str, str]] = None,
+    ) -> List[MemoryItem]:
+        """Rank LTM by cosine plus query-term overlap. Does not use gold labels."""
+        if not query:
+            return []
+        q_emb = self.embed(query)
+        scored: List[Tuple[MemoryItem, float]] = []
+        for item in self.list_memories():
+            if metadata_filter and not all(
+                item.metadata.get(key) == value for key, value in metadata_filter.items()
+            ):
+                continue
+            cosine = (
+                0.0
+                if item.embedding is None
+                else _cosine_similarity(q_emb, item.embedding)
+            )
+            score = hybrid_retrieve_score(cosine, lexical_overlap(query, item.content or ""))
+            if score > 0.0:
+                scored.append((item, score))
+        scored.sort(key=lambda pair: pair[1], reverse=True)
+        return [item for item, _ in scored[: max(1, top_k)]]
 
 
 class chat_client:

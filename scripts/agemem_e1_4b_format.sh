@@ -76,6 +76,7 @@ if [[ -e "$project_dir/agemem-e0-terminal-only-frozen-eval" || \
       -e "$project_dir/agemem-e1-4b-fc-mem-normal" || \
       -e "$project_dir/agemem-e1-4b-fc-mem-no-retrieve" || \
       -e "$project_dir/agemem-e1-4b-fc-mem-gold-support" || \
+      -e "$project_dir/agemem-e1-4b-fc-question-retrieve" || \
       -e "$project_dir/agemem-e0-4b-fc-pilot-eval" || \
       -e "$project_dir/agemem-e1-4b-fc-pilot" || \
       -e "$project_dir/agemem-e1-4b-fc-pilot-eval-s12" || \

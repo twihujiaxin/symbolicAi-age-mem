@@ -28,7 +28,11 @@ from trinity.utils.log import get_logger
 
 from .memory_store import MemoryManager, chat_client
 from .distractors import DISTRACTOR_SOURCES, resolve_stage2_distractors
-from .workflow_metrics import extract_sentences_from_supporting_facts
+from .workflow_metrics import (
+    STAGE1_MAX_SENTENCES_PER_TITLE,
+    observed_context_sentences,
+    extract_sentences_from_supporting_facts,
+)
 from .workflow_prompt import (
     TOOL_CALL_SYS_PROMPT,
     SUMMARY_CONTEXT_SYS_PROMPT,
@@ -169,6 +173,17 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.stage3_inject_gold_supporting = bool(
             self.workflow_args.get("stage3_inject_gold_supporting", False)
         )
+        self.stage3_question_retrieve = bool(
+            self.workflow_args.get("stage3_question_retrieve", False)
+        )
+        self.stage3_index_observed_context = bool(
+            self.workflow_args.get("stage3_index_observed_context", False)
+        )
+        raw_question_top_k = self.workflow_args.get("stage3_question_retrieve_top_k", 8)
+        try:
+            self.stage3_question_retrieve_top_k = max(1, int(raw_question_top_k))
+        except (TypeError, ValueError):
+            self.stage3_question_retrieve_top_k = 8
         self.stage1_max_rounds = self.workflow_args.get("stage1_max_rounds", 5)
         self.stage2_max_rounds = self.workflow_args.get("stage2_max_rounds", 5)
         self.tool_reward_stats_source = (
@@ -655,6 +670,8 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             )
             if stage == 3 and self.stage3_inject_gold_supporting:
                 info["privileged_gold_supporting"] = True
+            if stage == 3 and self.stage3_question_retrieve:
+                info["stage3_question_retrieve"] = True
             experience.info = info
             prepare_experience_action_drafts(
                 experience,
@@ -1380,9 +1397,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         merged_context_lines = []
         for title, sents in zip(titles, sentences_list):
             # Truncate to avoid being overly long.
-            sents_short = sents[
-                : min(10, len(sents))
-            ]  # Take up to 10 sentences per entry.
+            sents_short = sents[: min(STAGE1_MAX_SENTENCES_PER_TITLE, len(sents))]
             merged_context_lines.append(f"{title}: {' '.join(sents_short)}")
         merged_context_text = "\n".join(merged_context_lines)
 
@@ -1615,6 +1630,46 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
 
         return stage_experiences
 
+    def _index_observed_context_into_ltm(self) -> int:
+        """Store Stage-1 visible sentences in LTM. Does not use gold labels."""
+        sentences = observed_context_sentences(self.context_info or {})
+        existing = {
+            str(item.content).strip()
+            for item in self.memory_manager.list_memories()
+            if getattr(item, "content", None)
+        }
+        added = 0
+        for sentence in sentences:
+            if sentence in existing:
+                continue
+            mem_id = str(uuid.uuid4())
+            stored = self.memory_manager.add_memory(
+                mem_id,
+                sentence,
+                metadata={"source": "observed_context", "stage": "index"},
+            )
+            if stored:
+                existing.add(sentence)
+                added += 1
+        return added
+
+    def _prepend_stage3_question_retrieve(self) -> None:
+        indexed = 0
+        if self.stage3_index_observed_context:
+            indexed = self._index_observed_context_into_ltm()
+        items = self.memory_manager.retrieve_hybrid(
+            self.question,
+            top_k=self.stage3_question_retrieve_top_k,
+        )
+        if items:
+            evidence = "\n".join(f"- {item.content}" for item in items)
+            self._append_context("user", f"[retrieved memories]\n{evidence}")
+        self.logger.info(
+            "Stage 3 question-retrieve indexed=%s retrieved=%s",
+            indexed,
+            len(items),
+        )
+
     async def _run_stage3_formal_qa(self) -> Tuple[List[Experience], float, bool]:
         """
         Stage 3：正式问答。模型要自行检索 LTM，并在有限 STM 中完成推理。
@@ -1637,6 +1692,8 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 "user",
                 f"[privileged gold supporting evidence]\n{evidence}",
             )
+        elif self.stage3_question_retrieve and not self.stage3_disable_ltm_retrieve:
+            self._prepend_stage3_question_retrieve()
 
         # User asks the formal question.
         self._append_context("user", self.question)

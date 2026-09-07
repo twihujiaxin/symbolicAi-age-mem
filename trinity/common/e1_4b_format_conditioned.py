@@ -75,6 +75,8 @@ EXCLUDED_VALIDATION_ROWS = (
 DIAGNOSIS_FLAG_STRINGS = (
     "stage3_disable_ltm_retrieve",
     "stage3_inject_gold_supporting",
+    "stage3_question_retrieve",
+    "stage3_index_observed_context",
 )
 FROZEN_CLEAN_YAMLS = (
     EXAMPLES_DIR / "agemem_e1_dry_run.yaml",

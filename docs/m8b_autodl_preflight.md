@@ -461,6 +461,28 @@ bash -n scripts/agemem_e1_4b_fc_pilot.sh
 bash scripts/agemem_e1_4b_fc_pilot.sh
 ```
 
-必须使用空目录。先 `nvidia-smi`，不要杀其他用户的 GPU 进程。不要复用诊断根。
+该臂已关闭：E0/s12/s24 32-dev `task_score/mean` 均为 0.246。step 30 CUDA OOM，
+不必训到 36、不必 s36。不要删除训练目录，不要从 `global_step_24` resume。
+不要实现 Oracle DFA、E4 或 E5。`flash-attn==2.8.1`。
+
+## format-conditioned 4B question-retrieve（独立锁，非基线）
+
+针对 gold-support 缺口：Stage-3 把 Stage-1 见过的句子编进 LTM，再用问题做
+余弦+词项混合检索，写入 `[retrieved memories]`。**不读 supporting_facts。**
+对照 mem-normal 0.246 与 gold-support 0.573。
+
+- 锁：`configs/e1_4b_fc_question_retrieve.json`；
+- 启动器：`scripts/agemem_e1_4b_fc_question_retrieve.sh`；
+- checkpoint 根必须是空的 `/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve`。
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e1_4b_fc_question_retrieve.sh
+bash scripts/agemem_e1_4b_fc_question_retrieve.sh
+```
+
+必须使用空目录。远端 format-conditioned 锁必须已经 `frozen`。先 `nvidia-smi`，
+不要杀其他用户的 GPU 进程。不要复用诊断根或 36-step pilot 根。
 不要实现 Oracle DFA、E4 或 E5。`flash-attn==2.8.1`。
 

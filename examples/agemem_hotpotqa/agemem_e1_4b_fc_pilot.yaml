@@ -118,12 +118,12 @@ explorer:
   rollout_model:
     engine_num: 1
     tensor_parallel_size: 1
-    enable_prefix_caching: true
+    enable_prefix_caching: false
     enforce_eager: true
     enable_history: true
     dtype: bfloat16
     seed: 7
-    gpu_memory_utilization: 0.6
+    gpu_memory_utilization: 0.5
     enable_chunked_prefill: true
     enable_thinking: false
 

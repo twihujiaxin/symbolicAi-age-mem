@@ -73,6 +73,7 @@ FORBIDDEN_FOREIGN_JOBS = (
     "agemem-e0-terminal-only-4b-format-group-eval",
     "agemem-e1-terminal-only-4b-format-group",
     *DIAGNOSIS_JOBS,
+    "agemem-e1-4b-fc-question-retrieve",
 )
 
 
@@ -167,12 +168,12 @@ explorer:
   rollout_model:
     engine_num: 1
     tensor_parallel_size: 1
-    enable_prefix_caching: true
+    enable_prefix_caching: false
     enforce_eager: true
     enable_history: true
     dtype: bfloat16
     seed: {SEED}
-    gpu_memory_utilization: 0.6
+    gpu_memory_utilization: 0.5
     enable_chunked_prefill: true
     enable_thinking: false
 

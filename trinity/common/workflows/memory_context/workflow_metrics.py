@@ -306,6 +306,37 @@ Only output the JSON object, nothing else."""
         return {"title": [], "sent_id": []}
 
 
+STAGE1_MAX_SENTENCES_PER_TITLE = 10
+
+
+def observed_context_sentences(
+    context_info: dict,
+    *,
+    max_sentences_per_title: int = STAGE1_MAX_SENTENCES_PER_TITLE,
+) -> List[str]:
+    """Stage-1 visible sentences only. Does not read supporting_facts."""
+    if not context_info:
+        return []
+    titles = context_info.get("title") or []
+    sentences_list = context_info.get("sentences") or []
+    if not titles or not sentences_list:
+        return []
+    limit = min(len(titles), len(sentences_list))
+    extracted: List[str] = []
+    seen: set[str] = set()
+    for title, sentences in zip(titles[:limit], sentences_list[:limit]):
+        del title
+        if not isinstance(sentences, list):
+            continue
+        for sentence in sentences[: max(0, int(max_sentences_per_title))]:
+            text = str(sentence).strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            extracted.append(text)
+    return extracted
+
+
 def extract_sentences_from_supporting_facts(
     supporting_facts: dict,
     context_info: dict,

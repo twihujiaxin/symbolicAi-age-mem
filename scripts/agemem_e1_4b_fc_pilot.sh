@@ -7,6 +7,7 @@ set -euo pipefail
 # Canonical eval jobs: agemem-e1-4b-fc-pilot-eval-s12, agemem-e1-4b-fc-pilot-eval-s24,
 # agemem-e1-4b-fc-pilot-eval-s36. E0: agemem-e0-4b-fc-pilot-eval. Train: agemem-e1-4b-fc-pilot.
 # Requires trainer_step_36.json plus global_step_12, global_step_24, and global_step_36.
+# Train YAML uses gpu_memory_utilization 0.5 and prefix caching off to avoid FSDP OOM at later steps.
 required_names=(
   AGEMEM_EXPECTED_COMMIT
   CUDA_DEVICE_ORDER
@@ -82,7 +83,8 @@ if [[ -e "$project_dir/agemem-e0-terminal-only-frozen-eval" || \
       -e "$project_dir/agemem-e1-4b-fc-heldout-regression" || \
       -e "$project_dir/agemem-e1-4b-fc-mem-normal" || \
       -e "$project_dir/agemem-e1-4b-fc-mem-no-retrieve" || \
-      -e "$project_dir/agemem-e1-4b-fc-mem-gold-support" ]]; then
+      -e "$project_dir/agemem-e1-4b-fc-mem-gold-support" || \
+      -e "$project_dir/agemem-e1-4b-fc-question-retrieve" ]]; then
   printf 'Refusing a checkpoint root that already contains 1.5B, vanilla 4B, probe, format-group, or format-conditioned diagnosis jobs.\n' >&2
   exit 2
 fi
@@ -155,6 +157,8 @@ PY
 
 "$python_bin" -c 'import flash_attn; v=flash_attn.__version__; assert v=="2.8.1", v'
 "$python_bin" -m unittest tests.common.e1_4b_fc_pilot_contract_test
+
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 
 if ray status >/dev/null 2>&1; then
   printf 'A Ray cluster is already running; stop it before the 36-step pilot.\n' >&2

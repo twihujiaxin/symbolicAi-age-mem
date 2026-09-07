@@ -65,6 +65,7 @@ FORMAT_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format.sh"
 VAR_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format_var.sh"
 GROUP_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format_group.sh"
 PROBE_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_stage3_answer_probe.sh"
+QR_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_fc_question_retrieve.sh"
 SCALE_YAML = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_scale.yaml"
 DRY_RUN = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_dry_run.yaml"
 DRY_RUN_4B = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_dry_run.yaml"
@@ -160,6 +161,8 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
         self.assertNotIn("consume_put_batch", signal)
         self.assertNotIn("stage3_disable_ltm_retrieve", signal)
         self.assertNotIn("stage3_inject_gold_supporting", signal)
+        self.assertNotIn("stage3_question_retrieve", signal)
+        self.assertNotIn("stage3_index_observed_context", signal)
         for row in lock["fixed_train_rows"]:
             self.assertIn(row["hotpot_id"], signal)
         self.assertIn(f'name: "{HELDOUT_JOB}"', heldout)
@@ -217,6 +220,8 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn('workflow_args.get("stage3_disable_ltm_retrieve", False)', workflow)
         self.assertIn('workflow_args.get("stage3_inject_gold_supporting", False)', workflow)
+        self.assertIn('workflow_args.get("stage3_question_retrieve", False)', workflow)
+        self.assertIn('workflow_args.get("stage3_index_observed_context", False)', workflow)
         self.assertIn("extract_sentences_from_supporting_facts", workflow)
         self.assertIn("privileged_gold_supporting", workflow)
         self.assertIn("ltm_retrieve_disabled:stage3_diagnosis", workflow)
@@ -255,7 +260,7 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
         self.assertIn("Qwen3-4B", launcher)
         for job in ALL_JOBS:
             self.assertIn(job, launcher)
-        for other in (VANILLA_LAUNCHER, FORMAT_LAUNCHER, VAR_LAUNCHER, GROUP_LAUNCHER, PROBE_LAUNCHER):
+        for other in (VANILLA_LAUNCHER, FORMAT_LAUNCHER, VAR_LAUNCHER, GROUP_LAUNCHER, PROBE_LAUNCHER, QR_LAUNCHER):
             text = other.read_text(encoding="utf-8")
             for job in ALL_JOBS:
                 self.assertIn(job, text, msg=other.name)

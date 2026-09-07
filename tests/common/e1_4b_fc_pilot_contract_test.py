@@ -51,6 +51,7 @@ FORMAT_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format.sh"
 VAR_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format_var.sh"
 GROUP_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format_group.sh"
 PROBE_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_stage3_answer_probe.sh"
+QR_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_fc_question_retrieve.sh"
 DRY_RUN_4B = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_dry_run.yaml"
 GROUP_YAML = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_format_group.yaml"
 
@@ -90,6 +91,9 @@ class E14BFcPilotContractTest(unittest.TestCase):
         self.assertIn("save_interval: 12", train)
         self.assertIn("consume_put_batch: true", train)
         self.assertIn("train_batch_size: 8", train)
+        self.assertIn("gpu_memory_utilization: 0.5", train)
+        self.assertIn("enable_prefix_caching: false", train)
+        self.assertNotIn("gpu_memory_utilization: 0.6", train)
         self.assertIn("eval_tasksets: []", train)
         self.assertIn("stage3_require_final_answer: true", train)
         self.assertIn("/data/hjx/Age_mem/models/Qwen3-4B", train)
@@ -145,6 +149,8 @@ class E14BFcPilotContractTest(unittest.TestCase):
         self.assertIn("configs/e1_4b_fc_pilot.json", launcher)
         self.assertIn("checkpoints-e1-4b-fc-pilot", launcher)
         self.assertIn("consume_put_batch", launcher)
+        self.assertIn("PYTORCH_CUDA_ALLOC_CONF", launcher)
+        self.assertIn("expandable_segments:True", launcher)
         self.assertIn("trainer_step_36.json", launcher)
         self.assertIn("global_step_12", launcher)
         self.assertIn("global_step_24", launcher)
@@ -163,6 +169,7 @@ class E14BFcPilotContractTest(unittest.TestCase):
             GROUP_LAUNCHER,
             PROBE_LAUNCHER,
             DIAG_LAUNCHER,
+            QR_LAUNCHER,
         ):
             text = other.read_text(encoding="utf-8")
             for job in ALL_JOBS:

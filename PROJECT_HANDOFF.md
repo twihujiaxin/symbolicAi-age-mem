@@ -5,7 +5,7 @@
 > 文档版本：v2.2<br>
 > 更新时间：2026-09-05<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7、M8a、M8b-prep 已完成。1.5B M8b smoke 已通过。1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 format-group 均已关闭。format-conditioned 4B 冻结诊断已关闭（`d34532aa`：train F1 0.381，held-out 0.5，32-dev gold 0.573 vs normal 0.246）。36-step pilot 代码已落地、尚未上 GPU。nudge 不并入基线。不要进 E3。不要实现 Oracle DFA / E4 / E5。部署根 `/data/hjx/Age_mem`。冻结 runtime gate 仍为 318。
+> 当前状态：M0～M7、M8a、M8b-prep 已完成。1.5B M8b smoke 已通过。1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 format-group 均已关闭。format-conditioned 4B 冻结诊断已关闭（`d34532aa`：train F1 0.381，held-out 0.5，32-dev gold 0.573 vs normal 0.246）。36-step pilot 已在 0/12/24 eval 关闭（32-dev F1 均为 0.246）。question-retrieve 代码已落地、尚未上 GPU。nudge 不并入基线。不要进 E3。不要实现 Oracle DFA / E4 / E5。部署根 `/data/hjx/Age_mem`。冻结 runtime gate 仍为 318。
 
 ---
 
@@ -1538,7 +1538,8 @@ docs/m8a_terminal_only_preflight.md 和 docs/m8b_autodl_preflight.md。
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成。1.5B/4B vanilla E1、
 format probe、format 1-step、format-var 与 format-group 均已关闭。
-format-conditioned 4B 冻结诊断已关闭。36-step pilot 代码已落地、尚未上 GPU。
+format-conditioned 4B 冻结诊断已关闭。36-step pilot 已在 0/12/24 eval 关闭
+（32-dev F1 均为 0.246）。question-retrieve 代码已落地、尚未上 GPU。
 不要重做已关闭的臂，不要开始 Oracle DFA / E3/E4/E5，
 也不要扩大到全量 HotpotQA。不要把 nudge 写进冻结 dry-run，不要改 parse_answer。
 ```
@@ -1839,8 +1840,8 @@ M0
 Codex 当前不要启动新的 GPU 作业，也不要进入 E3：
 
 ```text
-E1：format-conditioned 4B 冻结诊断已关闭；36-step pilot 代码已落地（尚未上 GPU）
-下一步：用户确认 GPU 后，在空目录 checkpoints-e1-4b-fc-pilot 跑 seed 7 的 36-step
+E1：question-retrieve 代码已落地（尚未上 GPU）；36-step pilot 已关闭
+下一步：用户确认 GPU 后，在空目录 checkpoints-e1-4b-fc-question-retrieve 跑 32-dev question-retrieve
 ```
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆盖其实现，也不要
@@ -1864,8 +1865,11 @@ held-out F1 仍是 0.5。format-conditioned 4B 冻结诊断已在
 `d34532aa34a80bf165fee2ef662053d9c441e3f8` /
 `/data/hjx/Age_mem/checkpoints-e1-4b-format-conditioned` 关闭：train F1 0.381，
 held-out 0.5，32-dev gold 0.573 vs normal 0.246 ≈ no-retrieve 0.231。36-step
-pilot 锁到 `configs/e1_4b_fc_pilot.json` 与空 checkpoint 根
-`/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot`。不要调用
+pilot 已在 `configs/e1_4b_fc_pilot.json` /
+`/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot` 关闭：E0/s12/s24 32-dev F1
+均为 0.246；step 30 OOM，不必训到 36。question-retrieve 锁到
+`configs/e1_4b_fc_question_retrieve.json` 与空 checkpoint 根
+`/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve`。不要调用
 `autodl_m8b_smoke.sh`、`agemem_e1_4b.sh`、probe、K=2 format、format-var、
 format-group 或 format-conditioned 诊断启动器重做已关闭的臂。不要进入 E3；
 不要实现 Oracle DFA / E4 / E5 YAML。
@@ -1983,8 +1987,10 @@ K=2 format 锁或 `checkpoints-e1-4b-format`。完整一组臂使用
 `checkpoints-e1-4b-format-var`；该臂已在 `af0f395` /
 `/data/hjx/Age_mem/checkpoints-e1-4b-format-group` 关闭。独立诊断协议使用
 `configs/e1_4b_format_conditioned.json`（远端已 freeze 32/128，commit `d34532aa`）。
-36-step pilot 使用 `configs/e1_4b_fc_pilot.json`，checkpoint 根必须是空的
-`/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot`。暂不进入 7B。
+36-step pilot 使用 `configs/e1_4b_fc_pilot.json`，checkpoint 根
+`/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot`，已在 0/12/24 eval 关闭。
+question-retrieve 使用 `configs/e1_4b_fc_question_retrieve.json`，checkpoint 根必须是空的
+`/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve`。暂不进入 7B。
 
 ### 23.2 必须迁移的最小文件集合
 
