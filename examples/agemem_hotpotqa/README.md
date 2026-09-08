@@ -254,7 +254,7 @@ supporting。该臂已关闭：32-dev mean F1 **0.561**（n=32，max 1，min 0�
 mem-normal 0.246 与 gold-support 0.573。不要复用该 checkpoint 根做训练。
 不要实现 E4 / E5。
 
-**format-conditioned 4B E3 Oracle DFA（独立锁，监督上界，尚未上 GPU）：**
+**format-conditioned 4B E3 Oracle DFA（独立锁，监督上界，已关闭）：**
 
 ```bash
 export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
@@ -269,8 +269,24 @@ bash scripts/agemem_e3_4b_fc.sh
 加上 question-retrieve 环境，**不注入 gold**。训练 `reward_profile: terminal_dfa`，
 `R = terminal F1 + β * milestone_total`，trajectory advantage（`multi_step_grpo` +
 `step_wise_grpo`）。评测 DFA shadow，`task_score` 仍是官方 F1。12 steps，eval 0/12。
-E0 对照是 QR **0.561**，不是无 QR 的 0.246。不要另开 terminal GRPO 当 control。
-不要实现 E4 / E5，不要改冻结 dry-run YAML。用户点头并 `nvidia-smi` 后再上 GPU。
+该臂已关闭：E0 32-dev F1 **0.561235**（与 QR 逐位相同），s12 **0.558929**。
+不要另开 terminal GRPO 当 control。不要实现 E4 / E5，不要改冻结 dry-run YAML。
+不要复用该 checkpoint 根。
+
+**format-conditioned 4B E3 无 QR 对照（独立锁，尚未上 GPU）：**
+
+```bash
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
+export TRINITY_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e3-4b-fc-no-qr
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e3_4b_fc_no_qr.sh
+bash scripts/agemem_e3_4b_fc_no_qr.sh
+```
+
+同一 Oracle DFA 底盘，**关闭** question-retrieve 与 observed-context index。E0 对照是
+mem-normal **0.246**，不是 QR-E3 的 0.561。不要复用 QR-E3 根。不要实现 E4 / E5。
+用户点头并 `nvidia-smi` 后再上 GPU。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 

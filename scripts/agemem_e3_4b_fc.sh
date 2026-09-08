@@ -69,6 +69,10 @@ if [[ "$TRINITY_CHECKPOINT_ROOT_DIR" == *checkpoints-e1-4b-fc-question-retrieve 
   printf 'Refusing the question-retrieve checkpoint root.\n' >&2
   exit 2
 fi
+if [[ "$TRINITY_CHECKPOINT_ROOT_DIR" == *checkpoints-e3-4b-fc-no-qr ]]; then
+  printf 'Refusing the no-QR E3 checkpoint root.\n' >&2
+  exit 2
+fi
 if [[ -e "$project_dir/agemem-e0-terminal-only-frozen-eval" || \
       -e "$project_dir/agemem-e1-terminal-only-dry-run" || \
       -e "$project_dir/agemem-e1-terminal-only-scale" || \
@@ -95,8 +99,11 @@ if [[ -e "$project_dir/agemem-e0-terminal-only-frozen-eval" || \
       -e "$project_dir/agemem-e1-4b-fc-pilot-eval-s12" || \
       -e "$project_dir/agemem-e1-4b-fc-pilot-eval-s24" || \
       -e "$project_dir/agemem-e1-4b-fc-pilot-eval-s36" || \
-      -e "$project_dir/agemem-e1-4b-fc-question-retrieve" ]]; then
-  printf 'Refusing a checkpoint root that already contains closed 1.5B/4B, diagnosis, pilot, or question-retrieve jobs.\n' >&2
+      -e "$project_dir/agemem-e1-4b-fc-question-retrieve" || \
+      -e "$project_dir/agemem-e0-4b-fc-e3-no-qr-eval" || \
+      -e "$project_dir/agemem-e3-4b-fc-no-qr" || \
+      -e "$project_dir/agemem-e3-4b-fc-no-qr-eval-s12" ]]; then
+  printf 'Refusing a checkpoint root that already contains closed 1.5B/4B, diagnosis, pilot, question-retrieve, or no-QR E3 jobs.\n' >&2
   exit 2
 fi
 if [[ -e "$train_job" && ! -s "$trainer_receipt" ]]; then

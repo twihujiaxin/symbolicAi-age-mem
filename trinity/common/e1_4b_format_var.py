@@ -61,6 +61,9 @@ FORBIDDEN_FOREIGN_JOBS = (
     "agemem-e0-4b-fc-e3-eval",
     "agemem-e3-4b-fc",
     "agemem-e3-4b-fc-eval-s12",
+    "agemem-e0-4b-fc-e3-no-qr-eval",
+    "agemem-e3-4b-fc-no-qr",
+    "agemem-e3-4b-fc-no-qr-eval-s12",
 )
 
 

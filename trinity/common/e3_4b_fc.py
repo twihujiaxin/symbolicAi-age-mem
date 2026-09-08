@@ -75,8 +75,9 @@ FORBIDDEN_FOREIGN_JOBS = (
 )
 
 
-def _workflow_args(*, shadow: bool) -> str:
+def _workflow_args(*, shadow: bool, question_retrieve: bool = True) -> str:
     shadow_value = "true" if shadow else "false"
+    retrieve_value = "true" if question_retrieve else "false"
     return "\n".join(
         (
             "        reward_profile: terminal_dfa",
@@ -84,8 +85,8 @@ def _workflow_args(*, shadow: bool) -> str:
             "        milestone_reward_enabled: false",
             "        stage3_require_final_answer: true",
             "        stage3_repair_untagged_answer: true",
-            "        stage3_question_retrieve: true",
-            "        stage3_index_observed_context: true",
+            f"        stage3_question_retrieve: {retrieve_value}",
+            f"        stage3_index_observed_context: {retrieve_value}",
             f"        stage3_question_retrieve_top_k: {QUESTION_RETRIEVE_TOP_K}",
             "        stage3_inject_gold_supporting: false",
             f"        e3_dfa_shadow: {shadow_value}",
@@ -119,7 +120,13 @@ def load_lock(path: Path | None = None) -> dict[str, Any]:
     return json.loads(target.read_text(encoding="utf-8"))
 
 
-def render_train_yaml(fc_lock: Mapping[str, Any]) -> str:
+def render_train_yaml(
+    fc_lock: Mapping[str, Any],
+    *,
+    question_retrieve: bool = True,
+    train_job: str | None = None,
+    buffer_name: str = "agemem_e3_4b_fc_buffer",
+) -> str:
     rows = list(fc_lock["fixed_train_rows"])
     if len(rows) != 24:
         raise ValueError("E3 train YAML requires the frozen 24 train rows")
@@ -127,13 +134,25 @@ def render_train_yaml(fc_lock: Mapping[str, Any]) -> str:
         raise ValueError("E3 train rows must copy e1_scale.fixed_train_rows")
     row_ids = _unique_ids(rows)
     fingerprint = str(fc_lock["expected_dataset_fingerprint"])
-    workflow = _workflow_args(shadow=False)
-    return f"""# Format-conditioned 4B E3. Terminal F1 + Oracle AP + hand DFA.
-# Same 24 train rows, K=4, 1 epoch / 12 steps, consume_put_batch, Stage-3 nudge.
-# Question-retrieve is the environment so memory-answerable samples exist.
-# Eval shadows DFA; training adds once-only progress milestones. Seed 7.
+    workflow = _workflow_args(shadow=False, question_retrieve=question_retrieve)
+    job = train_job or TRAIN_JOB
+    if question_retrieve:
+        header = (
+            "# Format-conditioned 4B E3. Terminal F1 + Oracle AP + hand DFA.\n"
+            "# Same 24 train rows, K=4, 1 epoch / 12 steps, consume_put_batch, Stage-3 nudge.\n"
+            "# Question-retrieve is the environment so memory-answerable samples exist.\n"
+            "# Eval shadows DFA; training adds once-only progress milestones. Seed 7."
+        )
+    else:
+        header = (
+            "# Format-conditioned 4B E3 without question-retrieve. Terminal F1 + Oracle AP + hand DFA.\n"
+            "# Same 24 train rows, K=4, 1 epoch / 12 steps, consume_put_batch, Stage-3 nudge.\n"
+            "# Default Stage-3: no observed-context index, no question-retrieve. Seed 7.\n"
+            "# Eval shadows DFA; training adds once-only progress milestones."
+        )
+    return f"""{header}
 project: "Trinity-RFT-AgeMem-M8"
-name: "{TRAIN_JOB}"
+name: "{job}"
 mode: both
 checkpoint_root_dir: ${{oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}}
 continue_from_checkpoint: false
@@ -186,7 +205,7 @@ buffer:
     default_workflow_type: AgeMem_hotpot_workflow_training
   trainer_input:
     experience_buffer:
-      name: agemem_e3_4b_fc_buffer
+      name: {buffer_name}
       storage_type: queue
       path: null
       consume_put_batch: true
@@ -245,13 +264,14 @@ def _render_eval_yaml(
     job: str,
     comment: str,
     lora_path: str | None = None,
+    question_retrieve: bool = True,
 ) -> str:
     if not selection_is_frozen(fc_lock):
         raise ValueError("E3 eval requires frozen 32-dev selection")
     rows = list(fc_lock["fixed_dev_rows"])
     row_ids = _unique_ids(rows)
     fingerprint = str(fc_lock["eval_dataset_fingerprint"])
-    workflow = _workflow_args(shadow=True)
+    workflow = _workflow_args(shadow=True, question_retrieve=question_retrieve)
     lora_block = ""
     if lora_path:
         lora_block = f"""
@@ -382,47 +402,98 @@ trainer:
 """
 
 
-def render_e0_yaml(fc_lock: Mapping[str, Any]) -> str:
+def render_e0_yaml(
+    fc_lock: Mapping[str, Any],
+    *,
+    question_retrieve: bool = True,
+    job: str | None = None,
+) -> str:
+    env = (
+        "question-retrieve environment"
+        if question_retrieve
+        else "no question-retrieve environment"
+    )
+    prefix = "E3" if question_retrieve else "E3 no-QR"
     return _render_eval_yaml(
         fc_lock,
-        job=E0_JOB,
+        job=job or E0_JOB,
         comment=(
-            "# Format-conditioned 4B E3 E0. Frozen 32-dev, K=1, T=0, Stage-3 nudge, "
-            "question-retrieve environment, DFA shadow. task_score remains official F1."
+            f"# Format-conditioned 4B {prefix} E0. Frozen 32-dev, K=1, T=0, Stage-3 nudge, "
+            f"{env}, DFA shadow. task_score remains official F1."
         ),
+        question_retrieve=question_retrieve,
     )
 
 
-def render_checkpoint_eval_yaml(fc_lock: Mapping[str, Any], step: int) -> str:
-    if step not in EVAL_JOB_BY_STEP:
-        raise ValueError(f"unsupported E3 eval step: {step}")
+def render_checkpoint_eval_yaml(
+    fc_lock: Mapping[str, Any],
+    step: int,
+    *,
+    question_retrieve: bool = True,
+    job: str | None = None,
+    train_job: str | None = None,
+) -> str:
+    if job is None:
+        if step not in EVAL_JOB_BY_STEP:
+            raise ValueError(f"unsupported E3 eval step: {step}")
+        eval_job = EVAL_JOB_BY_STEP[step]
+    else:
+        eval_job = job
+    actor_job = train_job or TRAIN_JOB
     lora_path = (
         "${oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}/Trinity-RFT-AgeMem-M8/"
-        f"{TRAIN_JOB}/global_step_{step}/actor/lora_adapter"
+        f"{actor_job}/global_step_{step}/actor/lora_adapter"
     )
+    env = (
+        "question-retrieve environment"
+        if question_retrieve
+        else "no question-retrieve environment"
+    )
+    prefix = "E3" if question_retrieve else "E3 no-QR"
     return _render_eval_yaml(
         fc_lock,
-        job=EVAL_JOB_BY_STEP[step],
+        job=eval_job,
         comment=(
-            f"# Format-conditioned 4B E3 checkpoint eval at global_step_{step}. "
-            "Frozen 32-dev, K=1, T=0, DFA shadow, question-retrieve environment."
+            f"# Format-conditioned 4B {prefix} checkpoint eval at global_step_{step}. "
+            f"Frozen 32-dev, K=1, T=0, DFA shadow, {env}."
         ),
         lora_path=lora_path,
+        question_retrieve=question_retrieve,
     )
 
 
 def write_runtime_eval_yamls(
-    directory: Path, fc_lock: Mapping[str, Any] | None = None
+    directory: Path,
+    fc_lock: Mapping[str, Any] | None = None,
+    *,
+    question_retrieve: bool = True,
+    e0_job: str | None = None,
+    eval_job: str | None = None,
+    train_job: str | None = None,
+    e0_filename: str = "agemem_e0_4b_fc_e3_eval.yaml",
+    eval_filename: str = "agemem_e3_4b_fc_eval_s12.yaml",
 ) -> dict[int, Path]:
     lock = fc_lock or load_fc_lock()
     directory.mkdir(parents=True, exist_ok=True)
     paths = {
-        0: directory / "agemem_e0_4b_fc_e3_eval.yaml",
-        12: directory / "agemem_e3_4b_fc_eval_s12.yaml",
+        0: directory / e0_filename,
+        12: directory / eval_filename,
     }
-    paths[0].write_text(render_e0_yaml(lock), encoding="utf-8", newline="\n")
+    paths[0].write_text(
+        render_e0_yaml(lock, question_retrieve=question_retrieve, job=e0_job),
+        encoding="utf-8",
+        newline="\n",
+    )
     paths[12].write_text(
-        render_checkpoint_eval_yaml(lock, 12), encoding="utf-8", newline="\n"
+        render_checkpoint_eval_yaml(
+            lock,
+            12,
+            question_retrieve=question_retrieve,
+            job=eval_job,
+            train_job=train_job,
+        ),
+        encoding="utf-8",
+        newline="\n",
     )
     return paths
 

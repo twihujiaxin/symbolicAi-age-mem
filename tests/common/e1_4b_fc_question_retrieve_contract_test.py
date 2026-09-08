@@ -62,6 +62,7 @@ PROBE_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_stage3_answer_probe
 DIAG_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format_conditioned_diag.sh"
 PILOT_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_fc_pilot.sh"
 E3_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e3_4b_fc.sh"
+NO_QR_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e3_4b_fc_no_qr.sh"
 DRY_RUN_4B = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_dry_run.yaml"
 METRICS_PATH = (
     REPOSITORY_ROOT
@@ -208,6 +209,7 @@ class QuestionRetrieveContractTest(unittest.TestCase):
             DIAG_LAUNCHER,
             PILOT_LAUNCHER,
             E3_LAUNCHER,
+            NO_QR_LAUNCHER,
         ):
             text = other.read_text(encoding="utf-8")
             self.assertIn(JOB, text, msg=other.name)

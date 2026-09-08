@@ -5,7 +5,7 @@
 > 文档版本：v2.2<br>
 > 更新时间：2026-09-08<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7、M8a、M8b-prep 已完成。1.5B M8b smoke 已通过。1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 format-group 均已关闭。format-conditioned 4B 冻结诊断已关闭（`d34532aa`：train F1 0.381，held-out 0.5，32-dev gold 0.573 vs normal 0.246）。36-step pilot 已在 0/12/24 eval 关闭（32-dev F1 均为 0.246）。question-retrieve 32-dev 已关闭（mean F1 **0.561** ≈ gold 0.573）。E3 代码已落地（Terminal + Oracle AP + 手工 DFA + trajectory advantage），GPU 尚未跑。nudge 不并入基线。不要实现 E4 / E5。不要改冻结 dry-run YAML。部署根 `/data/hjx/Age_mem`。冻结 runtime gate 仍为 318。
+> 当前状态：M0～M7、M8a、M8b-prep 已完成。1.5B M8b smoke 已通过。1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 format-group 均已关闭。format-conditioned 4B 冻结诊断已关闭（`d34532aa`：train F1 0.381，held-out 0.5，32-dev gold 0.573 vs normal 0.246）。36-step pilot 已在 0/12/24 eval 关闭（32-dev F1 均为 0.246）。question-retrieve 32-dev 已关闭（mean F1 **0.561** ≈ gold 0.573）。E3 Oracle DFA（QR 环境）12-step 已关闭（E0 0.561235 / s12 0.558929）。无 QR 的 E3 对照代码已落地、尚未提交、尚未上 GPU。nudge 不并入基线。不要实现 E4 / E5。不要改冻结 dry-run YAML。部署根 `/data/hjx/Age_mem`。冻结 runtime gate 仍为 318。
 
 ---
 
@@ -169,15 +169,15 @@ M4 已完成：Memory Oracle AP + 手工 DFA + 离线奖励
 M5 已完成：真实 HotpotQA 数据适配与 Oracle Benchmark
 M6 已完成：自然语言三元组抽取、显式状态跟踪与 False Reject 收尾
 M7 已完成：Group Critic 与自动机离线验证；真实 LLM 调用为 0
-M8a 本地门禁实现已完成。1.5B 组内远程 M8b smoke（E0/E1/checkpoint 新进程评测）已通过；E3 代码已接入在线 `ActionCreditRecord`，GPU 尚未跑；E4/E5 未实现
+M8a 本地门禁实现已完成。1.5B 组内远程 M8b smoke（E0/E1/checkpoint 新进程评测）已通过；QR-E3 已关闭（E0 0.561235 / s12 0.558929）；无 QR E3 对照已落地、尚未提交、尚未上 GPU；E4/E5 未实现
 M8b-prep 已完成：模型/数据/配置锁、严格预检、provider 遥测、运行时 receipt、E0/E1/checkpoint eval 与 fail-closed 一键脚本
 Stage 1/2 反捷径 sidecar 已完成：保留固定 v2 CI canary，并新增 16-task/50-seed/3-budget Stage 1 与成对反事实 Stage 2 stress；两套报告均不改写 E1 或 M3～M7 artifact
-E1 后续臂（均非基线）：1.5B/4B vanilla terminal-only 全 0；Stage-3 format probe 能写出 `<answer>`；format 1-step / format-var held-out 0.5 但因队列切片无有效 GRPO 更新；format-group 完整 2×K 组已证实，step 1 有非零更新，held-out 仍 0.5；format-conditioned 4B 冻结诊断已关闭（train F1 0.381，32-dev gold 0.573 ≈ 2.3× normal；no-retrieve ≈ normal）；question-retrieve 32-dev 已关闭（mean F1 0.561 ≈ gold 0.573）；E3 代码已落地、尚未上 GPU
+E1 后续臂（均非基线）：1.5B/4B vanilla terminal-only 全 0；Stage-3 format probe 能写出 `<answer>`；format 1-step / format-var held-out 0.5 但因队列切片无有效 GRPO 更新；format-group 完整 2×K 组已证实，step 1 有非零更新，held-out 仍 0.5；format-conditioned 4B 冻结诊断已关闭（train F1 0.381，32-dev gold 0.573 ≈ 2.3× normal；no-retrieve ≈ normal）；question-retrieve 32-dev 已关闭（mean F1 0.561 ≈ gold 0.573）；QR-E3 12-step 已关闭（E0 0.561235 / s12 0.558929）；无 QR E3 对照代码已落地、尚未提交、尚未上 GPU
 ```
 
 “已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a/M8b-prep 只表示上卡前契约；1.5B smoke 与后续 4B 各臂的关闭证据以 `STATUS.md` 为准。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
 
-截至 2026-09-08：不要重跑已关闭的 smoke / vanilla E1 / probe / format / format-var / format-group / format-conditioned 诊断 / 36-step pilot / question-retrieve 启动器。E3 代码已落地，用户点头并 `nvidia-smi` 后再上 GPU。不要实现 E4 / E5。
+截至 2026-09-08：不要重跑已关闭的 smoke / vanilla E1 / probe / format / format-var / format-group / format-conditioned 诊断 / 36-step pilot / question-retrieve / QR-E3 启动器。无 QR 的 E3 代码已落地、尚未提交；提交并推送到官方 github.com 后，用户点头并 `nvidia-smi` 再上 GPU。不要实现 E4 / E5。
 
 ---
 
@@ -1065,7 +1065,7 @@ M8a 不执行模型训练，只关闭 E1 在租卡前可以用 CPU/静态检查�
 
 原始 M8a scoped 结果已被 M8b 冻结 runtime gate 取代。当前锁定发现数为 `m8a=142`、`all=318`；少跑、漏跑、数量漂移、FAIL、ERROR、unexpected success 或任意 SKIP 都判失败。本地因缺 PyTorch/Ray/vLLM 仍有 3 个环境性 SKIP，只能作为诊断，必须在组内远程服务器完整 Linux 环境变为 PASS。
 
-当前 E1 仍使用 DashScope embedding，SUMMARY/CLEAR 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。M8b-prep 已为首轮 smoke 冻结 endpoint、embedding/chat model，并记录无正文的调用、错误、延迟和 usage；provider 不返回货币金额时保持 `None` 并在实验后与账单对账。E3 代码已在线生成 DFA `ActionCreditRecord`，但 GPU 尚未跑，不得把代码落地说成 E3 结果。E4/E5 未实现。
+当前 E1 仍使用 DashScope embedding，SUMMARY/CLEAR 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。M8b-prep 已为首轮 smoke 冻结 endpoint、embedding/chat model，并记录无正文的调用、错误、延迟和 usage；provider 不返回货币金额时保持 `None` 并在实验后与账单对账。QR-E3 已关闭（E0 0.561235 / s12 0.558929）；无 QR E3 对照代码已落地、尚未上 GPU，不得把代码落地说成无 QR 结果。E4/E5 未实现。
 
 ### M8b-prep：远程 GPU 上卡前执行包（已完成）
 
@@ -1540,8 +1540,11 @@ M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成。1.5B/4B vanilla E1�
 format probe、format 1-step、format-var 与 format-group 均已关闭。
 format-conditioned 4B 冻结诊断已关闭。36-step pilot 已在 0/12/24 eval 关闭
 （32-dev F1 均为 0.246）。question-retrieve 32-dev 已关闭（mean F1 0.561）。
-E3 代码已落地、尚未上 GPU。不要重做已关闭的臂，不要实现 E4/E5，
-也不要扩大到全量 HotpotQA。不要把 nudge 写进冻结 dry-run，不要改 parse_answer。
+E3 12-step（QR 环境）已关闭（E0 0.561235 / s12 0.558929）。无 QR E3 对照已落地、尚未提交、尚未上 GPU。
+锁 `configs/e3_4b_fc_no_qr.json`，启动器 `scripts/agemem_e3_4b_fc_no_qr.sh`，空根
+`/data/hjx/Age_mem/checkpoints-e3-4b-fc-no-qr`。E0 对照是 mem-normal 0.246，不是 QR 0.561。
+不要重做已关闭的臂，不要实现 E4/E5，也不要扩大到全量 HotpotQA。不要把 nudge 写进冻结
+dry-run，不要改 parse_answer。
 ```
 
 ### 16.3 M1 提示词
@@ -1840,8 +1843,10 @@ M0
 Codex 当前不要启动新的 GPU 作业，也不要实现 E4 / E5：
 
 ```text
-E3：代码已落地（尚未上 GPU）；question-retrieve 与 36-step pilot 已关闭
-下一步：用户确认 GPU 并 nvidia-smi 后，在空目录 checkpoints-e3-4b-fc 跑 E3
+E3 QR：已关闭（E0 0.561235 / s12 0.558929）
+E3 无 QR：代码已落地（尚未提交、尚未上 GPU）
+下一步：提交并推送到官方 github.com → 用户确认 GPU 并 nvidia-smi
+         → 用 scripts/agemem_e3_4b_fc_no_qr.sh 在空根 checkpoints-e3-4b-fc-no-qr 跑
 ```
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆盖其实现，也不要
@@ -1870,11 +1875,17 @@ pilot 已在 `configs/e1_4b_fc_pilot.json` /
 均为 0.246；step 30 OOM，不必训到 36。question-retrieve 已在
 `configs/e1_4b_fc_question_retrieve.json` /
 `/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve` 关闭（32-dev mean
-F1 **0.561**）。E3 锁到 `configs/e3_4b_fc.json` 与空 checkpoint 根
-`/data/hjx/Age_mem/checkpoints-e3-4b-fc`。不要调用
-`autodl_m8b_smoke.sh`、`agemem_e1_4b.sh`、probe、K=2 format、format-var、
-format-group、format-conditioned 诊断、36-step pilot 或 question-retrieve
-启动器重做已关闭的臂。不要实现 E4 / E5 YAML。
+F1 **0.561**）。QR-E3 已在 `configs/e3_4b_fc.json` /
+`/data/hjx/Age_mem/checkpoints-e3-4b-fc` 关闭（E0 **0.561235** / s12 **0.558929**，
+commit `960dd535d81b8bb95291663afd37e54fa2b54c6a`）。无 QR 对照已写
+`configs/e3_4b_fc_no_qr.json` / `scripts/agemem_e3_4b_fc_no_qr.sh`，空根
+`/data/hjx/Age_mem/checkpoints-e3-4b-fc-no-qr`，训练 YAML digest
+`1f07be1b2576f32a3ca30f62e48db826d23403db55f95166e57d3d97604e3e74`；QR-E3
+train YAML digest 未改（`44915c8ee29fce0b901fa5fb7613ae6269c19a60a05c5f91f22e397a453224ff`）。
+不要调用 `autodl_m8b_smoke.sh`、`agemem_e1_4b.sh`、probe、K=2 format、format-var、
+format-group、format-conditioned 诊断、36-step pilot、question-retrieve 或
+`scripts/agemem_e3_4b_fc.sh` 重做已关闭的臂。下一步是无 QR 启动器，不是 QR-E3。
+不要实现 E4 / E5 YAML。
 
 当前及后续顺序是：
 
@@ -1883,7 +1894,9 @@ M8b：E0 冻结评测 + E1 单次更新 + checkpoint 新进程重载
     ↓（1.5B smoke 已在 `e82bf54` / `checkpoints-attempt-002` 通过）
 E1：同一 6 条样本的 terminal-only 多 seed 重复运行
     ↓
-E3：Oracle AP + 手工 DFA + trajectory advantage
+E3 QR：Oracle AP + 手工 DFA + question-retrieve 环境（已关闭）
+    ↓
+E3 无 QR：同一 DFA，默认 Stage-3（当前下一步，尚未提交/上 GPU）
     ↓
 E4：Extracted AP + 手工 DFA + trajectory advantage
     ↓
@@ -1892,13 +1905,45 @@ E5：action-level advantage
 M9：正式 Benchmark + 跨域泛化
 ```
 
-E3 代码已落地，用户点头前不要上 GPU；不要提前开始 E4/E5 或全量训练。冻结
-runtime gate 仍必须精确发现 318 项；E1/E3 契约测试不计入该 318。E3 在线
-ActionCredit 已写入 `exp.info`，但 GPU 尚未跑。M8b postflight 已证明 E0 model
-version 0、E1 单次更新/checkpoint、checkpoint eval model version 1 且训练/评测
-`process_execution_id` 不同；这仍不是正式 E1 统计，也不是已跑完的 DFA 训练结果。
+QR-E3 已关闭。先提交并推送无 QR 对照，用户点头并 `nvidia-smi` 后再上 GPU；
+不要开始 E4/E5 或全量训练。冻结 runtime gate 仍必须精确发现 318 项；
+E1/E3 契约测试不计入该 318。QR-E3 在线 ActionCredit 已写入 `exp.info`。
+M8b postflight 已证明 E0 model version 0、E1 单次更新/checkpoint、checkpoint
+eval model version 1 且训练/评测 `process_execution_id` 不同；这仍不是正式
+E1 统计。QR-E3 12-step 未抬 32-dev F1（组内 DFA 标量几乎打平）；无 QR 对照
+的 E0 应对齐 mem-normal **0.246**。
 
 ---
+
+## 22.0 无 QR 的 E3 Oracle DFA 对照（当前下一步，尚未提交/上 GPU）
+
+目的：在默认 Stage-3 记忆路径上检验同一 Oracle DFA，而不是 question-retrieve
+环境。QR-E3 是弱检验（组内几乎打平，E0=s12≈0.561）；无 QR 的 E0 应对齐
+format-conditioned mem-normal **0.246**。不注入 gold supporting。评测 DFA
+shadow，`task_score` 仍是官方 F1。不要 resume QR-E3，不要复用其 checkpoint 根。
+
+| 项 | 值 |
+|---|---|
+| 锁 | `configs/e3_4b_fc_no_qr.json`（schema `agemem.e3_4b_fc_no_qr.lock.v1`） |
+| 实验 ID | `e3_format_conditioned_4b_oracle_dfa_no_qr` |
+| 训练配置 | `examples/agemem_hotpotqa/agemem_e3_4b_fc_no_qr.yaml` |
+| 训练 YAML digest | `1f07be1b2576f32a3ca30f62e48db826d23403db55f95166e57d3d97604e3e74` |
+| helper | `trinity/common/e3_4b_fc_no_qr.py`（不要 import `e3_oracle_dfa`） |
+| 启动器 | `scripts/agemem_e3_4b_fc_no_qr.sh` |
+| jobs | `agemem-e0-4b-fc-e3-no-qr-eval` / `agemem-e3-4b-fc-no-qr` / `agemem-e3-4b-fc-no-qr-eval-s12` |
+| checkpoint 根 | `/data/hjx/Age_mem/checkpoints-e3-4b-fc-no-qr`（必须已存在且为空；不要复用 `checkpoints-e3-4b-fc`） |
+| 协议底盘 | `configs/e1_4b_format_conditioned.json`（必须 `selection_status: frozen`） |
+| question-retrieve | 关闭 |
+| index-observed | 关闭 |
+| reward | `terminal_dfa`，`R = F1 + β * milestone_total`，`logic_beta=1.0`，`milestone_weight=0.25` |
+| 底盘 | 24 train / 冻结 32-dev / K=4 / seed 7 / 12 steps / eval 0/12 / `consume_put_batch` |
+| E0 对照 | mem-normal **0.246**，不是 QR-E3 的 0.561 |
+| 契约测试 | `tests/common/e3_4b_fc_no_qr_contract_test.py`（不计入 318） |
+
+上卡前：先提交并推送到官方 `https://github.com/twihujiaxin/symbolicAi-age-mem.git`
+（不要用 `gh-proxy`）。`AGEMEM_EXPECTED_COMMIT` 必须是含无 QR 代码的 40 位 HEAD。
+`TRINITY_CHECKPOINT_ROOT_DIR` 必须是空的 no-QR 根。用户点头并 `nvidia-smi`
+确认两张空闲卡后再跑。不要改冻结 1.5B/4B E1 dry-run YAML。不要实现 E4 / E5。
 
 ## 22.1 E1 terminal-only 多 seed 重复协议
 
@@ -1994,8 +2039,11 @@ K=2 format 锁或 `checkpoints-e1-4b-format`。完整一组臂使用
 `/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot`，已在 0/12/24 eval 关闭。
 question-retrieve 使用 `configs/e1_4b_fc_question_retrieve.json`，已在
 `/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve` 关闭，不要复用该根。
-E3 使用 `configs/e3_4b_fc.json`，checkpoint 根必须是空的
-`/data/hjx/Age_mem/checkpoints-e3-4b-fc`。暂不进入 7B。不要实现 E4 / E5。
+QR-E3 使用 `configs/e3_4b_fc.json`，已在
+`/data/hjx/Age_mem/checkpoints-e3-4b-fc` 关闭（E0 0.561235 / s12 0.558929），不要复用该根。
+无 QR E3 使用 `configs/e3_4b_fc_no_qr.json`，空根必须是
+`/data/hjx/Age_mem/checkpoints-e3-4b-fc-no-qr`；不要把无 QR 作业写进 QR-E3 根。
+暂不进入 7B。不要实现 E4 / E5。
 
 ### 23.2 必须迁移的最小文件集合
 

@@ -491,14 +491,14 @@ bash scripts/agemem_e1_4b_fc_question_retrieve.sh
 
 Terminal F1 + Oracle AP + 手工 DFA + trajectory advantage。同一 format-conditioned
 底盘，question-retrieve 开（不注入 gold）。训练 `terminal_dfa`；评测 DFA shadow，
-`task_score` 仍是官方 F1。E0 对照是 QR **0.561**，不是无 QR 的 0.246。不要另开
+`task_score` 仍是官方 F1。该臂已关闭：E0 **0.561235** / s12 **0.558929**。不要另开
 terminal GRPO 当 control。不要实现 E4 / E5。
 
 - 锁：`configs/e3_4b_fc.json`；
 - 训练：`examples/agemem_hotpotqa/agemem_e3_4b_fc.yaml`；
 - 启动器：`scripts/agemem_e3_4b_fc.sh`；
 - jobs：`agemem-e0-4b-fc-e3-eval`、`agemem-e3-4b-fc`、`agemem-e3-4b-fc-eval-s12`；
-- checkpoint 根必须是空的 `/data/hjx/Age_mem/checkpoints-e3-4b-fc`。
+- checkpoint 根：`/data/hjx/Age_mem/checkpoints-e3-4b-fc`（已占用，不要复用）。
 
 ```bash
 export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e3-4b-fc
@@ -509,6 +509,30 @@ bash scripts/agemem_e3_4b_fc.sh
 
 必须使用空目录。远端 format-conditioned 锁必须已经 `frozen`。先 `nvidia-smi`，
 不要杀其他用户的 GPU 进程。不要复用诊断根、36-step pilot 根或 question-retrieve 根。
-`AGEMEM_EXPECTED_COMMIT` 必须对齐含 E3 代码的 HEAD。契约测试不计入 318。
-用户点头前不要上 GPU。`flash-attn==2.8.1`。
+该臂已关闭：commit `960dd535d81b8bb95291663afd37e54fa2b54c6a`。E0 32-dev
+`task_score/mean` **0.561235**（与 QR 逐位相同），s12 **0.558929**。12/12 step
+`last_step_run_count=8`；仅 step 2 组内 std 非零。不要删除训练目录，不要 resume。
+不要实现 E4 / E5。契约测试不计入 318。`flash-attn==2.8.1`。
+
+## format-conditioned 4B E3 无 QR 对照（独立锁，监督上界）
+
+同一 Oracle DFA，默认 Stage-3（不 index observed context、不按问题检索）。E0 对照是
+mem-normal **0.246**，不是 QR-E3 的 0.561。不要注入 gold。不要实现 E4 / E5。
+
+- 锁：`configs/e3_4b_fc_no_qr.json`；
+- 训练：`examples/agemem_hotpotqa/agemem_e3_4b_fc_no_qr.yaml`；
+- 启动器：`scripts/agemem_e3_4b_fc_no_qr.sh`；
+- jobs：`agemem-e0-4b-fc-e3-no-qr-eval`、`agemem-e3-4b-fc-no-qr`、`agemem-e3-4b-fc-no-qr-eval-s12`；
+- checkpoint 根必须是空的 `/data/hjx/Age_mem/checkpoints-e3-4b-fc-no-qr`。
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e3-4b-fc-no-qr
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e3_4b_fc_no_qr.sh
+bash scripts/agemem_e3_4b_fc_no_qr.sh
+```
+
+必须使用空目录。远端 format-conditioned 锁必须已经 `frozen`。先 `nvidia-smi`，
+不要杀其他用户的 GPU 进程。不要复用 QR-E3 / diagnosis / pilot / question-retrieve 根。
+契约测试不计入 318。用户点头前不要上 GPU。`flash-attn==2.8.1`。
 
