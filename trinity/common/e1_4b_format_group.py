@@ -60,6 +60,9 @@ FORBIDDEN_FOREIGN_JOBS = (
     "agemem-e1-4b-fc-pilot-eval-s12",
     "agemem-e1-4b-fc-pilot-eval-s24",
     "agemem-e1-4b-fc-pilot-eval-s36",
+    "agemem-e0-4b-fc-e3-eval",
+    "agemem-e3-4b-fc",
+    "agemem-e3-4b-fc-eval-s12",
 )
 
 

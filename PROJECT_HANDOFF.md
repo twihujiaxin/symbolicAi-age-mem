@@ -3,9 +3,9 @@
 > 面向：VS Code 中的 Codex 插件  
 > 项目方向：AgeMem 式可学习记忆管理 + GLARE 式 LTLf/DFA 逻辑奖励  
 > 文档版本：v2.2<br>
-> 更新时间：2026-09-05<br>
+> 更新时间：2026-09-08<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7、M8a、M8b-prep 已完成。1.5B M8b smoke 已通过。1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 format-group 均已关闭。format-conditioned 4B 冻结诊断已关闭（`d34532aa`：train F1 0.381，held-out 0.5，32-dev gold 0.573 vs normal 0.246）。36-step pilot 已在 0/12/24 eval 关闭（32-dev F1 均为 0.246）。question-retrieve 代码已落地、尚未上 GPU。nudge 不并入基线。不要进 E3。不要实现 Oracle DFA / E4 / E5。部署根 `/data/hjx/Age_mem`。冻结 runtime gate 仍为 318。
+> 当前状态：M0～M7、M8a、M8b-prep 已完成。1.5B M8b smoke 已通过。1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 format-group 均已关闭。format-conditioned 4B 冻结诊断已关闭（`d34532aa`：train F1 0.381，held-out 0.5，32-dev gold 0.573 vs normal 0.246）。36-step pilot 已在 0/12/24 eval 关闭（32-dev F1 均为 0.246）。question-retrieve 32-dev 已关闭（mean F1 **0.561** ≈ gold 0.573）。E3 代码已落地（Terminal + Oracle AP + 手工 DFA + trajectory advantage），GPU 尚未跑。nudge 不并入基线。不要实现 E4 / E5。不要改冻结 dry-run YAML。部署根 `/data/hjx/Age_mem`。冻结 runtime gate 仍为 318。
 
 ---
 
@@ -169,15 +169,15 @@ M4 已完成：Memory Oracle AP + 手工 DFA + 离线奖励
 M5 已完成：真实 HotpotQA 数据适配与 Oracle Benchmark
 M6 已完成：自然语言三元组抽取、显式状态跟踪与 False Reject 收尾
 M7 已完成：Group Critic 与自动机离线验证；真实 LLM 调用为 0
-M8a 本地门禁实现已完成。1.5B 组内远程 M8b smoke（E0/E1/checkpoint 新进程评测）已通过；在线 `ActionCreditRecord` 自动生成器尚未实现（属于 E3/E4）
+M8a 本地门禁实现已完成。1.5B 组内远程 M8b smoke（E0/E1/checkpoint 新进程评测）已通过；E3 代码已接入在线 `ActionCreditRecord`，GPU 尚未跑；E4/E5 未实现
 M8b-prep 已完成：模型/数据/配置锁、严格预检、provider 遥测、运行时 receipt、E0/E1/checkpoint eval 与 fail-closed 一键脚本
 Stage 1/2 反捷径 sidecar 已完成：保留固定 v2 CI canary，并新增 16-task/50-seed/3-budget Stage 1 与成对反事实 Stage 2 stress；两套报告均不改写 E1 或 M3～M7 artifact
-E1 后续臂（均非基线、均不进入 E3）：1.5B/4B vanilla terminal-only 全 0；Stage-3 format probe 能写出 `<answer>`；format 1-step / format-var held-out 0.5 但因队列切片无有效 GRPO 更新；format-group 完整 2×K 组已证实，step 1 有非零更新，held-out 仍 0.5；format-conditioned 4B 冻结诊断已关闭（train F1 0.381，32-dev gold 0.573 ≈ 2.3× normal；no-retrieve ≈ normal）
+E1 后续臂（均非基线）：1.5B/4B vanilla terminal-only 全 0；Stage-3 format probe 能写出 `<answer>`；format 1-step / format-var held-out 0.5 但因队列切片无有效 GRPO 更新；format-group 完整 2×K 组已证实，step 1 有非零更新，held-out 仍 0.5；format-conditioned 4B 冻结诊断已关闭（train F1 0.381，32-dev gold 0.573 ≈ 2.3× normal；no-retrieve ≈ normal）；question-retrieve 32-dev 已关闭（mean F1 0.561 ≈ gold 0.573）；E3 代码已落地、尚未上 GPU
 ```
 
 “已完成”仍须以当前工作区、`STATUS.md`、报告 digest 和测试结果共同核验。M8a/M8b-prep 只表示上卡前契约；1.5B smoke 与后续 4B 各臂的关闭证据以 `STATUS.md` 为准。若历史实现与当前数据契约不一致，优先做非破坏性兼容或迁移，不重写已完成阶段。
 
-截至 2026-09-06：不要重跑已关闭的 smoke / vanilla E1 / probe / format / format-var / format-group / format-conditioned 诊断启动器；不要进入 E3。下一步是 36-step pilot，不要实现 Oracle DFA / E4 / E5。
+截至 2026-09-08：不要重跑已关闭的 smoke / vanilla E1 / probe / format / format-var / format-group / format-conditioned 诊断 / 36-step pilot / question-retrieve 启动器。E3 代码已落地，用户点头并 `nvidia-smi` 后再上 GPU。不要实现 E4 / E5。
 
 ---
 
@@ -1065,7 +1065,7 @@ M8a 不执行模型训练，只关闭 E1 在租卡前可以用 CPU/静态检查�
 
 原始 M8a scoped 结果已被 M8b 冻结 runtime gate 取代。当前锁定发现数为 `m8a=142`、`all=318`；少跑、漏跑、数量漂移、FAIL、ERROR、unexpected success 或任意 SKIP 都判失败。本地因缺 PyTorch/Ray/vLLM 仍有 3 个环境性 SKIP，只能作为诊断，必须在组内远程服务器完整 Linux 环境变为 PASS。
 
-当前 E1 仍使用 DashScope embedding，SUMMARY/CLEAR 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。M8b-prep 已为首轮 smoke 冻结 endpoint、embedding/chat model，并记录无正文的调用、错误、延迟和 usage；provider 不返回货币金额时保持 `None` 并在实验后与账单对账。M8a 也尚未在线生成 DFA `ActionCreditRecord`，E3/E4/E5 不得提前宣称完成。
+当前 E1 仍使用 DashScope embedding，SUMMARY/CLEAR 仍可能调用 `qwen-max`；只有 terminal reward 与固定 distractor 已去除辅助 LLM 调用。M8b-prep 已为首轮 smoke 冻结 endpoint、embedding/chat model，并记录无正文的调用、错误、延迟和 usage；provider 不返回货币金额时保持 `None` 并在实验后与账单对账。E3 代码已在线生成 DFA `ActionCreditRecord`，但 GPU 尚未跑，不得把代码落地说成 E3 结果。E4/E5 未实现。
 
 ### M8b-prep：远程 GPU 上卡前执行包（已完成）
 
@@ -1539,8 +1539,8 @@ docs/m8a_terminal_only_preflight.md 和 docs/m8b_autodl_preflight.md。
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成。1.5B/4B vanilla E1、
 format probe、format 1-step、format-var 与 format-group 均已关闭。
 format-conditioned 4B 冻结诊断已关闭。36-step pilot 已在 0/12/24 eval 关闭
-（32-dev F1 均为 0.246）。question-retrieve 代码已落地、尚未上 GPU。
-不要重做已关闭的臂，不要开始 Oracle DFA / E3/E4/E5，
+（32-dev F1 均为 0.246）。question-retrieve 32-dev 已关闭（mean F1 0.561）。
+E3 代码已落地、尚未上 GPU。不要重做已关闭的臂，不要实现 E4/E5，
 也不要扩大到全量 HotpotQA。不要把 nudge 写进冻结 dry-run，不要改 parse_answer。
 ```
 
@@ -1837,11 +1837,11 @@ M0
 
 ## 22. 当前立即执行阶段
 
-Codex 当前不要启动新的 GPU 作业，也不要进入 E3：
+Codex 当前不要启动新的 GPU 作业，也不要实现 E4 / E5：
 
 ```text
-E1：question-retrieve 代码已落地（尚未上 GPU）；36-step pilot 已关闭
-下一步：用户确认 GPU 后，在空目录 checkpoints-e1-4b-fc-question-retrieve 跑 32-dev question-retrieve
+E3：代码已落地（尚未上 GPU）；question-retrieve 与 36-step pilot 已关闭
+下一步：用户确认 GPU 并 nvidia-smi 后，在空目录 checkpoints-e3-4b-fc 跑 E3
 ```
 
 M0～M7、M8a、M8b-prep 与 1.5B M8b GPU smoke 已完成，不要重做或覆盖其实现，也不要
@@ -1867,12 +1867,14 @@ held-out F1 仍是 0.5。format-conditioned 4B 冻结诊断已在
 held-out 0.5，32-dev gold 0.573 vs normal 0.246 ≈ no-retrieve 0.231。36-step
 pilot 已在 `configs/e1_4b_fc_pilot.json` /
 `/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot` 关闭：E0/s12/s24 32-dev F1
-均为 0.246；step 30 OOM，不必训到 36。question-retrieve 锁到
-`configs/e1_4b_fc_question_retrieve.json` 与空 checkpoint 根
-`/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve`。不要调用
+均为 0.246；step 30 OOM，不必训到 36。question-retrieve 已在
+`configs/e1_4b_fc_question_retrieve.json` /
+`/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve` 关闭（32-dev mean
+F1 **0.561**）。E3 锁到 `configs/e3_4b_fc.json` 与空 checkpoint 根
+`/data/hjx/Age_mem/checkpoints-e3-4b-fc`。不要调用
 `autodl_m8b_smoke.sh`、`agemem_e1_4b.sh`、probe、K=2 format、format-var、
-format-group 或 format-conditioned 诊断启动器重做已关闭的臂。不要进入 E3；
-不要实现 Oracle DFA / E4 / E5 YAML。
+format-group、format-conditioned 诊断、36-step pilot 或 question-retrieve
+启动器重做已关闭的臂。不要实现 E4 / E5 YAML。
 
 当前及后续顺序是：
 
@@ -1890,10 +1892,11 @@ E5：action-level advantage
 M9：正式 Benchmark + 跨域泛化
 ```
 
-当前不得提前开始 E3/E4/E5 或全量训练。冻结 runtime gate 仍必须精确发现 318 项；
-E1 重复契约测试不计入该 318。ActionCredit 在线生成器尚未实现。M8b postflight 已
-证明 E0 model version 0、E1 单次更新/checkpoint、checkpoint eval model version 1
-且训练/评测 `process_execution_id` 不同；这仍不是正式 E1 统计，也不是 DFA 训练。
+E3 代码已落地，用户点头前不要上 GPU；不要提前开始 E4/E5 或全量训练。冻结
+runtime gate 仍必须精确发现 318 项；E1/E3 契约测试不计入该 318。E3 在线
+ActionCredit 已写入 `exp.info`，但 GPU 尚未跑。M8b postflight 已证明 E0 model
+version 0、E1 单次更新/checkpoint、checkpoint eval model version 1 且训练/评测
+`process_execution_id` 不同；这仍不是正式 E1 统计，也不是已跑完的 DFA 训练结果。
 
 ---
 
@@ -1944,7 +1947,7 @@ bash scripts/agemem_e1_repeat.sh
 不要复用 `/data/hjx/Age_mem/checkpoints` 或 `checkpoints-attempt-002`。
 
 E1 三 seed 已跑完：terminal F1 全 0，因为 Stage 3 两轮内没有写出 `<answer>`。
-下一步不是 E3，而是冻结 1.5B 上的 Stage-3 答案格式 probe：同一 6 条 train 样本、
+当时下一步不是 E3，而是冻结 1.5B 上的 Stage-3 答案格式 probe：同一 6 条 train 样本、
 仍 `stage3_max_rounds: 2`、最后一轮追加 `stage3_require_final_answer` nudge、
 `mode: bench`、不训练。入口：`bash scripts/agemem_e1_stage3_answer_probe.sh`，
 新 checkpoint 根目录例如 `/data/hjx/Age_mem/checkpoints-e1-answer-probe`。
@@ -1989,8 +1992,10 @@ K=2 format 锁或 `checkpoints-e1-4b-format`。完整一组臂使用
 `configs/e1_4b_format_conditioned.json`（远端已 freeze 32/128，commit `d34532aa`）。
 36-step pilot 使用 `configs/e1_4b_fc_pilot.json`，checkpoint 根
 `/data/hjx/Age_mem/checkpoints-e1-4b-fc-pilot`，已在 0/12/24 eval 关闭。
-question-retrieve 使用 `configs/e1_4b_fc_question_retrieve.json`，checkpoint 根必须是空的
-`/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve`。暂不进入 7B。
+question-retrieve 使用 `configs/e1_4b_fc_question_retrieve.json`，已在
+`/data/hjx/Age_mem/checkpoints-e1-4b-fc-question-retrieve` 关闭，不要复用该根。
+E3 使用 `configs/e3_4b_fc.json`，checkpoint 根必须是空的
+`/data/hjx/Age_mem/checkpoints-e3-4b-fc`。暂不进入 7B。不要实现 E4 / E5。
 
 ### 23.2 必须迁移的最小文件集合
 
@@ -2290,8 +2295,8 @@ M8b 通过后仍按以下顺序推进：
 
 当前 Critic 对每个任务可见一条私有完整 HotpotQA record（含 answer、context 和
 official supporting facts），但只用于离线 M7 critic prompt/cache；E1 policy
-observation 仍不可见该私有记录。在线 `ActionCreditRecord` 生成器未实现，因此不得
-把本次 terminal-only smoke 描述成 DFA/AP 奖励训练，也不得提前进入 E3/E4/E5。
+observation 仍不可见该私有记录。E3 代码已接入在线 `ActionCreditRecord`，但 GPU
+尚未跑，因此不得把 terminal-only smoke 描述成 DFA/AP 奖励训练结果。不要实现 E4/E5。
 
 ---
 

@@ -66,6 +66,7 @@ VAR_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format_var.sh"
 GROUP_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format_group.sh"
 PROBE_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_stage3_answer_probe.sh"
 QR_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_fc_question_retrieve.sh"
+E3_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e3_4b_fc.sh"
 SCALE_YAML = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_scale.yaml"
 DRY_RUN = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_dry_run.yaml"
 DRY_RUN_4B = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_dry_run.yaml"
@@ -260,7 +261,7 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
         self.assertIn("Qwen3-4B", launcher)
         for job in ALL_JOBS:
             self.assertIn(job, launcher)
-        for other in (VANILLA_LAUNCHER, FORMAT_LAUNCHER, VAR_LAUNCHER, GROUP_LAUNCHER, PROBE_LAUNCHER, QR_LAUNCHER):
+        for other in (VANILLA_LAUNCHER, FORMAT_LAUNCHER, VAR_LAUNCHER, GROUP_LAUNCHER, PROBE_LAUNCHER, QR_LAUNCHER, E3_LAUNCHER):
             text = other.read_text(encoding="utf-8")
             for job in ALL_JOBS:
                 self.assertIn(job, text, msg=other.name)

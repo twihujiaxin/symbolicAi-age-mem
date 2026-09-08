@@ -1,0 +1,43 @@
+{
+  "schema_version": "agemem.e3_4b_fc.lock.v1",
+  "experiment_id": "e3_format_conditioned_4b_oracle_dfa",
+  "checkpoint_root": "/data/hjx/Age_mem/checkpoints-e3-4b-fc",
+  "protocol_lock": "configs/e1_4b_format_conditioned.json",
+  "stage3_require_final_answer": true,
+  "stage3_repair_untagged_answer": true,
+  "stage3_question_retrieve": true,
+  "stage3_index_observed_context": true,
+  "stage3_question_retrieve_top_k": 8,
+  "stage3_inject_gold_supporting": false,
+  "reward_profile": "terminal_dfa",
+  "terminal_reward_metric": "hotpotqa_official",
+  "e3_dfa_shadow_on_eval": true,
+  "e3_dfa_max_steps": 48,
+  "reward_version": "agemem.reward.e3_oracle_dfa.v1",
+  "seed": 7,
+  "trainer_total_steps": 12,
+  "save_interval": 12,
+  "eval_steps": [
+    0,
+    12
+  ],
+  "repeat_times": 4,
+  "batch_size": 2,
+  "consume_put_batch": true,
+  "train_batch_size": 8,
+  "model": {
+    "repository_id": "Qwen/Qwen3-4B",
+    "expected_revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+  },
+  "jobs": {
+    "e0": "agemem-e0-4b-fc-e3-eval",
+    "train": "agemem-e3-4b-fc",
+    "eval_s12": "agemem-e3-4b-fc-eval-s12"
+  },
+  "source_files": {
+    "train_config": {
+      "path": "examples/agemem_hotpotqa/agemem_e3_4b_fc.yaml",
+      "sha256": "44915c8ee29fce0b901fa5fb7613ae6269c19a60a05c5f91f22e397a453224ff"
+    }
+  }
+}

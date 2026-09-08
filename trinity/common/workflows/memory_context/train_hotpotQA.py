@@ -68,6 +68,12 @@ from ..memory_reward.reward_profiles import (
     score_hotpot_answer,
     terminal_task_score,
 )
+from trinity.common.e3_oracle_dfa import (
+    DEFAULT_MAX_STEPS as E3_DEFAULT_MAX_STEPS,
+    replay_hotpotqa_oracle_dfa,
+    replay_summary,
+    tool_events_from_trace,
+)
 from .workflow_metrics import get_answer_llm_judge_score
 
 # Use shared utility implementations to avoid train/eval drift.
@@ -113,13 +119,19 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.reward_profile = load_workflow_reward_profile(self.workflow_args)
         self.auxiliary_provider_config = load_auxiliary_provider_config(
             self.workflow_args,
-            required=self.reward_profile.is_terminal_only,
+            required=(
+                self.reward_profile.is_terminal_only
+                or self.reward_profile.is_oracle_dfa
+            ),
         )
         self.auxiliary_provider_telemetry_path = (
             resolve_auxiliary_provider_telemetry_path(self.workflow_args)
         )
         if (
-            self.reward_profile.is_terminal_only
+            (
+                self.reward_profile.is_terminal_only
+                or self.reward_profile.is_oracle_dfa
+            )
             and self.auxiliary_provider_telemetry_path is None
         ):
             raise ValueError(
@@ -153,7 +165,10 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             allowed = ", ".join(sorted(DISTRACTOR_SOURCES))
             raise ValueError(f"stage2_distractor_source must be one of: {allowed}")
         if (
-            self.reward_profile.is_terminal_only
+            (
+                self.reward_profile.is_terminal_only
+                or self.reward_profile.is_oracle_dfa
+            )
             and self.stage2_distractor_source == "provider"
         ):
             raise ValueError(
@@ -226,6 +241,15 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self._model_round_count: int = 0
         self._stage3_round_count: int = 0
         self._last_answer_score: Optional[HotpotAnswerScore] = None
+        self._e3_indexed_sentences: List[str] = []
+        self._e3_retrieved_contents: List[str] = []
+        self.e3_dfa_shadow = bool(self.workflow_args.get("e3_dfa_shadow", False))
+        try:
+            self.e3_dfa_max_steps = max(
+                1, int(self.workflow_args.get("e3_dfa_max_steps", E3_DEFAULT_MAX_STEPS))
+            )
+        except (TypeError, ValueError):
+            self.e3_dfa_max_steps = E3_DEFAULT_MAX_STEPS
 
         # 完整工具轨迹单独写 JSONL；Experience.info 只保存轻量关联 ID。
         self.tool_trace_recorder = ToolTraceRecorder.from_workflow_args(
@@ -917,6 +941,8 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self._model_round_count = 0
         self._stage3_round_count = 0
         self._last_answer_score = None
+        self._e3_indexed_sentences = []
+        self._e3_retrieved_contents = []
         self._tool_trace_events.clear()
         self._last_tool_result = {}
         provider_usage = getattr(self, "auxiliary_provider_usage", None)
@@ -1202,6 +1228,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 if not key.startswith("_")
             }
 
+            e3_info: Dict[str, Any] = {}
             if self.reward_profile.is_terminal_only:
                 reward_outcome = calculate_terminal_reward(
                     self.reward_profile,
@@ -1210,6 +1237,45 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 )
                 total_reward = reward_outcome.total
                 reward_breakdown = reward_outcome.breakdown
+            elif self.reward_profile.is_oracle_dfa:
+                exact_match = (
+                    float(self._last_answer_score.exact_match)
+                    if self._last_answer_score is not None
+                    else 0.0
+                )
+                e3_replay = replay_hotpotqa_oracle_dfa(
+                    task_id=str(task_id or memory_rollout_id),
+                    rollout_id=memory_rollout_id,
+                    seed=int(self.workflow_args.get("e3_seed", 7) or 7),
+                    supporting_sentences=extract_sentences_from_supporting_facts(
+                        self.supporting_facts or {},
+                        self.context_info or {},
+                    ),
+                    observed_sentences=observed_context_sentences(
+                        self.context_info or {}
+                    ),
+                    indexed_sentences=list(self._e3_indexed_sentences),
+                    retrieved_contents=list(self._e3_retrieved_contents),
+                    tool_events=tool_events_from_trace(self._tool_trace_events),
+                    exact_match=exact_match,
+                    task_f1=float(task_score or 0.0),
+                    found_answer=bool(found_answer),
+                    max_steps=self.e3_dfa_max_steps,
+                    shadow=bool(
+                        self.e3_dfa_shadow or getattr(self.task, "is_eval", False)
+                    ),
+                )
+                total_reward = e3_replay.training_total
+                reward_breakdown = {
+                    "terminal_hotpotqa_official": e3_replay.env_total,
+                    "dfa_milestone": e3_replay.milestone_total,
+                    "dfa_logic": e3_replay.logic_total,
+                    "total": e3_replay.training_total,
+                }
+                e3_info = replay_summary(e3_replay)
+                e3_info["e3_dfa_shadow"] = bool(
+                    self.e3_dfa_shadow or getattr(self.task, "is_eval", False)
+                )
             else:
                 if reward_calculator is None:
                     raise RuntimeError("E2 reward calculator was not initialized")
@@ -1261,6 +1327,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 "milestone_reward_enabled": (
                     self.reward_profile.milestone_reward_enabled
                 ),
+                **e3_info,
                 **answer_metrics,
                 "tool_usage_stats": reward_tool_usage_stats,
                 "legacy_tool_usage_stats": legacy_tool_usage_stats,
@@ -1323,6 +1390,10 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 if exp.metrics is None:
                     exp.metrics = {}
                 exp.metrics["task_score"] = task_score
+                if e3_info:
+                    exp.metrics["e3_logic_total"] = e3_info["e3_logic_total"]
+                    exp.metrics["e3_dfa_accepted"] = float(e3_info["e3_dfa_accepted"])
+                    exp.metrics["e3_milestone_total"] = e3_info["e3_milestone_total"]
                 exp.metrics["auxiliary_provider_calls"] = (
                     auxiliary_provider_usage["total_calls"]
                 )
@@ -1352,6 +1423,15 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             self._last_answer_score = None
             return 0.0
         if self.reward_profile.is_terminal_only:
+            self._last_answer_score = score_hotpot_answer(
+                str(answer),
+                str(self.expected_answer),
+            )
+            return terminal_task_score(
+                self.reward_profile,
+                self._last_answer_score,
+            )
+        if self.reward_profile.is_oracle_dfa:
             self._last_answer_score = score_hotpot_answer(
                 str(answer),
                 str(self.expected_answer),
@@ -1651,6 +1731,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             if stored:
                 existing.add(sentence)
                 added += 1
+                self._e3_indexed_sentences.append(sentence)
         return added
 
     def _prepend_stage3_question_retrieve(self) -> None:
@@ -1661,6 +1742,9 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             self.question,
             top_k=self.stage3_question_retrieve_top_k,
         )
+        self._e3_retrieved_contents = [
+            str(item.content) for item in items if getattr(item, "content", None)
+        ]
         if items:
             evidence = "\n".join(f"- {item.content}" for item in items)
             self._append_context("user", f"[retrieved memories]\n{evidence}")

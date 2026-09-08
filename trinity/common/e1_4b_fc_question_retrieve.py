@@ -55,6 +55,9 @@ FORBIDDEN_FOREIGN_JOBS = (
     "agemem-e1-terminal-only-4b-format-group",
     *DIAGNOSIS_JOBS,
     *PILOT_JOBS,
+    "agemem-e0-4b-fc-e3-eval",
+    "agemem-e3-4b-fc",
+    "agemem-e3-4b-fc-eval-s12",
 )
 
 

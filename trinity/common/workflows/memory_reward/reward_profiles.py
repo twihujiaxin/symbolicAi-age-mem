@@ -26,6 +26,7 @@ class RewardProfileConfigError(ValueError):
 class RewardProfileName(str, Enum):
     E1_TERMINAL_ONLY = "e1_terminal_only"
     E2_AGEMEM_HEURISTIC = "e2_agemem_heuristic"
+    E3_ORACLE_DFA = "e3_oracle_dfa"
 
 
 class TerminalMetric(str, Enum):
@@ -48,6 +49,14 @@ class RewardProfile:
     @property
     def is_terminal_only(self) -> bool:
         return self.name is RewardProfileName.E1_TERMINAL_ONLY
+
+    @property
+    def is_oracle_dfa(self) -> bool:
+        return self.name is RewardProfileName.E3_ORACLE_DFA
+
+    @property
+    def uses_official_answer(self) -> bool:
+        return self.terminal_metric is not None
 
     @property
     def uses_llm_judge(self) -> bool:
@@ -137,7 +146,7 @@ def load_reward_profile(raw_profile: object) -> RewardProfile:
             f"unknown reward profile {payload['name']!r}; expected one of: {valid}"
         ) from exc
 
-    if name is RewardProfileName.E1_TERMINAL_ONLY:
+    if name in {RewardProfileName.E1_TERMINAL_ONLY, RewardProfileName.E3_ORACLE_DFA}:
         _strict_keys(
             payload,
             required={"schema_version", "name", "terminal_metric"},
@@ -204,15 +213,17 @@ def load_workflow_reward_profile(workflow_args: Mapping[str, object]) -> RewardP
         RewardProfileName.E1_TERMINAL_ONLY.value: RewardProfileName.E1_TERMINAL_ONLY,
         "agemem_heuristic": RewardProfileName.E2_AGEMEM_HEURISTIC,
         RewardProfileName.E2_AGEMEM_HEURISTIC.value: RewardProfileName.E2_AGEMEM_HEURISTIC,
+        "terminal_dfa": RewardProfileName.E3_ORACLE_DFA,
+        RewardProfileName.E3_ORACLE_DFA.value: RewardProfileName.E3_ORACLE_DFA,
     }
     if not isinstance(raw_name, str) or raw_name not in aliases:
         raise RewardProfileConfigError(
-            "reward_profile must be one of: terminal_only, agemem_heuristic"
+            "reward_profile must be one of: terminal_only, agemem_heuristic, terminal_dfa"
         )
     name = aliases[raw_name]
 
     raw_metric = workflow_args.get("terminal_reward_metric")
-    if name is RewardProfileName.E1_TERMINAL_ONLY:
+    if name in {RewardProfileName.E1_TERMINAL_ONLY, RewardProfileName.E3_ORACLE_DFA}:
         if raw_metric is None:
             raise RewardProfileConfigError(
                 "terminal_only requires terminal_reward_metric"
@@ -305,11 +316,11 @@ def terminal_task_score(
     profile: RewardProfile,
     answer_score: HotpotAnswerScore,
 ) -> float:
-    """Select the configured E1 terminal answer metric."""
+    """Select the configured official HotpotQA terminal answer metric."""
 
-    if not profile.is_terminal_only or profile.terminal_metric is None:
+    if profile.terminal_metric is None:
         raise RewardProfileConfigError(
-            "terminal_task_score requires the e1_terminal_only profile"
+            "terminal_task_score requires a terminal_metric"
         )
     if profile.terminal_metric is TerminalMetric.ANSWER_EXACT_MATCH:
         return answer_score.exact_match

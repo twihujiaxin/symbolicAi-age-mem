@@ -463,7 +463,7 @@ bash scripts/agemem_e1_4b_fc_pilot.sh
 
 该臂已关闭：E0/s12/s24 32-dev `task_score/mean` 均为 0.246。step 30 CUDA OOM，
 不必训到 36、不必 s36。不要删除训练目录，不要从 `global_step_24` resume。
-不要实现 Oracle DFA、E4 或 E5。`flash-attn==2.8.1`。
+不要实现 E4 或 E5。`flash-attn==2.8.1`。
 
 ## format-conditioned 4B question-retrieve（独立锁，非基线）
 
@@ -484,5 +484,31 @@ bash scripts/agemem_e1_4b_fc_question_retrieve.sh
 
 必须使用空目录。远端 format-conditioned 锁必须已经 `frozen`。先 `nvidia-smi`，
 不要杀其他用户的 GPU 进程。不要复用诊断根或 36-step pilot 根。
-不要实现 Oracle DFA、E4 或 E5。`flash-attn==2.8.1`。
+该臂已关闭：32-dev mean F1 **0.561** ≈ gold 0.573。不要复用该根做 GRPO。
+不要实现 E4 或 E5。`flash-attn==2.8.1`。
+
+## format-conditioned 4B E3 Oracle DFA（独立锁，监督上界）
+
+Terminal F1 + Oracle AP + 手工 DFA + trajectory advantage。同一 format-conditioned
+底盘，question-retrieve 开（不注入 gold）。训练 `terminal_dfa`；评测 DFA shadow，
+`task_score` 仍是官方 F1。E0 对照是 QR **0.561**，不是无 QR 的 0.246。不要另开
+terminal GRPO 当 control。不要实现 E4 / E5。
+
+- 锁：`configs/e3_4b_fc.json`；
+- 训练：`examples/agemem_hotpotqa/agemem_e3_4b_fc.yaml`；
+- 启动器：`scripts/agemem_e3_4b_fc.sh`；
+- jobs：`agemem-e0-4b-fc-e3-eval`、`agemem-e3-4b-fc`、`agemem-e3-4b-fc-eval-s12`；
+- checkpoint 根必须是空的 `/data/hjx/Age_mem/checkpoints-e3-4b-fc`。
+
+```bash
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e3-4b-fc
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e3_4b_fc.sh
+bash scripts/agemem_e3_4b_fc.sh
+```
+
+必须使用空目录。远端 format-conditioned 锁必须已经 `frozen`。先 `nvidia-smi`，
+不要杀其他用户的 GPU 进程。不要复用诊断根、36-step pilot 根或 question-retrieve 根。
+`AGEMEM_EXPECTED_COMMIT` 必须对齐含 E3 代码的 HEAD。契约测试不计入 318。
+用户点头前不要上 GPU。`flash-attn==2.8.1`。
 

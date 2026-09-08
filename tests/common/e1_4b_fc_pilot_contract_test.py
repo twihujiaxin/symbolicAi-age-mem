@@ -52,6 +52,7 @@ VAR_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format_var.sh"
 GROUP_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format_group.sh"
 PROBE_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_stage3_answer_probe.sh"
 QR_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_fc_question_retrieve.sh"
+E3_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e3_4b_fc.sh"
 DRY_RUN_4B = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_dry_run.yaml"
 GROUP_YAML = REPOSITORY_ROOT / "examples" / "agemem_hotpotqa" / "agemem_e1_4b_format_group.yaml"
 
@@ -170,6 +171,7 @@ class E14BFcPilotContractTest(unittest.TestCase):
             PROBE_LAUNCHER,
             DIAG_LAUNCHER,
             QR_LAUNCHER,
+            E3_LAUNCHER,
         ):
             text = other.read_text(encoding="utf-8")
             for job in ALL_JOBS:

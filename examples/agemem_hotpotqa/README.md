@@ -236,7 +236,7 @@ bash scripts/agemem_e1_4b_fc_pilot.sh
 ```
 
 该臂已关闭：E0/s12/s24 32-dev F1 均为 0.246。不要复用诊断根，不要训到 36，
-不要从 step 24 resume。seed 7；17/27 仍不跑。不要实现 Oracle DFA / E4 / E5。
+不要从 step 24 resume。seed 7；17/27 仍不跑。不要实现 E4 / E5。
 
 **format-conditioned 4B question-retrieve（独立锁，非基线）：**
 
@@ -250,8 +250,27 @@ bash scripts/agemem_e1_4b_fc_question_retrieve.sh
 ```
 
 必须使用独立空根。远端 format-conditioned 锁必须已经 `frozen`。不注入 gold
-supporting。对照 32-dev mem-normal 0.246 与 gold-support 0.573。不要实现
-Oracle DFA / E4 / E5。
+supporting。该臂已关闭：32-dev mean F1 **0.561**（n=32，max 1，min 0），对照
+mem-normal 0.246 与 gold-support 0.573。不要复用该 checkpoint 根做训练。
+不要实现 E4 / E5。
+
+**format-conditioned 4B E3 Oracle DFA（独立锁，监督上界，尚未上 GPU）：**
+
+```bash
+export TRINITY_MODEL_PATH=/data/hjx/Age_mem/models/Qwen3-4B
+export TRINITY_MODEL_REVISION=1cfa9a7208912126459214e8b04321603b3df60c
+export TRINITY_CHECKPOINT_ROOT_DIR=/data/hjx/Age_mem/checkpoints-e3-4b-fc
+mkdir -p "$TRINITY_CHECKPOINT_ROOT_DIR"
+bash -n scripts/agemem_e3_4b_fc.sh
+bash scripts/agemem_e3_4b_fc.sh
+```
+
+同一 format-conditioned 底盘（nudge、官方 F1、冻结 24 train、32-dev、K=4、seed 7）
+加上 question-retrieve 环境，**不注入 gold**。训练 `reward_profile: terminal_dfa`，
+`R = terminal F1 + β * milestone_total`，trajectory advantage（`multi_step_grpo` +
+`step_wise_grpo`）。评测 DFA shadow，`task_score` 仍是官方 F1。12 steps，eval 0/12。
+E0 对照是 QR **0.561**，不是无 QR 的 0.246。不要另开 terminal GRPO 当 control。
+不要实现 E4 / E5，不要改冻结 dry-run YAML。用户点头并 `nvidia-smi` 后再上 GPU。
 
 **单阶段调试命令（不替代完整 smoke 脚本）：**
 
