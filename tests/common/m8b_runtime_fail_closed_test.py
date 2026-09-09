@@ -336,6 +336,75 @@ class ExperiencePipelineDiagnosticTest(unittest.IsolatedAsyncioTestCase):
 
 
 class WorkflowRunnerFailureTest(unittest.IsolatedAsyncioTestCase):
+    async def test_agemem_bench_eval_returns_experiences_for_diagnostic_sink(
+        self,
+    ) -> None:
+        with _load_source(
+            "trinity/explorer/workflow_runner.py", _workflow_runner_stubs()
+        ) as module:
+            runner = module.WorkflowRunner.__new__(module.WorkflowRunner)
+            runner.config = SimpleNamespace(
+                mode="bench",
+                buffer=SimpleNamespace(
+                    explorer_input=SimpleNamespace(
+                        default_eval_workflow_type="AgeMem_hotpot_workflow_training"
+                    )
+                ),
+            )
+
+            class _ModelWrapper:
+                @property
+                def model_version_async(self):
+                    async def _version():
+                        return 0
+
+                    return _version()
+
+            runner.model_wrapper = _ModelWrapper()
+            experience = SimpleNamespace(
+                eid=SimpleNamespace(batch="", task="", run=0, step=0),
+                info={},
+                metrics={},
+            )
+            runner._run_task = mock.AsyncMock(return_value=[experience])
+            task = SimpleNamespace(is_eval=True, batch_id="0/diagnostic", task_id=3)
+
+            status, experiences = await runner.run_task(task)
+
+            self.assertTrue(status.ok)
+            self.assertEqual(experiences, [experience])
+            self.assertEqual(experience.eid.batch, "0/diagnostic")
+            self.assertEqual(experience.eid.task, 3)
+
+    async def test_non_bench_eval_still_discards_experiences(self) -> None:
+        with _load_source(
+            "trinity/explorer/workflow_runner.py", _workflow_runner_stubs()
+        ) as module:
+            runner = module.WorkflowRunner.__new__(module.WorkflowRunner)
+            runner.config = SimpleNamespace(mode="train")
+
+            class _ModelWrapper:
+                @property
+                def model_version_async(self):
+                    async def _version():
+                        return 0
+
+                    return _version()
+
+            runner.model_wrapper = _ModelWrapper()
+            experience = SimpleNamespace(
+                eid=SimpleNamespace(batch="", task="", run=0, step=0),
+                info={},
+                metrics={},
+            )
+            runner._run_task = mock.AsyncMock(return_value=[experience])
+            task = SimpleNamespace(is_eval=True, batch_id="0/eval", task_id=1)
+
+            status, experiences = await runner.run_task(task)
+
+            self.assertTrue(status.ok)
+            self.assertEqual(experiences, [])
+
     async def test_provider_error_is_returned_as_opaque_failed_status(self) -> None:
         with _load_source(
             "trinity/explorer/workflow_runner.py", _workflow_runner_stubs()

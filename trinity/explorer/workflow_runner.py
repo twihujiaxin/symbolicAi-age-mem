@@ -154,11 +154,26 @@ class WorkflowRunner:
                 for k, v in metrics.items():
                     metric[k] = sum(v) / len(v)  # type: ignore
 
-            if task.is_eval:
-                # If the task is an evaluation task, we do not record the experiences to the buffer
+            retain_bench_experiences = (
+                task.is_eval
+                and getattr(self.config, "mode", None) == "bench"
+                and getattr(
+                    getattr(
+                        getattr(self.config, "buffer", None),
+                        "explorer_input",
+                        None,
+                    ),
+                    "default_eval_workflow_type",
+                    None,
+                )
+                == "AgeMem_hotpot_workflow_training"
+            )
+            if task.is_eval and not retain_bench_experiences:
+                # Ordinary evaluation keeps the historical behavior. The
+                # frozen AgeMem bench is the sole exception: Explorer persists
+                # its validated records only to the diagnostic input sink.
                 return Status(True, metric=metric), []
-            else:
-                return Status(True, metric=metric), exps
+            return Status(True, metric=metric), exps
 
         except Exception as e:
             error_type = type(e).__name__
