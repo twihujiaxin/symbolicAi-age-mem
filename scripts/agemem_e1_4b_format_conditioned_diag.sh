@@ -221,6 +221,9 @@ ray_started=0
 "$python_bin" scripts/agemem_e1_4b_format_conditioned_diag_report.py \
   --checkpoint-root "$TRINITY_CHECKPOINT_ROOT_DIR" \
   --job "$job_name" \
+  --hotpotqa-path "$HOTPOTQA_PATH" \
+  --json-output "$log_root/report.json" \
+  --strict \
   2>&1 | tee "$log_root/report.txt"
 
 printf 'Format-conditioned 4B diagnosis finished: %s\n' "$job_name"

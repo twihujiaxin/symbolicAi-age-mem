@@ -370,13 +370,26 @@ class Explorer:
             if eval_step != step:
                 return
             self.pending_eval_tasks.popleft()
-            eval_results, _ = await self.scheduler.get_results(f"{step}/{eval_task_name}")
+            eval_results, eval_experiences = await self.scheduler.get_results(
+                f"{step}/{eval_task_name}"
+            )
             failed_count = sum(not status.ok for status in eval_results)
             if failed_count:
                 raise RuntimeError(
                     f"{failed_count}/{len(eval_results)} evaluation tasks failed "
                     f"for {eval_task_name} at step {step}"
                 )
+            if (
+                self.config.mode == "bench"
+                and self.config.buffer.explorer_input.default_eval_workflow_type
+                == "AgeMem_hotpot_workflow_training"
+            ):
+                diagnostic_metrics = (
+                    await self.experience_pipeline.persist_diagnostic_input.remote(
+                        eval_experiences
+                    )
+                )
+                metric.update(diagnostic_metrics)
             task_summaries.append(
                 {
                     "taskset": eval_task_name,

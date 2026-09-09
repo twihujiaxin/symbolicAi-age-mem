@@ -210,6 +210,131 @@ def _trainer_stubs() -> dict[str, ModuleType]:
     }
 
 
+def _experience_pipeline_stubs() -> dict[str, ModuleType]:
+    validate = mock.Mock()
+    return {
+        "trinity.buffer.buffer": _module(
+            "trinity.buffer.buffer",
+            BufferWriter=object,
+            get_buffer_reader=lambda *_args, **_kwargs: None,
+            get_buffer_writer=lambda *_args, **_kwargs: None,
+        ),
+        "trinity.buffer.operators.experience_operator": _module(
+            "trinity.buffer.operators.experience_operator",
+            ExperienceOperator=object,
+        ),
+        "trinity.buffer.storage.queue": _module(
+            "trinity.buffer.storage.queue",
+            is_database_url=lambda _value: False,
+            is_json_file=lambda _value: True,
+        ),
+        "trinity.common.config": _module(
+            "trinity.common.config",
+            AlgorithmConfig=object,
+            BufferConfig=object,
+            Config=object,
+            ExperiencePipelineConfig=object,
+            StorageConfig=object,
+        ),
+        "trinity.common.constants": _module(
+            "trinity.common.constants",
+            StorageType=SimpleNamespace(FILE="file", SQL="sql"),
+        ),
+        "trinity.common.action_event_contract": _module(
+            "trinity.common.action_event_contract",
+            validate_on_policy_experiences=validate,
+        ),
+        "trinity.common.experience": _module(
+            "trinity.common.experience", Experience=object
+        ),
+        "trinity.utils.log": _module(
+            "trinity.utils.log", get_logger=lambda *_args, **_kwargs: _Logger()
+        ),
+        "trinity.utils.plugin_loader": _module(
+            "trinity.utils.plugin_loader", load_plugins=lambda: None
+        ),
+    }
+
+
+class ExperiencePipelineDiagnosticTest(unittest.IsolatedAsyncioTestCase):
+    async def test_prepare_and_close_balance_both_writers(self) -> None:
+        with _load_source(
+            "trinity/buffer/pipelines/experience_pipeline.py",
+            _experience_pipeline_stubs(),
+        ) as module:
+            pipeline = module.ExperiencePipeline.__new__(module.ExperiencePipeline)
+            pipeline.output = SimpleNamespace(
+                acquire=mock.AsyncMock(), release=mock.AsyncMock()
+            )
+            pipeline.input_store = SimpleNamespace(
+                acquire=mock.AsyncMock(), release=mock.AsyncMock()
+            )
+            operator = SimpleNamespace(close=mock.Mock())
+            pipeline.operators = [operator]
+            pipeline.logger = _Logger()
+
+            await pipeline.prepare()
+            await pipeline.close()
+
+            pipeline.output.acquire.assert_awaited_once_with()
+            pipeline.input_store.acquire.assert_awaited_once_with()
+            pipeline.output.release.assert_awaited_once_with()
+            pipeline.input_store.release.assert_awaited_once_with()
+            operator.close.assert_called_once_with()
+
+    async def test_diagnostic_persistence_validates_and_skips_output_buffer(self) -> None:
+        stubs = _experience_pipeline_stubs()
+        with _load_source(
+            "trinity/buffer/pipelines/experience_pipeline.py", stubs
+        ) as module:
+            pipeline = module.ExperiencePipeline.__new__(module.ExperiencePipeline)
+            write = mock.AsyncMock()
+            pipeline.input_store = SimpleNamespace(write_async=write)
+            pipeline.output = SimpleNamespace(write_async=mock.AsyncMock())
+            pipeline.require_agemem_action_contract = True
+            experiences = [
+                SimpleNamespace(
+                    tokens=[101, 10, 11],
+                    prompt_length=1,
+                    logprobs=[-0.1, -0.2],
+                    action_mask=[True, True],
+                    to_dict=mock.Mock(
+                        return_value={"response_length": 2, "info": {}}
+                    ),
+                ),
+                SimpleNamespace(
+                    tokens=[102, 20],
+                    prompt_length=1,
+                    logprobs=[-0.3],
+                    action_mask=[True],
+                    to_dict=mock.Mock(
+                        return_value={"response_length": 1, "info": {}}
+                    ),
+                ),
+            ]
+
+            metrics = await pipeline.persist_diagnostic_input(experiences)
+
+            stubs[
+                "trinity.common.action_event_contract"
+            ].validate_on_policy_experiences.assert_called_once_with(
+                experiences, require_contract=True
+            )
+            written = write.await_args.args[0]
+            self.assertEqual(
+                written[0]["diagnostic_schema_version"],
+                "agemem.bench_experience_audit.v1",
+            )
+            self.assertEqual(written[0]["response_token_ids"], [10, 11])
+            self.assertEqual(written[0]["old_logprobs"], [-0.1, -0.2])
+            self.assertEqual(written[0]["action_mask"], [True, True])
+            self.assertEqual(written[1]["response_token_ids"], [20])
+            pipeline.output.write_async.assert_not_awaited()
+            self.assertEqual(
+                metrics, {"pipeline/diagnostic_experience_count": 2.0}
+            )
+
+
 class WorkflowRunnerFailureTest(unittest.IsolatedAsyncioTestCase):
     async def test_provider_error_is_returned_as_opaque_failed_status(self) -> None:
         with _load_source(
@@ -304,6 +429,44 @@ class ExplorerFailureTest(unittest.IsolatedAsyncioTestCase):
             module.write_benchmark_receipt.assert_not_called()
             explorer.monitor.log.assert_not_called()
 
+    async def test_agemem_bench_persists_experiences_without_trainer_write(self) -> None:
+        with _load_source("trinity/explorer/explorer.py", _explorer_stubs()) as module:
+            experiences = [object(), object()]
+            explorer = module.Explorer.__new__(module.Explorer)
+            explorer.pending_eval_tasks = deque([(1, "signal")])
+            explorer.scheduler = SimpleNamespace(
+                get_results=mock.AsyncMock(
+                    return_value=(
+                        [SimpleNamespace(ok=True, metric={})],
+                        experiences,
+                    )
+                )
+            )
+            persist = mock.AsyncMock(
+                return_value={"pipeline/diagnostic_experience_count": 2.0}
+            )
+            explorer.experience_pipeline = SimpleNamespace(
+                persist_diagnostic_input=SimpleNamespace(remote=persist)
+            )
+            explorer.explore_step_num = 1
+            explorer.model_version = 0
+            explorer.config = SimpleNamespace(
+                mode="bench",
+                checkpoint_job_dir="unused",
+                buffer=SimpleNamespace(
+                    explorer_input=SimpleNamespace(
+                        default_eval_workflow_type="AgeMem_hotpot_workflow_training"
+                    )
+                ),
+            )
+            explorer.monitor = SimpleNamespace(log=mock.Mock())
+            module.write_benchmark_receipt = mock.Mock()
+
+            await explorer._finish_eval_step(step=1, prefix="bench")
+
+            persist.assert_awaited_once_with(experiences)
+            module.write_benchmark_receipt.assert_called_once()
+
     async def test_base_benchmark_records_model_version_zero(self) -> None:
         with _load_source("trinity/explorer/explorer.py", _explorer_stubs()) as module:
             explorer = module.Explorer.__new__(module.Explorer)
@@ -357,6 +520,9 @@ class TrainerFailureTest(unittest.IsolatedAsyncioTestCase):
                     return self.value
 
             class _Rewards:
+                def tolist(self):
+                    return [0.0, 1.0]
+
                 def mean(self):
                     return _Scalar(0.5)
 

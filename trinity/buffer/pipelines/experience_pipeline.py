@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from trinity.buffer.buffer import BufferWriter, get_buffer_reader, get_buffer_writer
 from trinity.buffer.operators.experience_operator import ExperienceOperator
 from trinity.buffer.storage.queue import is_database_url, is_json_file
+from trinity.common.action_event_contract import validate_on_policy_experiences
 from trinity.common.config import (
     AlgorithmConfig,
     BufferConfig,
@@ -12,10 +13,12 @@ from trinity.common.config import (
     StorageConfig,
 )
 from trinity.common.constants import StorageType
-from trinity.common.action_event_contract import validate_on_policy_experiences
 from trinity.common.experience import Experience
 from trinity.utils.log import get_logger
 from trinity.utils.plugin_loader import load_plugins
+
+
+DIAGNOSTIC_EXPERIENCE_SCHEMA_VERSION = "agemem.bench_experience_audit.v1"
 
 
 def get_input_buffers(
@@ -27,6 +30,50 @@ def get_input_buffers(
         buffer_reader = get_buffer_reader(input_config, buffer_config)
         input_buffers[input_name] = buffer_reader
     return input_buffers
+
+
+def _plain_sequence(value, *, field_name: str) -> List:
+    """Convert one tensor-like diagnostic field to a JSON-safe flat list."""
+
+    detach = getattr(value, "detach", None)
+    if callable(detach):
+        value = detach()
+    cpu = getattr(value, "cpu", None)
+    if callable(cpu):
+        value = cpu()
+    tolist = getattr(value, "tolist", None)
+    if callable(tolist):
+        value = tolist()
+    if not isinstance(value, (list, tuple)):
+        raise RuntimeError(f"diagnostic {field_name} must be a flat sequence")
+    result = list(value)
+    if any(isinstance(item, (list, tuple, dict)) for item in result):
+        raise RuntimeError(f"diagnostic {field_name} must be one-dimensional")
+    return result
+
+
+def _diagnostic_record(experience: Experience) -> Dict:
+    """Serialize the response arrays omitted by ``Experience.to_dict``."""
+
+    record = experience.to_dict()
+    record["diagnostic_schema_version"] = DIAGNOSTIC_EXPERIENCE_SCHEMA_VERSION
+    tokens = _plain_sequence(experience.tokens, field_name="tokens")
+    prompt_length = experience.prompt_length
+    if (
+        isinstance(prompt_length, bool)
+        or not isinstance(prompt_length, int)
+        or not 0 < prompt_length < len(tokens)
+    ):
+        raise RuntimeError("diagnostic prompt_length is outside token bounds")
+    record["response_token_ids"] = tokens[prompt_length:]
+    record["old_logprobs"] = _plain_sequence(
+        experience.logprobs, field_name="logprobs"
+    )
+    if experience.action_mask is not None:
+        record["action_mask"] = _plain_sequence(
+            experience.action_mask, field_name="action_mask"
+        )
+    return record
 
 
 class ExperiencePipeline:
@@ -107,6 +154,8 @@ class ExperiencePipeline:
 
     async def prepare(self) -> None:
         await self.output.acquire()
+        if self.input_store is not None:
+            await self.input_store.acquire()
 
     async def process(self, exps: List[Experience]) -> Dict:
         """Process a batch of experiences.
@@ -159,10 +208,37 @@ class ExperiencePipeline:
 
         return result_metrics
 
+    async def persist_diagnostic_input(self, exps: List[Experience]) -> Dict:
+        """Persist validated bench Experiences without writing the trainer buffer.
+
+        AgeMem's frozen learning-signal diagnosis runs in ``bench`` mode, so
+        these Experiences must be available for post-hoc action/token/logprob
+        audits while remaining completely outside the optimization path.
+        """
+
+        if self.input_store is None:
+            raise RuntimeError(
+                "diagnostic Experience persistence requires save_input=true"
+            )
+        validate_on_policy_experiences(
+            exps,
+            require_contract=getattr(
+                self, "require_agemem_action_contract", False
+            ),
+        )
+        records = [_diagnostic_record(experience) for experience in exps]
+        await self.input_store.write_async(records)
+        return {"pipeline/diagnostic_experience_count": float(len(exps))}
+
     async def close(self) -> None:
         try:
             await self.output.release()
         except Exception as e:
             self.logger.error(f"Failed to release output buffer: {e}")
+        if self.input_store is not None:
+            try:
+                await self.input_store.release()
+            except Exception as e:
+                self.logger.error(f"Failed to release diagnostic input buffer: {e}")
         for operator in self.operators:
             operator.close()

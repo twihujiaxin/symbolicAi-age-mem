@@ -6,7 +6,10 @@ These tests are not part of the frozen M8b 318-count runtime gate.
 from __future__ import annotations
 
 import json
+import shutil
 import unittest
+import uuid
+from contextlib import contextmanager
 from pathlib import Path
 
 from trinity.common.e1_4b import yaml_forbids_nudge
@@ -82,6 +85,20 @@ HELD_OUT_IDS = [
     "5ab7c6995542993667794005",
     "5adc8c545542994734353734",
 ]
+
+
+@contextmanager
+def workspace_temp_directory():
+    """Use the workspace because Windows system-temp ACLs can be restrictive."""
+
+    temp_root = REPOSITORY_ROOT / "tmp"
+    temp_root.mkdir(parents=True, exist_ok=True)
+    path = temp_root / f"fc-diagnosis-{uuid.uuid4().hex}"
+    path.mkdir()
+    try:
+        yield path
+    finally:
+        shutil.rmtree(path, ignore_errors=True)
 
 
 class E14BFormatConditionedContractTest(unittest.TestCase):
@@ -247,6 +264,9 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
         self.assertNotIn("agemem_e1_4b_format_conditioned", gate)
         self.assertIn("configs/e1_4b_format_conditioned.json", launcher)
         self.assertIn("agemem_e1_4b_format_conditioned_diag_report.py", launcher)
+        self.assertIn('--hotpotqa-path "$HOTPOTQA_PATH"', launcher)
+        self.assertIn('--json-output "$log_root/report.json"', launcher)
+        self.assertIn("--strict", launcher)
         self.assertIn("frozen 32-dev selection", launcher)
         self.assertIn('selection_status"] = "frozen"', selector)
         self.assertIn("HOTPOTQA_PATH is missing", selector)
@@ -268,12 +288,9 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
                 self.assertIn(job, text, msg=other.name)
 
     def test_diag_report_reads_stage3_and_receipts(self):
-        import tempfile
-
         summarize_job = _load_module("fc_report", REPORT).summarize_job
 
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+        with workspace_temp_directory() as root:
             job_dir = root / "Trinity-RFT-AgeMem-M8" / SIGNAL_JOB
             traj = job_dir / "trajectories"
             receipts = job_dir / "receipts"
@@ -350,6 +367,176 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
             self.assertEqual(summary["tasks_with_group_std_gt_0"], 1)
             self.assertEqual(summary["action_contract_join_failures"], 0)
             self.assertEqual(summary["retrieve_used_by_following_response"], 1)
+
+    def test_diag_report_audits_format_support_and_action_linkage(self):
+        report = _load_module("fc_report_complete", REPORT)
+        stage3_rows = [
+            {
+                "task_id": "0/0",
+                "execution_id": "execution-a",
+                "hotpot_id": "hotpot-a",
+                "round": 0,
+                "has_answer_tag": True,
+                "found_answer": True,
+                "nudged": False,
+                "repaired": False,
+                "task_score": 1.0,
+            },
+            {
+                "task_id": "0/1",
+                "execution_id": "execution-b",
+                "hotpot_id": "hotpot-b",
+                "round": 0,
+                "has_answer_tag": False,
+                "found_answer": False,
+                "nudged": False,
+                "repaired": False,
+            },
+            {
+                "task_id": "0/1",
+                "execution_id": "execution-b",
+                "hotpot_id": "hotpot-b",
+                "round": 1,
+                "has_answer_tag": False,
+                "found_answer": False,
+                "nudged": True,
+                "repaired": False,
+            },
+            {
+                "task_id": "0/1",
+                "execution_id": "execution-b",
+                "hotpot_id": "hotpot-b",
+                "round": 2,
+                "has_answer_tag": True,
+                "found_answer": True,
+                "nudged": False,
+                "repaired": True,
+                "task_score": 0.5,
+            },
+        ]
+        format_stats = report._format_stats(stage3_rows)
+        self.assertEqual(format_stats["execution_count"], 2)
+        self.assertEqual(format_stats["native_answer_tag_rate"], 0.5)
+        self.assertEqual(format_stats["nudge_trigger_rate"], 0.5)
+        self.assertEqual(format_stats["repair_trigger_rate"], 0.5)
+        self.assertEqual(format_stats["repair_success_rate"], 1.0)
+
+        trace_rows = [
+            {
+                "phase": "finish",
+                "call_id": "call-add",
+                "execution_id": "execution-a",
+                "tool_name": "Add_memory",
+                "status": "success",
+                "arguments": {"content": "The alpha support fact."},
+                "result": {"effect_applied": True},
+            },
+            {
+                "phase": "finish",
+                "call_id": "call-retrieve",
+                "execution_id": "execution-a",
+                "tool_name": "Retrieve_memory",
+                "status": "success",
+                "result": {
+                    "effect_applied": True,
+                    "items": [{"content": "The beta support fact."}],
+                },
+            },
+            {
+                "phase": "usage",
+                "call_id": "call-retrieve",
+                "execution_id": "execution-a",
+                "tool_name": "Retrieve_memory",
+                "usage": {"used_by_following_response": True},
+            },
+        ]
+        support = report._support_trace_stats(
+            trace_rows,
+            stage3_rows[:1],
+            {
+                "hotpot-a": [
+                    "The alpha support fact.",
+                    "The beta support fact.",
+                ]
+            },
+        )
+        self.assertEqual(support["saved_support_fact_recall"], 0.5)
+        self.assertEqual(support["retrieved_support_fact_recall"], 0.5)
+        self.assertEqual(support["exposed_support_fact_recall"], 0.5)
+
+        action_trace = [
+            {
+                "phase": "finish",
+                "call_id": "call-action",
+                "tool_name": "Add_memory",
+                "status": "success",
+                "result": {"effect_applied": True},
+            }
+        ]
+        experience = {
+            "diagnostic_schema_version": "agemem.bench_experience_audit.v1",
+            "eid": {"batch": 0, "task": 1, "run": 2, "step": 0},
+            "response_length": 2,
+            "response_text": "ab",
+            "response_token_ids": [10, 11],
+            "old_logprobs": [-0.1, -0.2],
+            "action_mask": [True, True],
+            "info": {
+                "agemem_action_contract": "agemem.online_action_contract.v1",
+                "agemem_on_policy_eligible": True,
+                "agemem_trajectory_source": "llm",
+                "agemem_response_token_char_offsets": [[0, 1], [1, 2]],
+                "trace_execution_id": "execution-action",
+                "trace_stage": 1,
+                "trace_step": 0,
+                "model_version": 3,
+                "policy_version": "model_version:3",
+                "tool_call_ids": ["call-action"],
+                "agemem_action_character_spans": [
+                    {"action_id": "action-1", "char_start": 0, "char_end": 2}
+                ],
+                "agemem_action_events": [
+                    {
+                        "schema_version": "agemem.action_event.v2",
+                        "action_id": "action-1",
+                        "task_id": "0/1",
+                        "rollout_id": "0/1/2",
+                        "stage_id": 1,
+                        "timestep": 0,
+                        "assistant_turn_id": 0,
+                        "action_index_in_turn": 0,
+                        "source": "llm",
+                        "action_type": "Add_memory",
+                        "action_text": "ab",
+                        "arguments": {},
+                        "response_token_ids": [10, 11],
+                        "old_logprobs": [-0.1, -0.2],
+                        "token_start": 0,
+                        "token_end": 2,
+                        "policy_version": "model_version:3",
+                        "result": {"trace_call_id": "call-action"},
+                    }
+                ],
+            },
+        }
+        action = experience["info"]["agemem_action_events"][0]
+        action["action_id"] = report._stable_action_id(action)
+        experience["info"]["agemem_action_character_spans"][0]["action_id"] = action[
+            "action_id"
+        ]
+        audit = report._audit_action_contract(
+            [experience], action_trace, max_response_tokens=2
+        )
+        self.assertEqual(audit["action_contract_failure_count"], 0)
+        self.assertEqual(audit["action_event_count"], 1)
+        self.assertEqual(audit["max_token_hit_rate"], 1.0)
+
+        broken = json.loads(json.dumps(experience))
+        broken["info"]["agemem_action_events"][0]["old_logprobs"] = [-0.1]
+        broken_audit = report._audit_action_contract(
+            [broken], action_trace, max_response_tokens=2
+        )
+        self.assertGreater(broken_audit["action_contract_failure_count"], 0)
 
     def test_bench_mode_allows_k1_repeat_times(self):
         config_py = (REPOSITORY_ROOT / "trinity" / "common" / "config.py").read_text(

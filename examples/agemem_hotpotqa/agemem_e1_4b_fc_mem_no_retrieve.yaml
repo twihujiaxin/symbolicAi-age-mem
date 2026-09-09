@@ -1,0 +1,231 @@
+# Format-conditioned 4B memory-necessity diagnosis (agemem-e1-4b-fc-mem-no-retrieve). Frozen 32-dev rows, K=1, T=0, Stage-3 nudge, no optimizer.
+project: "Trinity-RFT-AgeMem-M8"
+name: "agemem-e1-4b-fc-mem-no-retrieve"
+mode: bench
+checkpoint_root_dir: ${oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}
+continue_from_checkpoint: false
+
+algorithm:
+  algorithm_type: multi_step_grpo
+  advantage_fn: step_wise_grpo
+  repeat_times: 1
+
+model:
+  model_path: ${oc.env:TRINITY_MODEL_PATH,/data/hjx/Age_mem/models/Qwen3-4B}
+  max_model_len: 5120
+  max_prompt_tokens: 4096
+  max_response_tokens: 1024
+
+cluster:
+  node_num: 1
+  gpu_per_node: 2
+
+buffer:
+  total_epochs: 1
+  total_steps: 16
+  batch_size: 2
+  train_batch_size: 4
+  explorer_input:
+    taskset:
+      name: hotpotqa_fc_dev_32
+      storage_type: file
+      path: ${oc.env:HOTPOTQA_PATH,/root/autodl-tmp/data/hotpot_qa/fullwiki}
+      split: validation
+      row_indices: [1906, 5685, 2383, 5282, 6481, 2650, 6489, 3115, 5508, 1995, 1824, 5167, 4879, 1676, 4924, 5983, 996, 6518, 1215, 1212, 5554, 490, 1472, 6061, 7277, 691, 3449, 3276, 2882, 2498, 3204, 250]
+      row_id_key: id
+      expected_row_ids:
+      - 5a8a40015542996c9b8d5e72
+      - 5add64065542995b365fab25
+      - 5a88ba2c554299206df2b34b
+      - 5ae492955542995ad6573daa
+      - 5aba510f5542994dbf0198d6
+      - 5a74bc1555429929fddd84dd
+      - 5ae446825542995ad6573d21
+      - 5adcb6875542994ed6169bcb
+      - 5ae1b8075542997283cd2262
+      - 5adfdd1c55429906c02daa74
+      - 5adc368155429944faac2468
+      - 5ae28f43554299492dc91c2f
+      - 5ade8f5955429975fa854f10
+      - 5a8f799d55429918e830d22d
+      - 5a7a098d5542996c55b2dce3
+      - 5a865e785542991e7718161b
+      - 5ab322b1554299194fa93570
+      - 5ab2eff05542991669774140
+      - 5ae27f22554299495565da8d
+      - 5ae518ae5542993aec5ec13c
+      - 5abf92c45542993fe9a41e07
+      - 5ae15e125542990adbacf773
+      - 5abeb1925542994516f453f0
+      - 5aba74ad55429955dce3ee35
+      - 5ae141475542997b2ef7d185
+      - 5ae3e2455542994393b9e78c
+      - 5ae5e852554299546bf82fb8
+      - 5ab499a55542996a3a969f9f
+      - 5ab480715542991751b4d798
+      - 5a8aee3d55429950cd6afc01
+      - 5ae6537c5542991bbc9760c1
+      - 5ae4d3c95542990ba0bbb165
+      expected_dataset_fingerprint: fbe86cb2d14cb199
+      format:
+        prompt_key: question
+        response_key: answer
+      rollout_args:
+        temperature: 0.0
+        max_tokens: 1024
+      workflow_args:
+        reward_profile: terminal_only
+        terminal_reward_metric: hotpotqa_official
+        milestone_reward_enabled: false
+        stage3_require_final_answer: true
+        stage3_repair_untagged_answer: true
+        auxiliary_provider:
+          schema_version: agemem.auxiliary_provider.v1
+          provider: dashscope
+          base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+          embedding_model: text-embedding-v4
+          embedding_dimensions: 256
+          chat_model: qwen-max
+          usage_tracking: true
+        auto_summary_threshold: 0.8
+        max_tool_rounds_per_turn: 4
+        max_context_tokens: 4096
+        stage2_distractor_messages: 1
+        stage2_distractor_source: fixed
+        stage1_max_rounds: 2
+        stage2_max_rounds: 2
+        stage3_max_rounds: 2
+        tool_trace_enabled: true
+        tool_trace_console: false
+        tool_trace_max_string_chars: 8192
+        tool_trace_ray_timeout_seconds: 5.0
+        stage3_disable_ltm_retrieve: true
+    eval_tasksets:
+    - name: hotpotqa_fc_dev_32
+      storage_type: file
+      path: ${oc.env:HOTPOTQA_PATH,/root/autodl-tmp/data/hotpot_qa/fullwiki}
+      split: validation
+      repeat_times: 1
+      row_indices: [1906, 5685, 2383, 5282, 6481, 2650, 6489, 3115, 5508, 1995, 1824, 5167, 4879, 1676, 4924, 5983, 996, 6518, 1215, 1212, 5554, 490, 1472, 6061, 7277, 691, 3449, 3276, 2882, 2498, 3204, 250]
+      row_id_key: id
+      expected_row_ids:
+      - 5a8a40015542996c9b8d5e72
+      - 5add64065542995b365fab25
+      - 5a88ba2c554299206df2b34b
+      - 5ae492955542995ad6573daa
+      - 5aba510f5542994dbf0198d6
+      - 5a74bc1555429929fddd84dd
+      - 5ae446825542995ad6573d21
+      - 5adcb6875542994ed6169bcb
+      - 5ae1b8075542997283cd2262
+      - 5adfdd1c55429906c02daa74
+      - 5adc368155429944faac2468
+      - 5ae28f43554299492dc91c2f
+      - 5ade8f5955429975fa854f10
+      - 5a8f799d55429918e830d22d
+      - 5a7a098d5542996c55b2dce3
+      - 5a865e785542991e7718161b
+      - 5ab322b1554299194fa93570
+      - 5ab2eff05542991669774140
+      - 5ae27f22554299495565da8d
+      - 5ae518ae5542993aec5ec13c
+      - 5abf92c45542993fe9a41e07
+      - 5ae15e125542990adbacf773
+      - 5abeb1925542994516f453f0
+      - 5aba74ad55429955dce3ee35
+      - 5ae141475542997b2ef7d185
+      - 5ae3e2455542994393b9e78c
+      - 5ae5e852554299546bf82fb8
+      - 5ab499a55542996a3a969f9f
+      - 5ab480715542991751b4d798
+      - 5a8aee3d55429950cd6afc01
+      - 5ae6537c5542991bbc9760c1
+      - 5ae4d3c95542990ba0bbb165
+      expected_dataset_fingerprint: fbe86cb2d14cb199
+      format:
+        prompt_key: question
+        response_key: answer
+      rollout_args:
+        temperature: 0.0
+        max_tokens: 1024
+      workflow_args:
+        reward_profile: terminal_only
+        terminal_reward_metric: hotpotqa_official
+        milestone_reward_enabled: false
+        stage3_require_final_answer: true
+        stage3_repair_untagged_answer: true
+        auxiliary_provider:
+          schema_version: agemem.auxiliary_provider.v1
+          provider: dashscope
+          base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+          embedding_model: text-embedding-v4
+          embedding_dimensions: 256
+          chat_model: qwen-max
+          usage_tracking: true
+        auto_summary_threshold: 0.8
+        max_tool_rounds_per_turn: 4
+        max_context_tokens: 4096
+        stage2_distractor_messages: 1
+        stage2_distractor_source: fixed
+        stage1_max_rounds: 2
+        stage2_max_rounds: 2
+        stage3_max_rounds: 2
+        tool_trace_enabled: true
+        tool_trace_console: false
+        tool_trace_max_string_chars: 8192
+        tool_trace_ray_timeout_seconds: 5.0
+        stage3_disable_ltm_retrieve: true
+    default_workflow_type: AgeMem_hotpot_workflow_training
+    default_eval_workflow_type: AgeMem_hotpot_workflow_training
+  trainer_input:
+    experience_buffer:
+      name: agemem_e1_4b_fc_mem_no_retrieve_buffer
+      storage_type: queue
+      path: null
+
+explorer:
+  eval_on_startup: true
+  bench_on_latest_checkpoint: false
+  eval_interval: 1
+  runner_per_model: 2
+  max_repeat_times_per_runner: 1
+  max_timeout: 1800
+  rollout_model:
+    engine_num: 1
+    tensor_parallel_size: 1
+    enable_prefix_caching: true
+    enforce_eager: true
+    enable_history: true
+    dtype: bfloat16
+    seed: 7
+    gpu_memory_utilization: 0.6
+    enable_chunked_prefill: true
+    enable_thinking: false
+
+log:
+  level: INFO
+
+synchronizer:
+  sync_method: checkpoint
+  sync_interval: 1
+  sync_timeout: 1800
+
+trainer:
+  trainer_type: verl
+  total_steps: 1
+  save_interval: 1
+  trainer_config:
+    actor_rollout_ref:
+      model:
+        use_remove_padding: true
+        enable_gradient_checkpointing: true
+      actor:
+        use_dynamic_bsz: true
+        ppo_max_token_len_per_gpu: 2304
+        ulysses_sequence_parallel_size: 1
+        optim:
+          lr: 0.000001
+      ref:
+        log_prob_use_dynamic_bsz: ${trainer.trainer_config.actor_rollout_ref.actor.use_dynamic_bsz}
+        log_prob_max_token_len_per_gpu: ${trainer.trainer_config.actor_rollout_ref.actor.ppo_max_token_len_per_gpu}
+        ulysses_sequence_parallel_size: 1
