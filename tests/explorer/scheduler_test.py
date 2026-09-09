@@ -543,6 +543,30 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
 
         await scheduler.stop()
 
+    async def test_same_batch_scheduled_in_chunks_has_unique_task_ids(self):
+        """Eval readers may schedule several chunks under one batch id."""
+        scheduler = Scheduler(self.config, [DummyModel.remote(), DummyModel.remote()])
+        await scheduler.start()
+
+        batch_id = "0/chunked_eval"
+        scheduler.schedule(generate_tasks(3), batch_id=batch_id)
+        scheduler.schedule(generate_tasks(2), batch_id=batch_id)
+
+        statuses, exps = await scheduler.get_results(
+            batch_id=batch_id,
+            min_num=5,
+            timeout=20,
+        )
+        self.assertEqual(len(statuses), 5)
+        self.assertEqual(len(exps), 5)
+        self.assertEqual(
+            sorted(exp.eid.task for exp in exps),
+            [0, 1, 2, 3, 4],
+        )
+        self.assertEqual(len({exp.eid.tid for exp in exps}), 5)
+
+        await scheduler.stop()
+
     async def test_multi_step_execution(self):
         self.config.explorer.max_repeat_times_per_runner = 1
         self.config.check_and_update()

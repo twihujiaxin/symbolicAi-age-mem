@@ -1073,7 +1073,7 @@ def validate_on_policy_experiences(
     """Validate action contracts immediately before any buffer write."""
 
     seen_experience_objects: set[int] = set()
-    seen_action_ids: set[str] = set()
+    seen_action_ids: dict[str, str] = {}
     policy_versions_by_task: dict[str, set[str]] = {}
     for experience in experiences:
         object_id = id(experience)
@@ -1160,11 +1160,18 @@ def validate_on_policy_experiences(
         for event in events:
             if event.source != "llm":
                 raise ActionContractError("only LLM ActionEvents may enter on-policy")
+            action_coordinate = (
+                f"rollout={event.rollout_id!r}, stage={event.stage_id}, "
+                f"timestep={event.timestep}, turn={event.assistant_turn_id}, "
+                f"index={event.action_index_in_turn}, eid={experience.eid.uid!r}"
+            )
             if event.action_id in seen_action_ids:
                 raise ActionContractError(
-                    f"duplicate on-policy action_id {event.action_id!r}"
+                    f"duplicate on-policy action_id {event.action_id!r}; "
+                    f"first=({seen_action_ids[event.action_id]}); "
+                    f"duplicate=({action_coordinate})"
                 )
-            seen_action_ids.add(event.action_id)
+            seen_action_ids[event.action_id] = action_coordinate
             if (
                 event.task_id != experience.eid.tid
                 or event.rollout_id != experience.eid.rid

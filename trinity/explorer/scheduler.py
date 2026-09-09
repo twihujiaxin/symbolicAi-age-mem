@@ -161,6 +161,11 @@ class Scheduler:
         ] = defaultdict(
             deque
         )  # batch_id -> results
+        # One logical batch may be supplied through several ``schedule`` calls
+        # (notably when an eval reader yields multiple chunks).  Task ids are
+        # part of EID/rid and therefore must not restart from zero for every
+        # chunk.
+        self.next_task_id_by_batch: Dict[Union[int, str], int] = defaultdict(int)
 
         self.scheduler_task: Optional[asyncio.Task] = None
         self.running = False
@@ -299,10 +304,21 @@ class Scheduler:
         """
         if not tasks:
             return
-        self._split_and_submit_tasks(tasks, batch_id=batch_id)
+        task_id_base = self.next_task_id_by_batch[batch_id]
+        self.next_task_id_by_batch[batch_id] += len(tasks)
+        self._split_and_submit_tasks(
+            tasks,
+            batch_id=batch_id,
+            task_id_base=task_id_base,
+        )
 
-    def _split_and_submit_tasks(self, tasks: List[Task], batch_id: Union[int, str]) -> None:
-        for i, task in enumerate(tasks):
+    def _split_and_submit_tasks(
+        self,
+        tasks: List[Task],
+        batch_id: Union[int, str],
+        task_id_base: int = 0,
+    ) -> None:
+        for i, task in enumerate(tasks, start=task_id_base):
             assert task.repeat_times is not None, "Task repeat_times should not be None"
             if self.max_repeat_times is None:
                 self.pending_tasks[batch_id].appendleft(
