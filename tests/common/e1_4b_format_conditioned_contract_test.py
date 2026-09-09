@@ -557,6 +557,19 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
         self.assertIn("mode: bench", heldout)
         self.assertIn("repeat_times: 1", heldout)
 
+    def test_terminal_stage_collection_does_not_duplicate_last_tool_experience(self):
+        workflow = (
+            REPOSITORY_ROOT
+            / "trinity"
+            / "common"
+            / "workflows"
+            / "memory_context"
+            / "train_hotpotQA.py"
+        ).read_text(encoding="utf-8")
+        self.assertGreaterEqual(
+            workflow.count("if exps and not collected_exp_in_advance:"), 3
+        )
+
     def test_scale_lock_file_was_not_edited(self):
         scale = json.loads(SCALE_LOCK_PATH.read_text(encoding="utf-8"))
         self.assertEqual(scale["schema_version"], "agemem.e1_scale.lock.v1")

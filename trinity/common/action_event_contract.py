@@ -1072,9 +1072,16 @@ def validate_on_policy_experiences(
 ) -> None:
     """Validate action contracts immediately before any buffer write."""
 
+    seen_experience_objects: set[int] = set()
     seen_action_ids: set[str] = set()
     policy_versions_by_task: dict[str, set[str]] = {}
     for experience in experiences:
+        object_id = id(experience)
+        if object_id in seen_experience_objects:
+            raise ActionContractError(
+                "duplicate Experience object is forbidden in the on-policy buffer"
+            )
+        seen_experience_objects.add(object_id)
         info = experience.info or {}
         source = info.get(TRAJECTORY_SOURCE_KEY)
         if source in OFF_POLICY_SOURCES:

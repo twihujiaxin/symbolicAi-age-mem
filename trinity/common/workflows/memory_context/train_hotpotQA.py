@@ -1492,6 +1492,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         found_answer = False
         exps = []  # Initialize; avoid using an undefined variable outside loops.
         context_autosummarized = False
+        collected_exp_in_advance = False
 
         # Multi-turn interaction until an answer is found or max rounds reached.
         for r in range(self.stage1_max_rounds):
@@ -1574,12 +1575,13 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
 
         # If no answer is found, add the last experience when context didn't overflow.
         if not found_answer and not context_autosummarized:
-            if exps:
+            if exps and not collected_exp_in_advance:
                 stage_experiences.extend(exps)
             else:
-                self.logger.warning(
-                    "Stage 1: No experiences collected and no final answer found"
-                )
+                if not exps:
+                    self.logger.warning(
+                        "Stage 1: No experiences collected and no final answer found"
+                    )
 
         return stage_experiences
 
@@ -1615,6 +1617,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             found_answer = False
             exps = []  # Initialize; avoid using before assignment outside loops.
             context_autosummarized = False
+            collected_exp_in_advance = False
 
             # Multi-turn interaction until an answer is found or max rounds reached.
             for r in range(self.stage2_max_rounds):
@@ -1701,12 +1704,13 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
 
             # If no answer is found, add the last experience.
             if not found_answer and not context_autosummarized:
-                if exps:
+                if exps and not collected_exp_in_advance:
                     stage_experiences.extend(exps)
                 else:
-                    self.logger.warning(
-                        f"Stage 2, distractor {idx}: No experiences collected and no final answer found"
-                    )
+                    if not exps:
+                        self.logger.warning(
+                            f"Stage 2, distractor {idx}: No experiences collected and no final answer found"
+                        )
 
         return stage_experiences
 
@@ -1794,6 +1798,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
 
         context_autosummarized = False
         exps = []  # Initialize; avoid using before assignment outside loops.
+        collected_exp_in_advance = False
 
         # Multi-turn interaction to find an answer.
         for r in range(self.stage3_max_rounds):
@@ -1956,13 +1961,18 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 stage_experiences.extend(exps)
 
         # If no answer is found, add the last experience.
-        if not found_final_answer and not context_autosummarized and not ran_untagged_repair:
+        if (
+            not found_final_answer
+            and not context_autosummarized
+            and not ran_untagged_repair
+        ):
             # Ensure at least one experience exists.
-            if exps:
+            if exps and not collected_exp_in_advance:
                 stage_experiences.append(exps[-1])
             else:
-                self.logger.warning(
-                    "Stage 3: No experiences collected and no final answer found"
-                )
+                if not exps:
+                    self.logger.warning(
+                        "Stage 3: No experiences collected and no final answer found"
+                    )
 
         return stage_experiences, task_score, found_final_answer

@@ -310,6 +310,8 @@ class OnlineActionEventContractTest(unittest.TestCase):
     def test_agemem_admission_requires_a_complete_contract(self):
         uncontracted = make_experience("answer")
         validate_on_policy_experiences([uncontracted])
+        with self.assertRaisesRegex(ActionContractError, "duplicate Experience"):
+            validate_on_policy_experiences([uncontracted, uncontracted])
         with self.assertRaisesRegex(ActionContractError, "missing its action"):
             validate_on_policy_experiences(
                 [uncontracted], require_contract=True
