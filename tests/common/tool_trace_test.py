@@ -449,12 +449,7 @@ class ToolTraceRecorderTest(unittest.TestCase):
 
 
 class ToolValidationAndSelectionTest(unittest.TestCase):
-    def test_stage_intermediate_experience_rules_are_exact(self):
-        expected_by_stage = {
-            1: {"Add_memory", "Retrieve_memory", "Update_memory"},
-            2: {"Summary_context", "Clear_context"},
-            3: {"Summary_context", "Clear_context", "Retrieve_memory"},
-        }
+    def test_every_intermediate_tool_turn_is_retained(self):
         all_tools = {
             "Summary_context",
             "Clear_context",
@@ -464,7 +459,7 @@ class ToolValidationAndSelectionTest(unittest.TestCase):
             "Delete_memory",
         }
 
-        for stage, expected_tools in expected_by_stage.items():
+        for stage in (1, 2, 3):
             for tool_name in all_tools:
                 with self.subTest(stage=stage, tool_name=tool_name):
                     selected = memory_utils.should_collect_intermediate_experience(
@@ -472,14 +467,21 @@ class ToolValidationAndSelectionTest(unittest.TestCase):
                         [{"name": tool_name, "arguments": {}}],
                         is_last_round=False,
                     )
-                    self.assertEqual(selected, tool_name in expected_tools)
-                    self.assertFalse(
+                    self.assertTrue(selected)
+                    self.assertTrue(
                         memory_utils.should_collect_intermediate_experience(
                             stage,
                             [{"name": tool_name, "arguments": {}}],
                             is_last_round=True,
                         )
                     )
+        self.assertFalse(
+            memory_utils.should_collect_intermediate_experience(
+                1,
+                [],
+                is_last_round=False,
+            )
+        )
 
     def test_tool_validation_normalizes_safe_inputs(self):
         retrieve, error = memory_utils.validate_tool_call(

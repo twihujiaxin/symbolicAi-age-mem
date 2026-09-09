@@ -531,6 +531,17 @@ class E14BFormatConditionedContractTest(unittest.TestCase):
         self.assertEqual(audit["action_event_count"], 1)
         self.assertEqual(audit["max_token_hit_rate"], 1.0)
 
+        no_action = json.loads(json.dumps(experience))
+        no_action["eid"]["step"] = 1
+        no_action["info"]["trace_step"] = 1
+        no_action["info"]["agemem_action_events"] = []
+        no_action["info"]["agemem_action_character_spans"] = []
+        no_action["info"].pop("tool_call_ids")
+        no_action_audit = report._audit_action_contract(
+            [no_action], [], max_response_tokens=2
+        )
+        self.assertEqual(no_action_audit["action_contract_failure_count"], 0)
+
         broken = json.loads(json.dumps(experience))
         broken["info"]["agemem_action_events"][0]["old_logprobs"] = [-0.1]
         broken_audit = report._audit_action_contract(

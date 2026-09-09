@@ -1544,14 +1544,14 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             # Handle tool calls (if any) first.
             tool_calls = self._parse_executable_tool_calls(response_text)
 
-            # Mark experiences that used memory-management tools.
-            memory_related_tool = should_collect_intermediate_experience(
+            # Retain every tool-producing turn for a complete action contract.
+            retain_tool_turn = should_collect_intermediate_experience(
                 1,
                 tool_calls,
                 is_last_round=r >= self.stage1_max_rounds - 1,
             )
 
-            if memory_related_tool:
+            if retain_tool_turn:
                 collected_exp_in_advance = True
                 stage_experiences.extend(exps)
 
@@ -1673,14 +1673,14 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 # Handle tool calls (if any) first.
                 tool_calls = self._parse_executable_tool_calls(response_text)
 
-                # Mark experiences that used context-management tools.
-                context_related_tool = should_collect_intermediate_experience(
+                # Retain every tool-producing turn for a complete action contract.
+                retain_tool_turn = should_collect_intermediate_experience(
                     2,
                     tool_calls,
                     is_last_round=r >= self.stage2_max_rounds - 1,
                 )
 
-                if context_related_tool:
+                if retain_tool_turn:
                     collected_exp_in_advance = True
                     stage_experiences.extend(exps)
 
@@ -1878,14 +1878,14 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             # Handle tool calls (if any) first.
             tool_calls = self._parse_executable_tool_calls(response_text)
 
-            # Mark experiences that used context-management tools.
-            context_related_tool = should_collect_intermediate_experience(
+            # Retain every tool-producing turn for a complete action contract.
+            retain_tool_turn = should_collect_intermediate_experience(
                 3,
                 tool_calls,
                 is_last_round=r >= self.stage3_max_rounds - 1,
             )
 
-            if context_related_tool:
+            if retain_tool_turn:
                 collected_exp_in_advance = True
                 stage_experiences.extend(exps)
 

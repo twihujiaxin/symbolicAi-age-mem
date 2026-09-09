@@ -971,6 +971,9 @@ def finalize_experience_action_contract(
     _validate_tool_trace_join(events, info.get("tool_call_ids", []))
 
     info.pop(ACTION_DRAFTS_KEY, None)
+    # Persist the empty side of the one-to-one join explicitly as well.  Older
+    # records may omit it, which remains equivalent to an empty list.
+    info.setdefault("tool_call_ids", [])
     info[ACTION_EVENTS_KEY] = [event.model_dump(mode="json") for event in events]
     info[ACTION_CHARACTER_SPANS_KEY] = character_spans
     info[ON_POLICY_ELIGIBLE_KEY] = True

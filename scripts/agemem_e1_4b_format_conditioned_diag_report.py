@@ -475,7 +475,10 @@ def _audit_action_contract(
                 fail(index, "response token offsets do not cover response_text")
                 offsets = []
 
-        tool_call_ids = info.get("tool_call_ids")
+        # The online validator treats a missing key as an empty list when the
+        # response contains no actions.  Keep the persisted JSON audit aligned
+        # with that rule so ordinary model turns are not false failures.
+        tool_call_ids = info.get("tool_call_ids", [])
         if not isinstance(tool_call_ids, list) or any(
             not isinstance(call_id, str) or not call_id for call_id in tool_call_ids
         ):

@@ -146,14 +146,6 @@ TOOL_NAMES = {
     "Delete_memory",
 }
 
-# 这些集合只决定“中间轮是否单独保留 Experience”，不决定工具是否执行。
-# 不在集合中的工具仍会按顺序执行并进入 tool trace。
-INTERMEDIATE_EXPERIENCE_TOOL_NAMES = {
-    1: frozenset({"Add_memory", "Retrieve_memory", "Update_memory"}),
-    2: frozenset({"Summary_context", "Clear_context"}),
-    3: frozenset({"Summary_context", "Clear_context", "Retrieve_memory"}),
-}
-
 DEFAULT_DISTRACTOR_MESSAGES = [
     "What's the weather like today?",
     "Can you recommend a good recipe for chocolate cake?",
@@ -178,17 +170,13 @@ def should_collect_intermediate_experience(
 ) -> bool:
     """Return whether this intermediate round belongs in the training sample.
 
-    This helper centralizes the original three-stage filtering rules. It must
-    not be used to filter execution: every parsed tool call is still applied.
+    Every parsed tool action must retain its source Experience so its tokens,
+    old logprobs, policy version, and tool trace remain joined.  This includes
+    last rounds: Stage 3 may enter a repair turn, so relying on a later
+    terminal/fallback path can otherwise drop the preceding tool action.
     """
-    if is_last_round:
-        return False
-
-    selected_names = INTERMEDIATE_EXPERIENCE_TOOL_NAMES.get(stage, frozenset())
-    return any(
-        isinstance(call, dict) and call.get("name") in selected_names
-        for call in tool_calls
-    )
+    del stage, is_last_round
+    return bool(tool_calls)
 
 
 def validate_tool_call(
