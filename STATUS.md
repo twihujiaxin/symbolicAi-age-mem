@@ -2,11 +2,13 @@
 
 ## Current milestone
 
-E3 前置 CPU 验收：在同一批真实 ActionEvent 上比较 terminal-only、Flat-Oracle 与 Oracle DFA；验收通过前不启动无 QR E3 GPU 训练
+E3 前置 CPU 验收：结构链路通过，但自然轨迹奖励信号为零；正在区分“模型未保留证据”与“Oracle grounder 漏判”
 
 状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。action-complete 冻结诊断已通过：96 条 rollout、408 条 Experience、207 个唯一 ActionEvent，trace/action 一对一 join 无失败；train 24×K=4 中仅 **2/24** 题有非零组内 F1 标准差。action-complete 36-step E1 pilot 已完整结束，32-dev F1 为 E0 **0.246140**、s12 **0.246032**、s24 **0.246140**、s36 **0.246140**；12/36 trainer steps 有非零组内奖励标准差，三个 LoRA checkpoint 哈希互异，但 dev 无提升。因此 terminal-only 是可信负结果，不追加 seed。
 
-现有旧 E3 replay 被发现有两项不可忽略的不一致：它从 stage-local `round` 重算 action ID，且为环境观察/最终答案生成没有真实 ActionEvent 对应的伪 credit。新增 CPU-only 严格重放改为直接消费落盘 ActionEvent，让 Flat/DFA 共用同一 Oracle AP，每个真实动作恰好一条 credit；最终答案只使用官方 HotpotQA F1 奖励一次。下一步只在已冻结的 `agemem-e1-4b-fc-signal-diag` 真实轨迹上运行该离线比较。只有 action/credit exact join、逐动作和轨迹逻辑奖励守恒、组统计与重复防刷全部通过，才重写在线 E3 operator 并讨论 GPU pilot。无 QR 的旧 E3 启动器当前**不得运行**。不要实现 E4/E5，不要改冻结 1.5B/4B E1 dry-run YAML；部署根仍为 `/data/hjx/Age_mem`。
+现有旧 E3 replay 被发现有两项不可忽略的不一致：它从 stage-local `round` 重算 action ID，且为环境观察/最终答案生成没有真实 ActionEvent 对应的伪 credit。commit `684747f5` 的 CPU-only 严格重放已在冻结真实轨迹上完成：24 tasks / 96 rollouts / 207 actions，Flat 与 DFA 均精确 join 207 credits，结构状态 PASS；但 terminal / Flat / DFA mean 都是 **0.382492**，三者都只有 **2/24** 非零标准差组，Flat≠terminal、DFA≠terminal、Flat≠DFA 均为 **0**，DFA accepted **0/96**。因此科学信号门禁失败，不能启动无 QR E3。
+
+当前下一步仍为 CPU-only：导出每个真实 Add/Update/Retrieve 的候选内容、官方 supporting sentences、Oracle AP 与 lexical similarity，人工标注 `supports/not_support/unclear`；同时对同一批真实 HotpotQA 题生成 ordered success、retrieve-before-store、repeated-store、missing-support 四类离线正控。正控用于验证奖励器，人工审计用于判断零信号来自模型行为还是规则 grounder 漏判。无 QR 的旧 E3 启动器当前**不得运行**。不要实现 E4/E5，不要改冻结 1.5B/4B E1 dry-run YAML；部署根仍为 `/data/hjx/Age_mem`。
 
 > 本段是 2026-09-10 的最新规范状态；文档后部仍保留的早期 OOM、旧 commit、旧“下一步上 GPU”等历史记录不得覆盖本段。
 

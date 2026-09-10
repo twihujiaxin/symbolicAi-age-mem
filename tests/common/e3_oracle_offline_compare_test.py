@@ -165,7 +165,13 @@ class E3OracleOfflineCompareTest(unittest.TestCase):
             self._write_jsonl(experience_path, experience_rows)
             self._write_jsonl(trace_path, trace_rows)
             self._write_jsonl(turn_path, turn_rows)
-            report, flat_credits, dfa_credits = build_report(
+            (
+                report,
+                flat_credits,
+                dfa_credits,
+                semantic_audit_rows,
+                positive_control_rows,
+            ) = build_report(
                 experience_path=experience_path,
                 trace_path=trace_path,
                 stage3_turn_path=turn_path,
@@ -182,6 +188,14 @@ class E3OracleOfflineCompareTest(unittest.TestCase):
         self.assertEqual(report["counts"]["action_event_count"], 2)
         self.assertEqual(len(flat_credits), 2)
         self.assertEqual(len(dfa_credits), 2)
+        self.assertEqual(len(semantic_audit_rows), 2)
+        self.assertEqual(len(positive_control_rows), 4)
+        self.assertEqual(report["positive_controls"]["status"], "pass")
+        self.assertEqual(report["positive_controls"]["failure_count"], 0)
+        self.assertEqual(
+            report["real_action_semantic_audit"]["oracle_positive_action_count"],
+            1,
+        )
         self.assertEqual(
             report["group_statistics"]["terminal_only"][
                 "groups_with_nonzero_std"

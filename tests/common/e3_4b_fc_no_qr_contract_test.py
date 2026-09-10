@@ -203,6 +203,10 @@ class E34BFcNoQrContractTest(unittest.TestCase):
         self.assertIn("ActionEvent", report)
         self.assertIn("flat_oracle_credits.jsonl", report)
         self.assertIn("oracle_dfa_credits.jsonl", report)
+        self.assertIn("semantic_audit.csv", report)
+        self.assertIn("positive_controls.jsonl", report)
+        self.assertIn("contains_privileged_gold", report)
+        self.assertIn("blocked_no_natural_reward_signal", report)
 
 
 if __name__ == "__main__":

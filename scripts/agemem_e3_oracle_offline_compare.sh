@@ -49,7 +49,10 @@ if [[ -e "$output_dir" ]]; then
   exit 2
 fi
 
-python -m unittest tests.common.e3_oracle_dfa_test
+python -m unittest \
+  tests.common.e3_oracle_dfa_test \
+  tests.common.e3_oracle_offline_compare_test \
+  tests.common.e3_4b_fc_no_qr_contract_test
 python scripts/agemem_e3_oracle_offline_compare.py \
   --experience-path "$experience_path" \
   --trace-path "$trace_path" \

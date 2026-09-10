@@ -5,7 +5,7 @@
 > 文档版本：v2.3<br>
 > 更新时间：2026-09-10<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7、M8a、M8b-prep 已完成。action-complete 冻结诊断已得到 96 rollout / 408 Experience / 207 唯一 ActionEvent，严格 trace join 通过，但 24 个 K=4 组仅 2 个有非零 F1 标准差。action-complete E1 36-step pilot 已完整结束：32-dev F1 为 E0 0.246140、s12 0.246032、s24 0.246140、s36 0.246140；LoRA 参数确实变化，但 dev 无提升，作为 terminal-only 可信负结果关闭。旧 E3 replay 存在 action ID 重算和 synthetic credit 无真实 ActionEvent 对应的问题；因此无 QR E3 GPU 训练暂停。当前唯一下一步是用 `scripts/agemem_e3_oracle_offline_compare.sh` 对冻结真实轨迹做 terminal-only / Flat-Oracle / Oracle-DFA CPU 重放，验证 exact action-credit join、奖励守恒、相同 AP/上限及重复防刷。通过后再改在线 E3 operator；不要直接运行旧无 QR E3 launcher，不要实现 E4/E5，不要改冻结 dry-run YAML。部署根 `/data/hjx/Age_mem`，冻结 runtime gate 仍为 318。
+> 当前状态：M0～M7、M8a、M8b-prep 已完成。action-complete 冻结诊断已得到 96 rollout / 408 Experience / 207 唯一 ActionEvent；E1 36-step pilot 的 LoRA 参数确实变化，但 32-dev F1 从 E0 到 s36 均约 0.246，作为 terminal-only 可信负结果关闭。commit `684747f5` 的真实轨迹 CPU 重放已完成：Flat/DFA 各 207 credits 与 207 ActionEvent 精确 join，结构 PASS；但 terminal / Flat / DFA mean 均为 0.382492，三者都只有 2/24 非零标准差组，所有臂间差异为 0，DFA accepted 0/96，科学信号 FAIL。无 QR E3 GPU 训练继续暂停。当前唯一下一步是 CPU-only 的真实记忆动作语义审计与四类 real-HotpotQA 正控，区分模型未保留证据和规则 grounder 漏判；不要直接运行旧无 QR E3 launcher，不要实现 E4/E5，不要改冻结 dry-run YAML。部署根 `/data/hjx/Age_mem`，冻结 runtime gate 仍为 318。
 
 > 2026-09-10 优先级说明：上述状态覆盖本文后部保留的旧 OOM、旧 commit 和“下一步直接上 GPU”历史表述；历史结果不删除，但不得作为当前执行指令。
 
