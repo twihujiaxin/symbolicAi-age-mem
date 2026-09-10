@@ -9,6 +9,8 @@
 
 > 2026-09-10 优先级说明：上述状态覆盖本文后部保留的旧 OOM、旧 commit 和“下一步直接上 GPU”历史表述；历史结果不删除，但不得作为当前执行指令。
 
+> 最新 CPU 扩展结果：real-HotpotQA 四类正控为 24 tasks / 96 cases / 0 failures，奖励器本身有效；真实动作则为 Add 52、Retrieve 62、Summary 62、Clear 31，114 个 memory actions 的 Oracle-positive 与 lexical ≥0.5 候选均为 0。另有 93 个 Summary/Clear 动作不在当前正向 AP 集内。下一步人工审计全部 114 个 memory actions；审计文件含 privileged gold，只保留在远端并设 600 权限。审计完成前无 QR E3 仍禁止上 GPU。
+
 ---
 
 ## 1. 一页摘要

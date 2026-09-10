@@ -10,6 +10,8 @@ E3 前置 CPU 验收：结构链路通过，但自然轨迹奖励信号为零；
 
 当前下一步仍为 CPU-only：导出每个真实 Add/Update/Retrieve 的候选内容、官方 supporting sentences、Oracle AP 与 lexical similarity，人工标注 `supports/not_support/unclear`；同时对同一批真实 HotpotQA 题生成 ordered success、retrieve-before-store、repeated-store、missing-support 四类离线正控。正控用于验证奖励器，人工审计用于判断零信号来自模型行为还是规则 grounder 漏判。无 QR 的旧 E3 启动器当前**不得运行**。不要实现 E4/E5，不要改冻结 1.5B/4B E1 dry-run YAML；部署根仍为 `/data/hjx/Age_mem`。
 
+上述扩展已在远端运行：24 tasks / 96 positive-control cases / 0 failures，说明相同真实 HotpotQA schema 下正序、乱序、重复和缺失条件均按预期区分。真实 207 actions 的分布为 Add 52、Retrieve 62、Summary 62、Clear 31，无 Update；待审计 memory actions 共 114，Oracle-positive 0，lexical similarity ≥0.5/0.7/0.9 均为 0。Summary/Clear 共 93 个动作不在当前正向 AP 集内，因设计而始终是零逻辑奖励。人工语义审计应覆盖全部 114 条，而不只看高相似候选。审计 CSV/JSONL 含 privileged gold，不得提交 Git；远端旧产物权限曾继承为 664，已要求立即 `chmod 600`，生成器同步改为文件 600 / 目录 700。
+
 > 本段是 2026-09-10 的最新规范状态；文档后部仍保留的早期 OOM、旧 commit、旧“下一步上 GPU”等历史记录不得覆盖本段。
 
 ## Completed

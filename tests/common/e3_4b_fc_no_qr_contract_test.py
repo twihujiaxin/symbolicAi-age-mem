@@ -207,6 +207,8 @@ class E34BFcNoQrContractTest(unittest.TestCase):
         self.assertIn("positive_controls.jsonl", report)
         self.assertIn("contains_privileged_gold", report)
         self.assertIn("blocked_no_natural_reward_signal", report)
+        self.assertIn("os.chmod(output_path, 0o600)", report)
+        self.assertIn("unscored_context_action_count", report)
 
 
 if __name__ == "__main__":

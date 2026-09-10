@@ -758,6 +758,10 @@ def build_report(
     oracle_positive_actions = sum(
         bool(row["oracle_positive"]) for row in semantic_audit_rows
     )
+    unscored_context_actions = sum(
+        action_type_counts.get(name, 0)
+        for name in ("Summary_context", "Clear_context")
+    )
     similarity_thresholds = {
         threshold: sum(
             max(float(row["best_token_f1"]), float(row["best_character_ratio"]))
@@ -838,8 +842,14 @@ def build_report(
             "contains_privileged_gold": True,
             "review_status": "unreviewed",
             "memory_action_count": len(semantic_audit_rows),
+            "unscored_context_action_count": unscored_context_actions,
             "action_type_counts": dict(sorted(action_type_counts.items())),
             "oracle_positive_action_count": oracle_positive_actions,
+            "oracle_positive_action_fraction": (
+                oracle_positive_actions / len(semantic_audit_rows)
+                if semantic_audit_rows
+                else 0.0
+            ),
             "oracle_negative_similarity_candidates": {
                 str(threshold): count
                 for threshold, count in similarity_thresholds.items()
@@ -947,6 +957,8 @@ def _markdown(report: Mapping[str, Any]) -> str:
             "## Real-action semantic audit",
             "",
             f"- Memory actions awaiting human review: {audit['memory_action_count']}",
+            f"- Summary/Clear actions outside the current positive AP set: "
+            f"{audit['unscored_context_action_count']}",
             f"- Oracle-positive real actions: {audit['oracle_positive_action_count']}",
             f"- Action types: {audit['action_type_counts']}",
             "- Oracle-negative candidates with max lexical similarity "
@@ -1020,6 +1032,14 @@ def main() -> int:
     _write_jsonl(
         args.output_dir / "positive_controls.jsonl", positive_control_rows
     )
+    if os.name != "nt":
+        # The semantic audit contains model memory text and privileged gold
+        # supporting sentences. Protect every derived file from group/other
+        # reads so a permissive server umask cannot leak the audit payload.
+        for output_path in args.output_dir.iterdir():
+            if output_path.is_file():
+                os.chmod(output_path, 0o600)
+        os.chmod(args.output_dir, 0o700)
     print(_markdown(report), end="")
     print(f"Report: {args.output_dir / 'report.json'}")
     return 0
