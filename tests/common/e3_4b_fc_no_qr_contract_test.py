@@ -44,6 +44,12 @@ from trinity.common.m8b_preflight import _source_digest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e3_4b_fc_no_qr.sh"
+OFFLINE_LAUNCHER = (
+    REPOSITORY_ROOT / "scripts" / "agemem_e3_oracle_offline_compare.sh"
+)
+OFFLINE_REPORT = (
+    REPOSITORY_ROOT / "scripts" / "agemem_e3_oracle_offline_compare.py"
+)
 RUNTIME_GATE = REPOSITORY_ROOT / "scripts" / "agemem_m8b_runtime_gate.py"
 VANILLA_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b.sh"
 FORMAT_LAUNCHER = REPOSITORY_ROOT / "scripts" / "agemem_e1_4b_format.sh"
@@ -179,6 +185,24 @@ class E34BFcNoQrContractTest(unittest.TestCase):
         self.assertTrue(set(PILOT_JOBS).issubset(set(FORBIDDEN_FOREIGN_JOBS)))
         self.assertTrue(set(QR_E3_JOBS).issubset(set(FORBIDDEN_FOREIGN_JOBS)))
         self.assertFalse(set(ALL_JOBS).issubset(set(FORBIDDEN_FOREIGN_JOBS)))
+
+    def test_cpu_offline_comparison_uses_frozen_real_action_artifacts(self):
+        launcher = OFFLINE_LAUNCHER.read_text(encoding="utf-8")
+        report = OFFLINE_REPORT.read_text(encoding="utf-8")
+        self.assertIn("AGEMEM_DIAGNOSIS_ROOT", launcher)
+        self.assertIn("agemem-e1-4b-fc-signal-diag", launcher)
+        self.assertIn("buffer/explorer_output.jsonl", launcher)
+        self.assertIn("trajectories/tool_calls.jsonl", launcher)
+        self.assertIn("trajectories/stage3_final_turn.jsonl", launcher)
+        self.assertNotIn("CUDA_VISIBLE_DEVICES", launcher)
+        self.assertNotIn("ray start", launcher)
+        self.assertNotIn("trinity run", launcher)
+        self.assertIn("replay_hotpotqa_oracle_comparison", report)
+        self.assertIn("_validate_trace_join", report)
+        self.assertIn("fixed_train_rows", report)
+        self.assertIn("ActionEvent", report)
+        self.assertIn("flat_oracle_credits.jsonl", report)
+        self.assertIn("oracle_dfa_credits.jsonl", report)
 
 
 if __name__ == "__main__":

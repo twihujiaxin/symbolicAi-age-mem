@@ -7,14 +7,22 @@ question-retrieve environment path, then replays the M4 positive DFA.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
-from AgeMem_code_agentscope.action_schema import ActionCreditRecord, RewardBreakdownV2
+from AgeMem_code_agentscope.action_schema import (
+    ActionCreditRecord,
+    ActionEvent,
+    RewardBreakdownV2,
+)
 from AgeMem_code_agentscope.memory_oracle.automaton import DFARunner, hand_authored_memory_dfa
 from AgeMem_code_agentscope.memory_oracle.models import AP_ORDER, OracleAPEvent
-from trinity.common.action_event_contract import stable_action_id
+from trinity.common.action_event_contract import (
+    join_action_events_to_credits,
+    stable_action_id,
+)
 
 
 REWARD_VERSION = "agemem.reward.e3_oracle_dfa.v1"
@@ -23,6 +31,21 @@ LOGIC_BETA = 1.0
 MILESTONE_WEIGHT = 0.25
 VIOLATION_WEIGHT = 0.0
 DEFAULT_MAX_STEPS = 48
+FLAT_SPEC_ID = "agemem-flat-oracle-positive-v1"
+FLAT_REWARD_VERSION = "agemem.reward.flat_oracle.v1"
+
+# ``answered_correctly`` is deliberately excluded here: HotpotQA F1 already
+# supplies the terminal answer reward.  Rewarding it again would both double
+# count answer quality and create a synthetic credit with no ActionEvent join.
+ACTION_MILESTONE_APS = (
+    "stored_supporting_fact",
+    "updated_stale_fact",
+    "supporting_coverage_complete",
+    "retrieved_supporting_fact",
+)
+ACTION_LOGIC_REWARD_CEILING = (
+    LOGIC_BETA * MILESTONE_WEIGHT * len(ACTION_MILESTONE_APS)
+)
 
 _WHITESPACE = re.compile(r"\s+")
 
@@ -52,6 +75,16 @@ class E3CreditReplay:
     final_state: str
     final_status: str
     accepted: bool
+
+
+@dataclass
+class OracleRewardComparison:
+    """Terminal, flat, and DFA rewards on one immutable action sequence."""
+
+    terminal_total: float
+    flat: E3CreditReplay
+    dfa: E3CreditReplay
+    action_count: int
 
 
 @dataclass
@@ -303,6 +336,230 @@ def _credit_for_event(
         return_to_go=None,
         advantage=None,
         reward_version=REWARD_VERSION,
+    )
+
+
+def _flat_credit_for_event(
+    *,
+    action: ActionEvent,
+    event: OracleAPEvent,
+    seen_milestones: set[str],
+) -> ActionCreditRecord:
+    newly_rewarded = tuple(
+        proposition
+        for proposition in ACTION_MILESTONE_APS
+        if proposition in event.propositions and proposition not in seen_milestones
+    )
+    seen_milestones.update(newly_rewarded)
+    transition_ids = tuple(f"flat_{item}" for item in newly_rewarded)
+    state_before = f"flat:{len(seen_milestones) - len(newly_rewarded)}"
+    state_after = f"flat:{len(seen_milestones)}"
+    milestone = MILESTONE_WEIGHT * len(newly_rewarded)
+    breakdown = RewardBreakdownV2(
+        env=0.0,
+        milestone=float(milestone),
+        violation=0.0,
+        trend=0.0,
+        format=0.0,
+        cost=0.0,
+        total=float(LOGIC_BETA * milestone),
+        automaton_state_before=state_before,
+        automaton_state_after=state_after,
+        automaton_status="running",
+        propositions=tuple(event.propositions),
+        fired_edges=transition_ids,
+        newly_rewarded_edges=transition_ids,
+        violation_edges=(),
+    )
+    evidence = {
+        str(key): tuple(str(item) for item in values)
+        for key, values in event.evidence_fact_ids.items()
+    }
+    return ActionCreditRecord(
+        action_id=action.action_id,
+        task_id=action.task_id,
+        rollout_id=action.rollout_id,
+        stage_id=action.stage_id,
+        timestep=action.timestep,
+        atomic_propositions=tuple(event.propositions),
+        atomic_proposition_evidence=evidence,
+        dfa_spec_id=FLAT_SPEC_ID,
+        transition_ids=transition_ids,
+        transition_id=(transition_ids[0] if len(transition_ids) == 1 else None),
+        dfa_state_before=state_before,
+        dfa_state_after=state_after,
+        reward_breakdown=breakdown,
+        return_to_go=None,
+        advantage=None,
+        reward_version=FLAT_REWARD_VERSION,
+    )
+
+
+def _validated_action_sequence(
+    action_events: Sequence[ActionEvent | Mapping[str, Any]],
+    *,
+    task_id: str,
+    rollout_id: str,
+) -> tuple[ActionEvent, ...]:
+    parsed = tuple(
+        item
+        if isinstance(item, ActionEvent)
+        else ActionEvent.model_validate_json(
+            json.dumps(item, ensure_ascii=False, allow_nan=False)
+        )
+        for item in action_events
+    )
+    action_ids: set[str] = set()
+    previous_coordinate: tuple[int, int] | None = None
+    for action in parsed:
+        if action.task_id != task_id or action.rollout_id != rollout_id:
+            raise ValueError("ActionEvent identity differs from replay identity")
+        if action.action_id in action_ids:
+            raise ValueError(f"duplicate replay action_id {action.action_id!r}")
+        action_ids.add(action.action_id)
+        coordinate = (action.assistant_turn_id, action.action_index_in_turn)
+        if previous_coordinate is not None and coordinate <= previous_coordinate:
+            raise ValueError("ActionEvents must be in assistant-turn/action-index order")
+        previous_coordinate = coordinate
+    return parsed
+
+
+def replay_hotpotqa_oracle_comparison(
+    *,
+    task_id: str,
+    rollout_id: str,
+    seed: int,
+    supporting_sentences: Sequence[str],
+    observed_sentences: Sequence[str],
+    action_events: Sequence[ActionEvent | Mapping[str, Any]],
+    exact_match: float = 0.0,
+    task_f1: float = 0.0,
+    found_answer: bool = False,
+    max_steps: int = DEFAULT_MAX_STEPS,
+) -> OracleRewardComparison:
+    """Compare Flat-Oracle and ordered DFA on the exact same real actions.
+
+    Only persisted LLM ``ActionEvent`` rows receive credits. Environment
+    observation initializes the Oracle grounder and the final answer closes the
+    DFA, but neither is fabricated into an action. Consequently every credit
+    joins one real action exactly, and the sum of per-action rewards equals the
+    trajectory logic reward.
+    """
+
+    actions = _validated_action_sequence(
+        action_events,
+        task_id=task_id,
+        rollout_id=rollout_id,
+    )
+    grounder = HotpotQAOracleGrounder(
+        task_id=task_id,
+        rollout_id=rollout_id,
+        seed=seed,
+        supporting_sentences=tuple(supporting_sentences),
+        observed_sentences=tuple(observed_sentences),
+    )
+    dfa_runner = DFARunner(hand_authored_memory_dfa(), max_steps=max_steps)
+
+    # This establishes which gold facts were visible in Stage 1. It carries no
+    # policy credit because it is an environment observation, not an action.
+    dfa_runner.step(grounder.observe_stage1(), done=False)
+
+    grounded_actions: list[tuple[ActionEvent, OracleAPEvent]] = []
+    for action in actions:
+        raw_output = action.result.get("output", action.result)
+        result = raw_output if isinstance(raw_output, Mapping) else {}
+        event = grounder.tool_event(
+            tool_name=action.action_type,
+            arguments=action.arguments,
+            result=result,
+            stage=action.stage_id,
+        )
+        grounded_actions.append((action, event))
+
+    dfa_credits: list[ActionCreditRecord] = []
+    for action, event in grounded_actions:
+        transition = dfa_runner.step(event, done=False)
+        dfa_credits.append(
+            _credit_for_event(
+                action_id=action.action_id,
+                task_id=action.task_id,
+                rollout_id=action.rollout_id,
+                stage_id=action.stage_id,
+                timestep=action.timestep,
+                event=event,
+                transition=transition,
+                env_reward=0.0,
+            )
+        )
+
+    # Answer correctness is already represented by terminal HotpotQA F1. It is
+    # used here only to determine DFA acceptance, never as a second reward.
+    dfa_runner.step(
+        grounder.answer_event(exact_match=exact_match),
+        done=True,
+    )
+
+    flat_seen: set[str] = set()
+    flat_credits = tuple(
+        _flat_credit_for_event(
+            action=action,
+            event=event,
+            seen_milestones=flat_seen,
+        )
+        for action, event in grounded_actions
+    )
+    dfa_credit_tuple = tuple(dfa_credits)
+    join_action_events_to_credits(actions, flat_credits)
+    join_action_events_to_credits(actions, dfa_credit_tuple)
+
+    env_total = float(task_f1) if found_answer else 0.0
+    flat_milestone = sum(item.reward_breakdown.milestone for item in flat_credits)
+    dfa_milestone = sum(
+        item.reward_breakdown.milestone for item in dfa_credit_tuple
+    )
+    flat_logic = LOGIC_BETA * flat_milestone
+    dfa_logic = LOGIC_BETA * dfa_milestone
+    if flat_logic > ACTION_LOGIC_REWARD_CEILING + 1e-12:
+        raise RuntimeError("Flat-Oracle action reward exceeded its frozen ceiling")
+    if dfa_logic > ACTION_LOGIC_REWARD_CEILING + 1e-12:
+        raise RuntimeError("Oracle DFA action reward exceeded its frozen ceiling")
+    flat_status = "accepted" if float(exact_match) >= 1.0 else "rejected"
+    flat = E3CreditReplay(
+        credits=flat_credits,
+        env_total=env_total,
+        milestone_total=float(flat_milestone),
+        violation_total=0.0,
+        logic_total=float(flat_logic),
+        training_total=float(env_total + flat_logic),
+        final_state=f"flat:{len(flat_seen)}",
+        final_status=flat_status,
+        accepted=flat_status == "accepted",
+    )
+    dfa = E3CreditReplay(
+        credits=dfa_credit_tuple,
+        env_total=env_total,
+        milestone_total=float(dfa_milestone),
+        violation_total=0.0,
+        logic_total=float(dfa_logic),
+        training_total=float(env_total + dfa_logic),
+        final_state=dfa_runner.state,
+        final_status=str(dfa_runner.status),
+        accepted=dfa_runner.status == "accepted",
+    )
+    if abs(
+        sum(item.reward_breakdown.total for item in flat.credits)
+        - flat.logic_total
+    ) > 1e-12:
+        raise RuntimeError("Flat-Oracle action credits do not conserve logic reward")
+    if abs(
+        sum(item.reward_breakdown.total for item in dfa.credits) - dfa.logic_total
+    ) > 1e-12:
+        raise RuntimeError("Oracle DFA action credits do not conserve logic reward")
+    return OracleRewardComparison(
+        terminal_total=env_total,
+        flat=flat,
+        dfa=dfa,
+        action_count=len(actions),
     )
 
 

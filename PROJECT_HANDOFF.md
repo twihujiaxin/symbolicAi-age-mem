@@ -2,10 +2,12 @@
 
 > 面向：VS Code 中的 Codex 插件  
 > 项目方向：AgeMem 式可学习记忆管理 + GLARE 式 LTLf/DFA 逻辑奖励  
-> 文档版本：v2.2<br>
-> 更新时间：2026-09-08<br>
+> 文档版本：v2.3<br>
+> 更新时间：2026-09-10<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7、M8a、M8b-prep 已完成。1.5B M8b smoke 已通过。1.5B/4B vanilla E1、format probe、format 1-step、format-var 与 format-group 均已关闭。format-conditioned 4B 冻结诊断已关闭（`d34532aa`：train F1 0.381，held-out 0.5，32-dev gold 0.573 vs normal 0.246）。36-step pilot 已在 0/12/24 eval 关闭（32-dev F1 均为 0.246）。question-retrieve 32-dev 已关闭（mean F1 **0.561** ≈ gold 0.573）。E3 Oracle DFA（QR 环境）12-step 已关闭（E0 0.561235 / s12 0.558929）。无 QR 的 E3 对照代码已落地、尚未提交、尚未上 GPU。nudge 不并入基线。不要实现 E4 / E5。不要改冻结 dry-run YAML。部署根 `/data/hjx/Age_mem`。冻结 runtime gate 仍为 318。
+> 当前状态：M0～M7、M8a、M8b-prep 已完成。action-complete 冻结诊断已得到 96 rollout / 408 Experience / 207 唯一 ActionEvent，严格 trace join 通过，但 24 个 K=4 组仅 2 个有非零 F1 标准差。action-complete E1 36-step pilot 已完整结束：32-dev F1 为 E0 0.246140、s12 0.246032、s24 0.246140、s36 0.246140；LoRA 参数确实变化，但 dev 无提升，作为 terminal-only 可信负结果关闭。旧 E3 replay 存在 action ID 重算和 synthetic credit 无真实 ActionEvent 对应的问题；因此无 QR E3 GPU 训练暂停。当前唯一下一步是用 `scripts/agemem_e3_oracle_offline_compare.sh` 对冻结真实轨迹做 terminal-only / Flat-Oracle / Oracle-DFA CPU 重放，验证 exact action-credit join、奖励守恒、相同 AP/上限及重复防刷。通过后再改在线 E3 operator；不要直接运行旧无 QR E3 launcher，不要实现 E4/E5，不要改冻结 dry-run YAML。部署根 `/data/hjx/Age_mem`，冻结 runtime gate 仍为 318。
+
+> 2026-09-10 优先级说明：上述状态覆盖本文后部保留的旧 OOM、旧 commit 和“下一步直接上 GPU”历史表述；历史结果不删除，但不得作为当前执行指令。
 
 ---
 

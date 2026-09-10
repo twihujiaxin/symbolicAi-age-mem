@@ -2,9 +2,13 @@
 
 ## Current milestone
 
-E3：QR 臂已关闭；无 QR 对照已落地，尚未提交、尚未上 GPU
+E3 前置 CPU 验收：在同一批真实 ActionEvent 上比较 terminal-only、Flat-Oracle 与 Oracle DFA；验收通过前不启动无 QR E3 GPU 训练
 
-状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。E3 Oracle DFA（question-retrieve 环境）12-step 已关闭：E0 **0.561235** / s12 **0.558929**。无 QR 对照已写独立锁 `configs/e3_4b_fc_no_qr.json`、启动器 `scripts/agemem_e3_4b_fc_no_qr.sh`、空根 `/data/hjx/Age_mem/checkpoints-e3-4b-fc-no-qr`。同一 DFA / nudge / 24 train / 冻结 32-dev / K=4 / seed 7，关闭 index-observed 与 question-retrieve。E0 应对齐 mem-normal **0.246**，不是 QR-E3 的 0.561。先提交并推送，用户点头并 `nvidia-smi` 前不上 GPU。不要实现 E4 / E5。不要改冻结 1.5B/4B E1 dry-run YAML。nudge 不并入 vanilla GRPO 基线。部署根目录仍为 `/data/hjx/Age_mem`
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。action-complete 冻结诊断已通过：96 条 rollout、408 条 Experience、207 个唯一 ActionEvent，trace/action 一对一 join 无失败；train 24×K=4 中仅 **2/24** 题有非零组内 F1 标准差。action-complete 36-step E1 pilot 已完整结束，32-dev F1 为 E0 **0.246140**、s12 **0.246032**、s24 **0.246140**、s36 **0.246140**；12/36 trainer steps 有非零组内奖励标准差，三个 LoRA checkpoint 哈希互异，但 dev 无提升。因此 terminal-only 是可信负结果，不追加 seed。
+
+现有旧 E3 replay 被发现有两项不可忽略的不一致：它从 stage-local `round` 重算 action ID，且为环境观察/最终答案生成没有真实 ActionEvent 对应的伪 credit。新增 CPU-only 严格重放改为直接消费落盘 ActionEvent，让 Flat/DFA 共用同一 Oracle AP，每个真实动作恰好一条 credit；最终答案只使用官方 HotpotQA F1 奖励一次。下一步只在已冻结的 `agemem-e1-4b-fc-signal-diag` 真实轨迹上运行该离线比较。只有 action/credit exact join、逐动作和轨迹逻辑奖励守恒、组统计与重复防刷全部通过，才重写在线 E3 operator 并讨论 GPU pilot。无 QR 的旧 E3 启动器当前**不得运行**。不要实现 E4/E5，不要改冻结 1.5B/4B E1 dry-run YAML；部署根仍为 `/data/hjx/Age_mem`。
+
+> 本段是 2026-09-10 的最新规范状态；文档后部仍保留的早期 OOM、旧 commit、旧“下一步上 GPU”等历史记录不得覆盖本段。
 
 ## Completed
 

@@ -1163,10 +1163,11 @@ def validate_on_policy_experiences(
         for event in events:
             if event.source != "llm":
                 raise ActionContractError("only LLM ActionEvents may enter on-policy")
+            eid_label = getattr(experience.eid, "uid", repr(experience.eid))
             action_coordinate = (
                 f"rollout={event.rollout_id!r}, stage={event.stage_id}, "
                 f"timestep={event.timestep}, turn={event.assistant_turn_id}, "
-                f"index={event.action_index_in_turn}, eid={experience.eid.uid!r}"
+                f"index={event.action_index_in_turn}, eid={eid_label!r}"
             )
             if event.action_id in seen_action_ids:
                 raise ActionContractError(
