@@ -12,7 +12,12 @@ from trinity.common.workflows.workflow import WORKFLOWS, MultiTurnWorkflow, Task
 from trinity.utils.log import get_logger
 
 from .memory_store import MemoryManager, chat_client
-from .workflow_prompt import TOOL_CALL_SYS_PROMPT, SUMMARY_CONTEXT_SYS_PROMPT, TEXT_SIMILARITY_SYS_PROMPT
+from .workflow_prompt import (
+    SUMMARY_CONTEXT_SYS_PROMPT,
+    TEXT_SIMILARITY_SYS_PROMPT,
+    STAGE1_FACT_MEMORY_INSTRUCTION,
+    build_tool_call_system_prompt,
+)
 from .utils import (
     TOOL_SCHEMA as COMMON_TOOL_SCHEMA,
     DistractorGenerator as CommonDistractorGenerator,
@@ -22,6 +27,7 @@ from .utils import (
     parse_answer as common_parse_answer,
     parse_tool_calls as common_parse_tool_calls,
     record_tool_usage,
+    validate_fact_memory_add,
 )
 
 from ..memory_reward.my_reward import ThreeStageRewardCalculator, extract_tool_usage_stats, extract_context_stats, extract_memory_stats
@@ -82,6 +88,15 @@ class AgeMemHotpotWorkflowEvaluation(MultiTurnWorkflow):
         self.stage2_distractor_messages = self.workflow_args.get("stage2_distractor_messages", 5)
         self.stage3_max_rounds = self.workflow_args.get("stage3_max_rounds", 5)
         self.stage1_max_rounds = self.workflow_args.get("stage1_max_rounds", 5)
+        self.stage1_fact_memory_enabled = bool(
+            self.workflow_args.get("stage1_fact_memory_enabled", False)
+        )
+        self.stage1_fact_memory_validation = bool(
+            self.workflow_args.get(
+                "stage1_fact_memory_validation",
+                self.stage1_fact_memory_enabled,
+            )
+        )
         self.stage2_max_rounds = self.workflow_args.get("stage2_max_rounds", 5)
 
         # Initialize memory manager and chat client
@@ -112,8 +127,14 @@ class AgeMemHotpotWorkflowEvaluation(MultiTurnWorkflow):
         except (TypeError, ValueError):
             self.manual_retrieve_top_k = 3
 
-        self.tool_schema = build_tool_schema(self.use_context_tools)
-        self.sys_prompt = TOOL_CALL_SYS_PROMPT.format(tools=json.dumps(self.tool_schema))
+        self.tool_schema = build_tool_schema(
+            self.use_context_tools,
+            fact_memory=self.stage1_fact_memory_enabled,
+        )
+        self.sys_prompt = build_tool_call_system_prompt(
+            json.dumps(self.tool_schema),
+            fact_memory=self.stage1_fact_memory_enabled,
+        )
 
     @property
     def asynchronous(self):
@@ -372,6 +393,30 @@ class AgeMemHotpotWorkflowEvaluation(MultiTurnWorkflow):
                 content = args.get("content", "")
                 metadata = args.get("metadata", {}) or {}
                 memory_type = args.get("memory_type", "general")
+
+                if self.current_stage == 1 and self.stage1_fact_memory_validation:
+                    context_info = self.context_info or {}
+                    fact_memory_error = validate_fact_memory_add(
+                        args,
+                        source_titles=context_info.get("title", []) or [],
+                        source_sentence_groups=(
+                            context_info.get("sentences", []) or []
+                        ),
+                        existing_contents=[
+                            item.content
+                            for item in self.memory_manager.list_memories()
+                        ],
+                    )
+                    if fact_memory_error:
+                        reply_note = (
+                            "memory_rejected:fact_memory_contract:"
+                            f"{fact_memory_error}"
+                        )
+                        self._append_context(
+                            "tool",
+                            f"[memory tool result]\n{reply_note}",
+                        )
+                        continue
 
                 # Add memory_type to metadata if provided
                 if memory_type:
@@ -722,10 +767,15 @@ Please provide a concise and direct answer to the question. Only output the answ
             merged_context_lines.append(f"{title}: {' '.join(sents_short)}")
         merged_context_text = "\n".join(merged_context_lines)
 
-        casual_user_msg = (
-            "Just chatting about several topics together. Here are the related contents grouped by title:\n"
-            f"{merged_context_text}"
-        )
+        if self.stage1_fact_memory_enabled:
+            casual_user_msg = (
+                f"{STAGE1_FACT_MEMORY_INSTRUCTION}{merged_context_text}"
+            )
+        else:
+            casual_user_msg = (
+                "Just chatting about several topics together. Here are the related contents grouped by title:\n"
+                f"{merged_context_text}"
+            )
 
         # Send the casual chat message in one shot.
         self._append_context("user", casual_user_msg)

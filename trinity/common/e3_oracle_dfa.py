@@ -217,14 +217,15 @@ class HotpotQAOracleGrounder:
         if tool_name == "Add_memory":
             content = str(args.get("content") or "")
             memory_id = str(payload.get("memory_id") or "")
-            if memory_id:
+            add_applied = payload.get("outcome") == "added" and bool(memory_id)
+            if add_applied:
                 self._contents[memory_id] = content
-            gold = self._match_gold(content)
-            if gold:
-                self._stored_gold.update(gold)
-                evidence["stored_supporting_fact"] = gold
-            elif normalize_sentence(content):
-                evidence["stored_irrelevant_fact"] = (memory_id or "irr:add",)
+                gold = self._match_gold(content)
+                if gold:
+                    self._stored_gold.update(gold)
+                    evidence["stored_supporting_fact"] = gold
+                elif normalize_sentence(content):
+                    evidence["stored_irrelevant_fact"] = (memory_id,)
         elif tool_name == "Update_memory":
             memory_id = str(args.get("memory_id") or payload.get("memory_id") or "")
             previous = self._contents.get(memory_id, "")

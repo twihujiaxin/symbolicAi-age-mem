@@ -34,22 +34,25 @@ from .workflow_metrics import (
     extract_sentences_from_supporting_facts,
 )
 from .workflow_prompt import (
-    TOOL_CALL_SYS_PROMPT,
     SUMMARY_CONTEXT_SYS_PROMPT,
     TEXT_SIMILARITY_SYS_PROMPT,
+    STAGE1_FACT_MEMORY_INSTRUCTION,
     STAGE3_FINAL_ANSWER_NUDGE,
     STAGE3_ANSWER_TAG_REPAIR,
+    build_tool_call_system_prompt,
 )
 from .utils import (
     TOOL_SCHEMA as COMMON_TOOL_SCHEMA,
     TOOL_NAMES,
     DistractorGenerator as CommonDistractorGenerator,
+    build_tool_schema,
     extract_score as common_extract_score,
     parse_answer as common_parse_answer,
     parse_tool_calls as common_parse_tool_calls,
     should_collect_intermediate_experience,
     should_emit_stage3_final_answer_nudge,
     should_repair_untagged_stage3_answer,
+    validate_fact_memory_add,
     validate_tool_call,
 )
 
@@ -200,6 +203,15 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         except (TypeError, ValueError):
             self.stage3_question_retrieve_top_k = 8
         self.stage1_max_rounds = self.workflow_args.get("stage1_max_rounds", 5)
+        self.stage1_fact_memory_enabled = bool(
+            self.workflow_args.get("stage1_fact_memory_enabled", False)
+        )
+        self.stage1_fact_memory_validation = bool(
+            self.workflow_args.get(
+                "stage1_fact_memory_validation",
+                self.stage1_fact_memory_enabled,
+            )
+        )
         self.stage2_max_rounds = self.workflow_args.get("stage2_max_rounds", 5)
         self.tool_reward_stats_source = (
             str(self.workflow_args.get("tool_reward_stats_source", "legacy"))
@@ -269,7 +281,14 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         self.facts: Optional[dict] = None
         self.context: Optional[dict] = None
 
-        self.sys_prompt = TOOL_CALL_SYS_PROMPT.format(tools=json.dumps(TOOL_SCHEMA))
+        self.tool_schema = build_tool_schema(
+            True,
+            fact_memory=self.stage1_fact_memory_enabled,
+        )
+        self.sys_prompt = build_tool_call_system_prompt(
+            json.dumps(self.tool_schema),
+            fact_memory=self.stage1_fact_memory_enabled,
+        )
 
     @property
     def asynchronous(self):
@@ -873,6 +892,49 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                 continue
 
             arguments = normalized_call["arguments"]
+            if (
+                tool_name == "Add_memory"
+                and self.current_stage == 1
+                and self.stage1_fact_memory_validation
+            ):
+                context_info = self.context_info or {}
+                fact_memory_error = validate_fact_memory_add(
+                    arguments,
+                    source_titles=context_info.get("title", []) or [],
+                    source_sentence_groups=(
+                        context_info.get("sentences", []) or []
+                    ),
+                    existing_contents=[
+                        item.content
+                        for item in self.memory_manager.list_memories()
+                    ],
+                )
+                if fact_memory_error:
+                    reply_note = (
+                        "memory_rejected:fact_memory_contract:"
+                        f"{fact_memory_error}"
+                    )
+                    result_text = f"[memory tool result]\n{reply_note}"
+                    self._append_context("tool", result_text)
+                    result = {
+                        "effect_applied": False,
+                        "outcome": "rejected_fact_memory",
+                        "validation_error": fact_memory_error,
+                        "result_text": result_text,
+                    }
+                    self._last_tool_result = dict(result)
+                    self._finish_tool_trace(
+                        call_id=call_id,
+                        started_at=started_at,
+                        trace_context=trace_context,
+                        tool_name=tool_name,
+                        tool_index=tool_index,
+                        arguments=raw_arguments,
+                        status="validation_error",
+                        result=result,
+                        experiences=experiences,
+                    )
+                    continue
             try:
                 call_reply_note = self._execute_tool_calls([normalized_call])
                 if call_reply_note is not None:
@@ -1481,10 +1543,15 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             merged_context_lines.append(f"{title}: {' '.join(sents_short)}")
         merged_context_text = "\n".join(merged_context_lines)
 
-        casual_user_msg = (
-            "Just chatting about several topics together. Here are the related contents grouped by title:\n"
-            f"{merged_context_text}"
-        )
+        if self.stage1_fact_memory_enabled:
+            casual_user_msg = (
+                f"{STAGE1_FACT_MEMORY_INSTRUCTION}{merged_context_text}"
+            )
+        else:
+            casual_user_msg = (
+                "Just chatting about several topics together. Here are the related contents grouped by title:\n"
+                f"{merged_context_text}"
+            )
 
         # Send the casual chat message in one shot.
         self._append_context("user", casual_user_msg)

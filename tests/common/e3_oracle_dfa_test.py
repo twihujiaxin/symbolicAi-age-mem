@@ -278,6 +278,42 @@ class E3OracleDfaTest(unittest.TestCase):
             replay.dfa.logic_total,
         )
 
+    def test_rejected_add_does_not_receive_storage_credit(self):
+        support = ("Alice was born in Paris.",)
+        rollout_id = "batch/task/rejected"
+        actions = (
+            self._action(
+                rollout_id=rollout_id,
+                turn=0,
+                index=0,
+                name="Add_memory",
+                arguments={"content": support[0]},
+                output={
+                    "effect_applied": False,
+                    "outcome": "rejected_fact_memory",
+                    "validation_error": "topic-level summary",
+                },
+            ),
+        )
+        replay = replay_hotpotqa_oracle_comparison(
+            task_id="batch/task",
+            rollout_id=rollout_id,
+            seed=7,
+            supporting_sentences=support,
+            observed_sentences=support,
+            action_events=actions,
+            exact_match=0.0,
+            task_f1=0.0,
+            found_answer=False,
+        )
+
+        self.assertEqual(replay.flat.logic_total, 0.0)
+        self.assertEqual(replay.dfa.logic_total, 0.0)
+        self.assertNotIn(
+            "stored_supporting_fact",
+            replay.flat.credits[0].atomic_propositions,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

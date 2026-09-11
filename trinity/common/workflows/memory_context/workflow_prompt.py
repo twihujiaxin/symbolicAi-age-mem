@@ -58,6 +58,35 @@ Your full output must follow these rules:
 - Use <answer> only once when the final solution is ready.
 """
 
+
+def build_tool_call_system_prompt(
+    tools_json: str,
+    *,
+    fact_memory: bool = False,
+) -> str:
+    """Render the system prompt while preserving the legacy text by default."""
+    prompt = TOOL_CALL_SYS_PROMPT.format(tools=tools_json)
+    if not fact_memory:
+        return prompt
+
+    fact_arguments = (
+        '"content": "The fictional Northbridge Observatory opened in 1987 '
+        'in Lanton.", "metadata": {"source_title": "Northbridge '
+        'Observatory", "source_sentence_indices": [0]}, '
+        '"memory_type": "knowledge"'
+    )
+    prompt = prompt.replace(
+        '"content": "Strategy summary for reuse", '
+        '"memory_type": "problem_solving"',
+        fact_arguments,
+    )
+    prompt = prompt.replace(
+        '"content": "Solution approach for this type of problem", '
+        '"memory_type": "problem_solving"',
+        fact_arguments,
+    )
+    return prompt
+
 # Last Stage-3 user turn when workflow_args.stage3_require_final_answer is true.
 # Must not name tools, gold answers, or Hotpot facts.
 STAGE3_FINAL_ANSWER_NUDGE = (
@@ -72,6 +101,49 @@ STAGE3_ANSWER_TAG_REPAIR = (
     "Do not call tools. Do not add explanations. "
     "Rewrite only the final answer as <answer>SHORT ANSWER</answer>."
 )
+
+
+# Stage-1 format condition for factual, source-grounded long-term memory.
+# The example is synthetic so the prompt cannot leak HotpotQA task facts.
+STAGE1_FACT_MEMORY_INSTRUCTION = """Stage 1 — Fact memory construction.
+
+The information below will be removed from the conversation before a future
+question is asked. Build long-term memory that preserves concrete knowledge
+needed for possible future questions.
+
+Use Add_memory to store specific facts grounded in the supplied text.
+
+Memory requirements:
+1. Every memory must contain one to three complete factual propositions.
+2. Each proposition must state a concrete subject, relation, and object or
+   attribute.
+3. Write in the source language and preserve exact names, dates, locations,
+   occupations, memberships, authorship, and other important relations.
+4. Make each memory self-contained. A reader must understand it without seeing
+   the original passage.
+5. Group only closely related facts about the same entity.
+6. Use memory_type="knowledge".
+7. Put the exact source title in metadata.source_title. You may also put the
+   zero-based supporting sentence indices in metadata.source_sentence_indices.
+8. Do not store topic labels, document descriptions, or vague summaries.
+9. Do not invent facts or use knowledge absent from the supplied text.
+10. Do not use Summary_context as a substitute for long-term fact storage.
+
+Bad memories:
+- "Summary of several scientists and their contributions"
+- "Information about some bands"
+- "Overview of historical topics"
+
+Good memory:
+- "The fictional Northbridge Observatory opened in 1987 in Lanton and was
+  founded by physicist Mira Vale."
+
+Call Add_memory multiple times when unrelated entities should be stored
+separately. When memory construction is complete, answer briefly without
+repeating the source text.
+
+Contents grouped by source title:
+"""
 
 
 SUMMARY_CONTEXT_SYS_PROMPT = """

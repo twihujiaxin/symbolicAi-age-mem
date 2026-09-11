@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 TOOL_SCHEMA = [
     {
@@ -155,11 +156,207 @@ DEFAULT_DISTRACTOR_MESSAGES = [
 ]
 
 
-def build_tool_schema(use_context_tools: bool) -> List[Dict]:
+FACT_MEMORY_TOOL_DESCRIPTION = (
+    "Adds source-grounded factual knowledge to the external memory store. "
+    "Each memory must contain one to three concrete, self-contained factual "
+    "propositions with explicit entities and relations. Topic labels and vague "
+    "summaries such as 'summary of', 'information about', 'list of', or "
+    "'overview of' are invalid."
+)
+
+FACT_MEMORY_CONTENT_DESCRIPTION = (
+    "One to three concrete factual propositions grounded in the supplied "
+    "Stage-1 source. Write in the source language and preserve exact names, "
+    "dates, locations, roles, and other important relations. The text must be "
+    "understandable without the original passage and must not be a topic label "
+    "or vague summary."
+)
+
+FACT_MEMORY_GENERIC_PATTERNS = (
+    r"\bsummary\s+of\b",
+    r"\binformation\s+about\b",
+    r"\blist\s+of\b",
+    r"\boverview\s+of\b",
+    r"\brelated\s+contents?\b",
+    r"\bvarious\s+topics?\b",
+    r"\bseveral\s+topics?\b",
+    r"内容概述",
+    r"主题概述",
+    r"相关信息",
+)
+
+_FACT_MEMORY_STOPWORDS = {
+    "a",
+    "about",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "their",
+    "this",
+    "to",
+    "was",
+    "were",
+    "with",
+}
+
+
+def _fact_memory_tokens(text: str) -> set[str]:
+    return {
+        token.casefold()
+        for token in re.findall(r"[^\W_]+(?:['’-][^\W_]+)*", text, re.UNICODE)
+        if len(token) > 1 and token.casefold() not in _FACT_MEMORY_STOPWORDS
+    }
+
+
+def validate_fact_memory_add(
+    arguments: Dict[str, Any],
+    *,
+    source_titles: Sequence[Any],
+    source_sentence_groups: Sequence[Sequence[Any]],
+    existing_contents: Sequence[Any] = (),
+) -> Optional[str]:
+    """Validate a Stage-1 fact-memory write without consulting Oracle labels.
+
+    The validator deliberately uses only the public Stage-1 title/sentence view.
+    It rejects obvious topic summaries and checks lightweight source grounding;
+    it does not claim semantic entailment or supporting-fact correctness.
+    """
+    raw_content = arguments.get("content")
+    if not isinstance(raw_content, str) or not raw_content.strip():
+        return "fact memory content must be a non-empty string"
+    content = raw_content.strip()
+
+    raw_memory_type = arguments.get("memory_type")
+    if not isinstance(raw_memory_type, str):
+        return "fact memory requires memory_type='knowledge'"
+    memory_type = raw_memory_type.strip().casefold()
+    metadata = arguments.get("metadata", {})
+    if memory_type != "knowledge":
+        return "fact memory requires memory_type='knowledge'"
+    if not isinstance(metadata, dict):
+        return "fact memory metadata must be an object"
+
+    source_title = metadata.get("source_title")
+    if not isinstance(source_title, str) or not source_title.strip():
+        return "fact memory requires metadata.source_title"
+    source_title = source_title.strip()
+
+    title_to_sentences: Dict[str, Sequence[Any]] = {}
+    for title, sentences in zip(source_titles, source_sentence_groups):
+        title_to_sentences[str(title).strip()] = sentences
+    if source_title not in title_to_sentences:
+        return "metadata.source_title must exactly match a visible Stage-1 title"
+
+    normalized_content = " ".join(content.casefold().split())
+    if any(re.search(pattern, normalized_content) for pattern in FACT_MEMORY_GENERIC_PATTERNS):
+        return "topic-level summaries are not valid fact memories"
+    if any(
+        normalized_content == " ".join(str(existing).casefold().split())
+        for existing in existing_contents
+    ):
+        return "duplicate fact memory content is not allowed"
+
+    content_tokens = _fact_memory_tokens(content)
+    if len(content_tokens) < 4:
+        return "fact memory must contain a concrete, self-contained proposition"
+
+    source_sentences = title_to_sentences[source_title]
+    indices = metadata.get("source_sentence_indices")
+    grounding_sentences = source_sentences
+    if indices is not None:
+        if not isinstance(indices, list) or not indices:
+            return "metadata.source_sentence_indices must be a non-empty integer list"
+        if any(isinstance(index, bool) or not isinstance(index, int) for index in indices):
+            return "metadata.source_sentence_indices must contain only integers"
+        if any(index < 0 or index >= len(source_sentences) for index in indices):
+            return "metadata.source_sentence_indices contains an out-of-range index"
+        grounding_sentences = [source_sentences[index] for index in indices]
+
+    source_text = " ".join(
+        [source_title, *(str(sentence) for sentence in grounding_sentences)]
+    )
+    source_tokens = _fact_memory_tokens(source_text)
+    overlap = content_tokens & source_tokens
+    if len(overlap) < 2 or len(overlap) / len(content_tokens) < 0.2:
+        return "fact memory is not sufficiently grounded in its declared Stage-1 source"
+
+    return None
+
+
+def build_tool_schema(
+    use_context_tools: bool,
+    *,
+    fact_memory: bool = False,
+) -> List[Dict]:
     """Return the tool schema filtered by the current configuration."""
-    if use_context_tools:
-        return TOOL_SCHEMA
-    return [tool for tool in TOOL_SCHEMA if tool.get("name") not in CONTEXT_TOOL_NAMES]
+    selected = (
+        TOOL_SCHEMA
+        if use_context_tools
+        else [
+            tool
+            for tool in TOOL_SCHEMA
+            if tool.get("name") not in CONTEXT_TOOL_NAMES
+        ]
+    )
+    if not fact_memory:
+        return selected
+
+    result = deepcopy(selected)
+    for tool in result:
+        if tool.get("name") != "Add_memory":
+            continue
+        tool["description"] = FACT_MEMORY_TOOL_DESCRIPTION
+        content_schema = (
+            tool.get("parameters", {}).get("properties", {}).get("content")
+        )
+        if isinstance(content_schema, dict):
+            content_schema["description"] = FACT_MEMORY_CONTENT_DESCRIPTION
+        metadata_schema = (
+            tool.get("parameters", {}).get("properties", {}).get("metadata")
+        )
+        if isinstance(metadata_schema, dict):
+            metadata_schema["description"] = (
+                "Required source metadata for Stage-1 fact memory. Include "
+                "source_title exactly as shown in the input. Optionally include "
+                "zero-based source_sentence_indices for provenance."
+            )
+            metadata_schema["properties"] = {
+                "source_title": {
+                    "type": "string",
+                    "description": (
+                        "Exact title of the visible Stage-1 source that grounds "
+                        "this memory."
+                    ),
+                },
+                "source_sentence_indices": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": (
+                        "Optional zero-based indices of the source sentences "
+                        "that ground this memory."
+                    ),
+                },
+            }
+            metadata_schema["required"] = ["source_title"]
+        parameters = tool.get("parameters", {})
+        if isinstance(parameters, dict):
+            parameters["required"] = ["content", "metadata", "memory_type"]
+        break
+    return result
 
 
 def should_collect_intermediate_experience(
