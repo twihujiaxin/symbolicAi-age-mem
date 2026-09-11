@@ -128,6 +128,9 @@ Memory requirements:
 8. Do not store topic labels, document descriptions, or vague summaries.
 9. Do not invent facts or use knowledge absent from the supplied text.
 10. Do not use Summary_context as a substitute for long-term fact storage.
+11. Keep the <think> block to at most two short sentences. In one model turn,
+    emit at most four Add_memory calls in one JSON array, and keep each memory
+    content under 80 words so the JSON finishes within the output budget.
 
 Bad memories:
 - "Summary of several scientists and their contributions"

@@ -176,6 +176,8 @@ class FactMemoryContractTest(unittest.TestCase):
         self.assertIn("subject, relation, and object", STAGE1_FACT_MEMORY_INSTRUCTION)
         self.assertIn("source_title", STAGE1_FACT_MEMORY_INSTRUCTION)
         self.assertIn("fictional Northbridge Observatory", STAGE1_FACT_MEMORY_INSTRUCTION)
+        self.assertIn("at most four Add_memory calls", STAGE1_FACT_MEMORY_INSTRUCTION)
+        self.assertIn("under 80 words", STAGE1_FACT_MEMORY_INSTRUCTION)
         self.assertNotIn("M83", STAGE1_FACT_MEMORY_INSTRUCTION)
 
         ordinary = build_tool_call_system_prompt("[]")

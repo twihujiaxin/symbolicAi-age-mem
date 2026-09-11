@@ -6,6 +6,7 @@ import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 from trinity.common.action_event_contract import (
+    INVALID_TOOL_CALL_JSON_ERROR,
     TRUNCATED_TOOL_CALL_SPAN_ERROR,
     ActionContractError,
     parse_tool_calls_with_char_spans,
@@ -1132,9 +1133,19 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
         try:
             parse_tool_calls_with_char_spans(response_text)
         except ActionContractError as exc:
-            if str(exc) == TRUNCATED_TOOL_CALL_SPAN_ERROR:
+            parse_error = str(exc)
+            if parse_error in {
+                TRUNCATED_TOOL_CALL_SPAN_ERROR,
+                INVALID_TOOL_CALL_JSON_ERROR,
+            }:
+                reason = (
+                    "truncated"
+                    if parse_error == TRUNCATED_TOOL_CALL_SPAN_ERROR
+                    else "malformed"
+                )
                 self.logger.warning(
-                    "skipping truncated tool-call JSON without an exact character span (text_len=%s)",
+                    "skipping %s tool-call JSON without executable action spans (text_len=%s)",
+                    reason,
                     len(response_text) if isinstance(response_text, str) else None,
                 )
                 return []

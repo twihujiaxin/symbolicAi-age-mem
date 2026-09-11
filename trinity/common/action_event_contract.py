@@ -46,6 +46,11 @@ RESPONSE_TOKEN_OFFSETS_KEY = "agemem_response_token_char_offsets"
 
 OFF_POLICY_SOURCES = frozenset({"rule", "oracle", "random", "error_injector"})
 TRUNCATED_TOOL_CALL_SPAN_ERROR = "truncated tool-call JSON has no exact character span"
+INVALID_TOOL_CALL_JSON_ERROR = "tool-call element is not valid JSON"
+TOOL_CALL_PARSE_ERROR_KEY = "agemem_tool_call_parse_error"
+NON_EXECUTABLE_TOOL_CALL_ERRORS = frozenset(
+    {TRUNCATED_TOOL_CALL_SPAN_ERROR, INVALID_TOOL_CALL_JSON_ERROR}
+)
 
 
 class ActionContractError(ValueError):
@@ -610,7 +615,7 @@ def _calls_from_segment(
         try:
             call = json.loads(text[call_start:call_end])
         except json.JSONDecodeError as exc:
-            raise ActionContractError("tool-call element is not valid JSON") from exc
+            raise ActionContractError(INVALID_TOOL_CALL_JSON_ERROR) from exc
         calls.append(
             ParsedToolCallSpan(
                 call=call,
@@ -714,13 +719,15 @@ def prepare_experience_action_drafts(
     response_text = experience.response_text
     if not isinstance(response_text, str):
         raise ActionContractError("Experience.response_text is required")
+    parse_error: Optional[str] = None
     try:
         parsed = parse_tool_calls_with_char_spans(response_text)
     except ActionContractError as exc:
-        if str(exc) != TRUNCATED_TOOL_CALL_SPAN_ERROR:
+        if str(exc) not in NON_EXECUTABLE_TOOL_CALL_ERRORS:
             raise
-        # Hitting the generation budget mid-tool-call is a real model outcome.
-        # It must not receive a fake span, and it must not abort the workflow.
+        # Truncated or malformed tool JSON is a real model outcome, but not an
+        # executable action. Never synthesize a token span or abort the group.
+        parse_error = str(exc)
         parsed = ()
     info: MutableMapping[str, Any] = dict(experience.info or {})
     if ACTION_DRAFTS_KEY in info or ACTION_EVENTS_KEY in info:
@@ -733,6 +740,8 @@ def prepare_experience_action_drafts(
     info[ACTION_CONTRACT_KEY] = ACTION_CONTRACT_VERSION
     info[TRAJECTORY_SOURCE_KEY] = "llm"
     info[ON_POLICY_ELIGIBLE_KEY] = False
+    if parse_error is not None:
+        info[TOOL_CALL_PARSE_ERROR_KEY] = parse_error
     if not parsed:
         info[ACTION_DRAFTS_KEY] = []
         experience.info = dict(info)
@@ -1284,6 +1293,9 @@ __all__ = [
     "ON_POLICY_ELIGIBLE_KEY",
     "OFF_POLICY_SOURCES",
     "RESPONSE_TOKEN_OFFSETS_KEY",
+    "INVALID_TOOL_CALL_JSON_ERROR",
+    "NON_EXECUTABLE_TOOL_CALL_ERRORS",
+    "TOOL_CALL_PARSE_ERROR_KEY",
     "TRAJECTORY_SOURCE_KEY",
     "TRUNCATED_TOOL_CALL_SPAN_ERROR",
     "ActionContractError",

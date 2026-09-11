@@ -269,6 +269,8 @@ class E14BContractTest(unittest.TestCase):
     def test_truncated_tool_call_keeps_empty_drafts_and_still_fail_closed_on_spans(self):
         from trinity.common.action_event_contract import (
             ACTION_DRAFTS_KEY,
+            INVALID_TOOL_CALL_JSON_ERROR,
+            TOOL_CALL_PARSE_ERROR_KEY,
             ActionContractError,
             parse_tool_calls_with_char_spans,
             prepare_experience_action_drafts,
@@ -294,6 +296,31 @@ class E14BContractTest(unittest.TestCase):
             experience, stage_id=1, timestep=0, assistant_turn_id=0
         )
         self.assertEqual(experience.info[ACTION_DRAFTS_KEY], [])
+        self.assertIn("truncated", experience.info[TOOL_CALL_PARSE_ERROR_KEY])
+
+        malformed = (
+            '<tool_call>[{"name":"Add_memory","arguments":'
+            '{"content":"a grounded fact",}}]</tool_call>'
+        )
+        with self.assertRaisesRegex(
+            ActionContractError, INVALID_TOOL_CALL_JSON_ERROR
+        ):
+            parse_tool_calls_with_char_spans(malformed)
+
+        malformed_experience = _Experience()
+        malformed_experience.response_text = malformed
+        malformed_experience.info = {}
+        prepare_experience_action_drafts(
+            malformed_experience,
+            stage_id=1,
+            timestep=0,
+            assistant_turn_id=0,
+        )
+        self.assertEqual(malformed_experience.info[ACTION_DRAFTS_KEY], [])
+        self.assertEqual(
+            malformed_experience.info[TOOL_CALL_PARSE_ERROR_KEY],
+            INVALID_TOOL_CALL_JSON_ERROR,
+        )
 
     def test_frozen_1p5b_dry_run_and_runtime_gate_are_untouched(self):
         smoke = json.loads(SMOKE_LOCK_PATH.read_text(encoding="utf-8"))
