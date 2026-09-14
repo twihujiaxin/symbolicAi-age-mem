@@ -1,0 +1,91 @@
+{
+  "schema_version": "agemem.stream_mq.config.v1",
+  "protocol": "streaming_multiquery_v1",
+  "experiment_family": "stream_mq_v1_cpu_debug",
+  "data": {
+    "source": "local_hotpotqa",
+    "source_path": null,
+    "source_revision": "local-fullwiki-save-to-disk-20260802",
+    "output_root": "runs/stream_mq/data_v1",
+    "build_seed": 20260914,
+    "debug_episode_counts": {"train": 16, "dev": 4, "test": 4},
+    "alpha_targets": [2.0],
+    "alpha_tolerance": 0.10,
+    "candidate_query_target": 12,
+    "min_candidate_queries": 4,
+    "queries_per_snapshot": 4,
+    "preserve_sentence_boundaries": true,
+    "deduplicate_paragraphs": true,
+    "max_build_attempts_per_episode": 100,
+    "question_selection_depends_on_policy": false
+  },
+  "model": {
+    "policy_path": null,
+    "policy_revision": null,
+    "tokenizer_path": "debug-lexical",
+    "tokenizer_revision": "fixture-v1",
+    "chat_template_sha256": null,
+    "reader_path": null,
+    "reader_revision": null
+  },
+  "environment": {
+    "context_total_tokens": 4096,
+    "persistent_memory_tokens": 2048,
+    "chunk_target_tokens": 640,
+    "chunk_max_tokens": 768,
+    "ingest_max_new_tokens": 512,
+    "answer_max_new_tokens": 256,
+    "decisions_per_chunk": 2,
+    "one_action_per_response": true,
+    "auto_eviction": "fifo_oldest_removable_message_group",
+    "answer_tail_tokens": 512,
+    "original_history_lookup": false,
+    "source_pointer_dereference_by_policy": false,
+    "old_memory_version_readable": false,
+    "external_summary_model": false
+  },
+  "query": {
+    "mode": "independent_snapshot_branches",
+    "retriever": "frozen_local_lexical",
+    "retrieval_payload_tokens": 2048,
+    "retrieval_top_k": 8,
+    "reader_temperature": 0.0,
+    "branch_writeback": false,
+    "query_stage_policy_tools": false,
+    "required_answer_format": "answer_tags"
+  },
+  "reward": {
+    "profile": "terminal",
+    "grounder_version": null,
+    "task_metric": "hotpotqa_official_f1",
+    "semantic_lambda": 0.0,
+    "semantic_component_cap": 1.0,
+    "cost_weight": 0.0,
+    "format_bonus": 0.0,
+    "negative_trend_reward": false,
+    "positive_trend_reward": false
+  },
+  "training": {
+    "train_scope": "ingest_only",
+    "rollouts_per_history": 4,
+    "ingest_temperature": 0.6,
+    "advantage_mode": "read_trajectory",
+    "std_ddof": 0,
+    "group_key": "history_queryset_budget_policyversion",
+    "publish_complete_group_only": true,
+    "shared_prefix_storage": "once",
+    "reader_tokens_in_actor_loss": false,
+    "loss_reduction": "history_rollout_token_mean",
+    "history_groups_per_step": 2,
+    "gamma": 1.0,
+    "optimizer_config_source": "unresolved_until_s5_preflight"
+  },
+  "runtime": {
+    "run_root": "runs/stream_mq/cpu_debug",
+    "checkpoint_root": null,
+    "seed": 7,
+    "resume": false,
+    "require_resolved_model_and_data_versions": true,
+    "emit_receipt": true
+  }
+}

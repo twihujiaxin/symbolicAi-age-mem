@@ -1,5 +1,7 @@
 # Project Status
 
+> **2026-09-14 streaming_multiquery_v1 顶部状态（覆盖下方旧“下一步”文字）：** 已按新规范完成 S0～S4 的本地隔离实现和 CPU 工程闭环，没有重跑或修改旧 E1/E3、冻结 YAML/checkpoint/318 scope。真实 HotpotQA debug 构建为 24 histories（16/4/4）、96 evaluated queries、350 chunks、6,879 条私有 source-registry sentences；debug lexical tokenizer 下 history 为 7,412～8,775 token，即 1.8096～2.1423C。公开读取数据不含 question/gold/split 字段，96/96 question↔gold 与全部 support↔registry 精确连接，跨 split QA/exact/normalized/SimHash-near overlap 均为 0。规则环境 smoke 完整观察 15/15 chunks，保留 2 份 memory、B=1930/2048，产生 23 次可审计 FIFO；4 个回答分支共享同一不可变快照且 reader token 不进入 actor loss。该新协议 CPU replay 的 terminal=`0`、semantic mean=`0.291667`、FS=D=`0.072917`、最大差值 `0`，故跳过重复 D GPU 臂。新增协议测试 20/20 PASS；旧 memory/action/Hotpot 回归 39 项 PASS、3 项环境性 SKIP。旧 provenance grounder 的人工对齐 precision/recall/F1=`0.539130/0.601942/0.568807`，未达到新语义门禁，FS/D 训练仍 blocked。当前没有模型 rollout、optimizer update 或学习有效证据；下一步是冻结 Qwen tokenizer 重建 2C/5～10C production data，再进入 S5 冻结模型诊断。详见 `docs/streaming_multiquery_implementation_report.md`。
+
 ## Current milestone
 
 E3 前置 CPU 验收：fact-memory 轨迹与人工审计已闭环；旧文本 grounder 确认严重漏判，正在用经校验的来源指针重放奖励。
