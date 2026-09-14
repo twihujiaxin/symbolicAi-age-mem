@@ -180,6 +180,16 @@ class E3OracleOfflineCompareTest(unittest.TestCase):
                 seed=7,
                 max_steps=48,
             )
+            provenance_report, *_ = build_report(
+                experience_path=experience_path,
+                trace_path=trace_path,
+                stage3_turn_path=turn_path,
+                hotpotqa_path=dataset_path,
+                lock_path=lock_path,
+                seed=7,
+                max_steps=48,
+                grounding_mode="validated_source_pointer_v1",
+            )
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
@@ -204,6 +214,14 @@ class E3OracleOfflineCompareTest(unittest.TestCase):
         )
         self.assertGreater(
             report["rollouts"][0]["flat_oracle"]["logic_total"], 0.0
+        )
+        self.assertEqual(
+            provenance_report["grounding_mode"],
+            "validated_source_pointer_v1",
+        )
+        self.assertEqual(
+            provenance_report["reward_versions"]["oracle_dfa"],
+            "agemem.reward.e3_oracle_dfa_provenance.v1",
         )
 
 

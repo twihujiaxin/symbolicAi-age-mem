@@ -28,17 +28,27 @@ workflow_prompt = load_module(
     "agemem_fact_memory_prompt",
     "trinity/common/workflows/memory_context/workflow_prompt.py",
 )
+workflow_metrics = load_module(
+    "agemem_fact_memory_metrics",
+    "trinity/common/workflows/memory_context/workflow_metrics.py",
+)
 
 TOOL_SCHEMA = memory_utils.TOOL_SCHEMA
 build_tool_schema = memory_utils.build_tool_schema
 validate_fact_memory_add = memory_utils.validate_fact_memory_add
 STAGE1_FACT_MEMORY_INSTRUCTION = workflow_prompt.STAGE1_FACT_MEMORY_INSTRUCTION
+extract_supporting_fact_pointers = workflow_metrics.extract_supporting_fact_pointers
 build_tool_call_system_prompt = workflow_prompt.build_tool_call_system_prompt
 FACT_DIAG_YAML = (
     REPOSITORY_ROOT
     / "examples"
     / "agemem_hotpotqa"
     / "agemem_e1_4b_fc_fact_memory_signal_diag.yaml"
+)
+PROVENANCE_REPLAY_LAUNCHER = (
+    REPOSITORY_ROOT
+    / "scripts"
+    / "agemem_e3_oracle_fact_memory_offline_compare.sh"
 )
 LEGACY_DIAG_YAML = (
     REPOSITORY_ROOT
@@ -202,6 +212,44 @@ class FactMemoryContractTest(unittest.TestCase):
         self.assertNotIn("stage3_inject_gold_supporting", fact_text)
         self.assertNotIn("stage1_fact_memory_enabled", legacy_text)
         self.assertNotIn("stage1_fact_memory_validation", legacy_text)
+
+    def test_supporting_fact_pointers_are_validated_and_title_local(self) -> None:
+        context = {
+            "title": ["Northbridge Observatory", "Other"],
+            "sentences": [self.sentences[0], ["Unrelated sentence."]],
+        }
+        supporting = {
+            "title": ["Northbridge Observatory", "Missing", "Other"],
+            "sent_id": [1, 0, 3],
+        }
+        self.assertEqual(
+            extract_supporting_fact_pointers(supporting, context),
+            [("Northbridge Observatory", 1)],
+        )
+
+    def test_provenance_replay_launcher_is_cpu_only_and_fact_memory_bound(self) -> None:
+        text = PROVENANCE_REPLAY_LAUNCHER.read_text(encoding="utf-8")
+        self.assertIn('job="agemem-e1-4b-fc-fact-memory-signal-diag"', text)
+        self.assertIn("--grounding-mode validated_source_pointer_v1", text)
+        self.assertIn("AGEMEM_EXPECTED_COMMIT", text)
+        self.assertIn("AGEMEM_DIAGNOSIS_ROOT", text)
+        self.assertIn("AGEMEM_HUMAN_AUDIT_PATH", text)
+        self.assertIn("agemem_e3_human_audit_alignment.py", text)
+        self.assertNotIn("trinity run", text)
+        self.assertIn('export CUDA_VISIBLE_DEVICES=""', text)
+
+    def test_online_provenance_grounding_is_fact_memory_gated(self) -> None:
+        workflow = (
+            REPOSITORY_ROOT
+            / "trinity"
+            / "common"
+            / "workflows"
+            / "memory_context"
+            / "train_hotpotQA.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("supporting_fact_pointers=", workflow)
+        self.assertIn("if self.stage1_fact_memory_enabled", workflow)
+        self.assertIn("and self.stage1_fact_memory_validation", workflow)
 
 
 if __name__ == "__main__":

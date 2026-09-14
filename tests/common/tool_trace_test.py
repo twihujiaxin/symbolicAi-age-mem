@@ -97,8 +97,12 @@ def load_training_module_with_stubs():
     prompt_module.TOOL_CALL_SYS_PROMPT = "{tools}"
     prompt_module.SUMMARY_CONTEXT_SYS_PROMPT = "{conversation_text}"
     prompt_module.TEXT_SIMILARITY_SYS_PROMPT = "{text1}\n{text2}"
+    prompt_module.STAGE1_FACT_MEMORY_INSTRUCTION = "fact-memory-instruction"
     prompt_module.STAGE3_FINAL_ANSWER_NUDGE = "final-answer-nudge"
     prompt_module.STAGE3_ANSWER_TAG_REPAIR = "answer-tag-repair"
+    prompt_module.build_tool_call_system_prompt = (
+        lambda _schema, **_kwargs: "tool-call-system-prompt"
+    )
 
     metrics_module = ModuleType(
         "trinity.common.workflows.memory_context.workflow_metrics"
@@ -110,6 +114,9 @@ def load_training_module_with_stubs():
     metrics_module.STAGE1_MAX_SENTENCES_PER_TITLE = 10
     metrics_module.observed_context_sentences = lambda _context: []
     metrics_module.extract_sentences_from_supporting_facts = (
+        lambda _supporting, _context: []
+    )
+    metrics_module.extract_supporting_fact_pointers = (
         lambda _supporting, _context: []
     )
     metrics_module.get_answer_llm_judge_score = fake_answer_score

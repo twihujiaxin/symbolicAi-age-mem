@@ -2,17 +2,17 @@
 
 ## Current milestone
 
-E3 前置 CPU 验收：结构链路通过，但自然轨迹奖励信号为零；正在区分“模型未保留证据”与“Oracle grounder 漏判”
+E3 前置 CPU 验收：fact-memory 轨迹与人工审计已闭环；旧文本 grounder 确认严重漏判，正在用经校验的来源指针重放奖励。
 
-状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。action-complete 冻结诊断已通过：96 条 rollout、408 条 Experience、207 个唯一 ActionEvent，trace/action 一对一 join 无失败；train 24×K=4 中仅 **2/24** 题有非零组内 F1 标准差。action-complete 36-step E1 pilot 已完整结束，32-dev F1 为 E0 **0.246140**、s12 **0.246032**、s24 **0.246140**、s36 **0.246140**；12/36 trainer steps 有非零组内奖励标准差，三个 LoRA checkpoint 哈希互异，但 dev 无提升。因此 terminal-only 是可信负结果，不追加 seed。
+状态：目标模型限定为 1.5B 与 4B（暂不考虑 7B）。原 action-complete 36-step E1 pilot 仍作为 terminal-only 可信负结果保留：32-dev F1 从 E0 到 s36 均约 **0.246**，LoRA 参数确有变化但没有 dev 提升，不追加 seed。随后在 commit `ff0578a` 上完成 fact-memory 冻结采样诊断：24 tasks / 96 rollouts / 319 Experiences / 400 唯一 ActionEvents（Add 274、Retrieve 126），trace/action 全部精确 join；terminal F1 mean **0.387753**，仅 **2/24** 题有非零组内标准差。支持事实 exact-text 保存/检索/暴露 recall 分别为 **0.045455 / 0.040909 / 0.040909**，说明自然记忆行为仍弱。
 
-现有旧 E3 replay 被发现有两项不可忽略的不一致：它从 stage-local `round` 重算 action ID，且为环境观察/最终答案生成没有真实 ActionEvent 对应的伪 credit。commit `684747f5` 的 CPU-only 严格重放已在冻结真实轨迹上完成：24 tasks / 96 rollouts / 207 actions，Flat 与 DFA 均精确 join 207 credits，结构状态 PASS；但 terminal / Flat / DFA mean 都是 **0.382492**，三者都只有 **2/24** 非零标准差组，Flat≠terminal、DFA≠terminal、Flat≠DFA 均为 **0**，DFA accepted **0/96**。因此科学信号门禁失败，不能启动无 QR E3。
+语义审计已完成去重与最终标签合并：400 个动作压缩为 142 个去重组，其中 123 组采用人工标签、19 组采用大模型回填；人工优先覆盖 39 组人机分歧。最终去重标签为 supports 37、not_support 99、unclear 6；按原始 400 动作展开为 supports **103**、not_support **291**、unclear **6**。旧 exact/substring Oracle grounder 在已确认正例上命中 23/103，precision **1.000**、recall **0.223**，漏掉 80 个正例。因此旧重放中的低奖励并不能单独解释为模型没有保存知识，主要混入了 grounder false negative。
 
-当前下一步仍为 CPU-only：导出每个真实 Add/Update/Retrieve 的候选内容、官方 supporting sentences、Oracle AP 与 lexical similarity，人工标注 `supports/not_support/unclear`；同时对同一批真实 HotpotQA 题生成 ordered success、retrieve-before-store、repeated-store、missing-support 四类离线正控。正控用于验证奖励器，人工审计用于判断零信号来自模型行为还是规则 grounder 漏判。无 QR 的旧 E3 启动器当前**不得运行**。不要实现 E4/E5，不要改冻结 1.5B/4B E1 dry-run YAML；部署根仍为 `/data/hjx/Age_mem`。
+已新增 reward-only 来源指针 grounding：只读取模型自己在经 fact-memory validator 接受的 Add 中声明的 `source_title/source_sentence_indices`，在奖励侧与官方 supporting pointers 求交，并要求对应事实确实出现在 Stage 1 可见前缀；金标不进入 policy observation。来源随 memory ID 传播到 Retrieve，失败的 Add/Update/Delete 不改变状态，修改正文的 Update 不得继承或伪造未经校验的来源。旧 text-only 模式和冻结配置保持不变，并使用新的 reward/schema 版本区分结果。
 
-上述扩展已在远端运行：24 tasks / 96 positive-control cases / 0 failures，说明相同真实 HotpotQA schema 下正序、乱序、重复和缺失条件均按预期区分。真实 207 actions 的分布为 Add 52、Retrieve 62、Summary 62、Clear 31，无 Update；待审计 memory actions 共 114，Oracle-positive 0，lexical similarity ≥0.5/0.7/0.9 均为 0。Summary/Clear 共 93 个动作不在当前正向 AP 集内，因设计而始终是零逻辑奖励。人工语义审计应覆盖全部 114 条，而不只看高相似候选。审计 CSV/JSONL 含 privileged gold，不得提交 Git；远端旧产物权限曾继承为 664，已要求立即 `chmod 600`，生成器同步改为文件 600 / 目录 700。
+当前唯一下一步是运行新的 **CPU-only provenance replay**，比较 terminal-only、Flat-Oracle 与 Oracle DFA 的组内差异、credit join 和 DFA 接受率，并把 400 个预测按 action ID 与最终审计标签严格对齐，报告排除 unclear 后的 precision/recall/F1。只有该重放通过结构门禁、语义对齐可接受且产生可解释的自然奖励差异，才进入在线 operator/E3 配置工作；现在仍不得直接运行旧无 QR E3 GPU launcher，也不进入 E4/E5。特权审计 CSV/JSON/中文文件继续留在 Git 外并设为 600 权限；部署根仍为 `/data/hjx/Age_mem`。
 
-> 本段是 2026-09-10 的最新规范状态；文档后部仍保留的早期 OOM、旧 commit、旧“下一步上 GPU”等历史记录不得覆盖本段。
+> 本段是 2026-09-14 的最新规范状态；文档后部保留的旧 OOM、旧 commit、旧“下一步上 GPU”和旧 207-action 审计记录均为历史，不得覆盖本段。
 
 ## Completed
 

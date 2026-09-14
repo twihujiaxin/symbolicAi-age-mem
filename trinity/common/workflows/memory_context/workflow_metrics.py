@@ -4,7 +4,7 @@ import json
 import math
 import re
 import os
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 # Global tokenizer cache to avoid repeated loading.
 _tokenizer_cache = None
@@ -382,6 +382,65 @@ def extract_sentences_from_supporting_facts(
     return extracted_sentences
 
 
+def extract_supporting_fact_pointers(
+    supporting_facts: dict,
+    context_info: dict,
+) -> List[Tuple[str, int]]:
+    """Return validated ``(source_title, sentence_index)`` Oracle pointers.
+
+    The pointers are reward-only references derived from HotpotQA labels.  They
+    are never added to the policy observation.  The Oracle grounder separately
+    intersects them with facts visible in the Stage-1 prompt.
+    """
+
+    if not isinstance(supporting_facts, dict) or not isinstance(context_info, dict):
+        return []
+    support_titles = supporting_facts.get("title", [])
+    support_indices = supporting_facts.get("sent_id", [])
+    context_titles = context_info.get("title", [])
+    sentence_groups = context_info.get("sentences", [])
+    if not all(
+        isinstance(value, (list, tuple))
+        for value in (
+            support_titles,
+            support_indices,
+            context_titles,
+            sentence_groups,
+        )
+    ):
+        return []
+    if len(support_titles) != len(support_indices):
+        return []
+
+    title_to_group = {
+        str(title).strip(): group
+        for title, group in zip(context_titles, sentence_groups)
+        if isinstance(group, (list, tuple))
+    }
+    pointers: List[Tuple[str, int]] = []
+    seen = set()
+    for raw_title, raw_index in zip(support_titles, support_indices):
+        title = str(raw_title).strip()
+        if isinstance(raw_index, bool):
+            continue
+        try:
+            index = int(raw_index)
+        except (TypeError, ValueError):
+            continue
+        sentences = title_to_group.get(title)
+        pointer = (title, index)
+        if (
+            sentences is None
+            or index < 0
+            or index >= len(sentences)
+            or pointer in seen
+        ):
+            continue
+        seen.add(pointer)
+        pointers.append(pointer)
+    return pointers
+
+
 async def get_answer_llm_judge_score(
     question: str,
     predicted_answer: str,
@@ -432,4 +491,3 @@ def calculate_joint_llm_judge(
     if answer_llm_score == 0.0 or supporting_facts_llm_score == 0.0:
         return 0.0
     return math.sqrt(answer_llm_score * supporting_facts_llm_score)
-

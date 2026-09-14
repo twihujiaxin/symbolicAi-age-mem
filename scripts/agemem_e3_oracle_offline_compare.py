@@ -32,14 +32,18 @@ from trinity.common.e3_oracle_dfa import (  # noqa: E402
     ACTION_MILESTONE_APS,
     DEFAULT_MAX_STEPS,
     FLAT_REWARD_VERSION,
+    FLAT_PROVENANCE_REWARD_VERSION,
+    PROVENANCE_GROUNDING_MODE,
+    PROVENANCE_REWARD_VERSION,
     REWARD_VERSION,
+    TEXT_GROUNDING_MODE,
     normalize_sentence,
     replay_hotpotqa_oracle_comparison,
 )
 from trinity.common.m8b_preflight import _canonical_json_sha256  # noqa: E402
 
 
-REPORT_SCHEMA_VERSION = "agemem.e3_oracle_offline_comparison.v2"
+REPORT_SCHEMA_VERSION = "agemem.e3_oracle_offline_comparison.v3"
 EXPECTED_DIAGNOSTIC_SCHEMA = "agemem.bench_experience_audit.v1"
 EXPECTED_ACTION_SCHEMA = "agemem.action_event.v2"
 ARMS = ("terminal_only", "flat_oracle", "oracle_dfa")
@@ -98,6 +102,45 @@ def _supporting_sentences(row: Mapping[str, Any]) -> list[str]:
             sentences
         ):
             result.append(str(sentences[sentence_index]))
+    return result
+
+
+def _supporting_fact_pointers(row: Mapping[str, Any]) -> list[tuple[str, int]]:
+    """Return title-local sentence pointers aligned with supporting sentences."""
+
+    supporting = row.get("supporting_facts")
+    context = row.get("context")
+    if not isinstance(supporting, Mapping) or not isinstance(context, Mapping):
+        return []
+    support_titles = supporting.get("title")
+    support_indices = supporting.get("sent_id")
+    titles = context.get("title")
+    sentence_groups = context.get("sentences")
+    if not all(
+        isinstance(value, (list, tuple))
+        for value in (support_titles, support_indices, titles, sentence_groups)
+    ):
+        return []
+    if len(support_titles) != len(support_indices):
+        return []
+    title_to_index = {str(title).strip(): index for index, title in enumerate(titles)}
+    result: list[tuple[str, int]] = []
+    for raw_title, raw_sentence_index in zip(support_titles, support_indices):
+        title = str(raw_title).strip()
+        title_index = title_to_index.get(title)
+        if isinstance(raw_sentence_index, bool):
+            continue
+        try:
+            sentence_index = int(raw_sentence_index)
+        except (TypeError, ValueError):
+            continue
+        if title_index is None or not 0 <= title_index < len(sentence_groups):
+            continue
+        sentences = sentence_groups[title_index]
+        if isinstance(sentences, (list, tuple)) and 0 <= sentence_index < len(
+            sentences
+        ):
+            result.append((title, sentence_index))
     return result
 
 
@@ -604,6 +647,7 @@ def build_report(
     lock_path: Path,
     seed: int,
     max_steps: int,
+    grounding_mode: str = TEXT_GROUNDING_MODE,
 ) -> tuple[
     dict[str, Any],
     list[dict[str, Any]],
@@ -611,6 +655,8 @@ def build_report(
     list[dict[str, Any]],
     list[dict[str, Any]],
 ]:
+    if grounding_mode not in {TEXT_GROUNDING_MODE, PROVENANCE_GROUNDING_MODE}:
+        raise ValueError(f"unsupported grounding mode: {grounding_mode!r}")
     lock = json.loads(lock_path.read_text(encoding="utf-8"))
     if not isinstance(lock, dict):
         raise RuntimeError("protocol lock must be a JSON object")
@@ -656,15 +702,30 @@ def build_report(
         else:
             rollout_id = rollout_ids[execution_id]
             task_id = rollout_id.rsplit("/", 1)[0]
+        supporting_sentences = _supporting_sentences(source)
+        supporting_fact_pointers = (
+            _supporting_fact_pointers(source)
+            if grounding_mode == PROVENANCE_GROUNDING_MODE
+            else []
+        )
+        if grounding_mode == PROVENANCE_GROUNDING_MODE and (
+            not supporting_fact_pointers
+            or len(supporting_fact_pointers) != len(supporting_sentences)
+        ):
+            raise RuntimeError(
+                f"HotpotQA row {hotpot_id!r} has incomplete supporting-fact "
+                "pointers; refusing to downgrade provenance grounding"
+            )
         comparison = replay_hotpotqa_oracle_comparison(
             task_id=task_id,
             rollout_id=rollout_id,
             seed=seed,
-            supporting_sentences=_supporting_sentences(source),
+            supporting_sentences=supporting_sentences,
             observed_sentences=_observed_context_sentences(
                 source.get("context") or {}
             ),
             action_events=sequence,
+            supporting_fact_pointers=supporting_fact_pointers,
             exact_match=float(outcome["answer_exact_match"]),
             task_f1=float(outcome["task_score"]),
             found_answer=bool(outcome["found_answer"]),
@@ -684,7 +745,7 @@ def build_report(
                     execution_id=execution_id,
                     hotpot_id=hotpot_id,
                     action=action,
-                    gold_sentences=_supporting_sentences(source),
+                    gold_sentences=supporting_sentences,
                     oracle_propositions=credit.atomic_propositions,
                 )
             )
@@ -799,9 +860,13 @@ def build_report(
         "interpretation": (
             "Post-hoc Oracle labels affect rewards only; policy observations and "
             "real ActionEvents are immutable. Answer correctness is rewarded once "
-            "through terminal HotpotQA F1, not again as a logic milestone."
+            "through terminal HotpotQA F1, not again as a logic milestone. In "
+            "provenance mode, validated model-declared Add-memory source pointers "
+            "augment the legacy text matcher and are credited only when the "
+            "corresponding supporting sentence was visible in Stage 1."
         ),
         "gpu_readiness": gpu_readiness,
+        "grounding_mode": grounding_mode,
         "arms": list(ARMS),
         "action_milestone_aps": list(ACTION_MILESTONE_APS),
         "weights": {
@@ -812,8 +877,16 @@ def build_report(
             "action_logic_reward_ceiling": ACTION_LOGIC_REWARD_CEILING,
         },
         "reward_versions": {
-            "flat_oracle": FLAT_REWARD_VERSION,
-            "oracle_dfa": REWARD_VERSION,
+            "flat_oracle": (
+                FLAT_PROVENANCE_REWARD_VERSION
+                if grounding_mode == PROVENANCE_GROUNDING_MODE
+                else FLAT_REWARD_VERSION
+            ),
+            "oracle_dfa": (
+                PROVENANCE_REWARD_VERSION
+                if grounding_mode == PROVENANCE_GROUNDING_MODE
+                else REWARD_VERSION
+            ),
         },
         "source": {
             "experience_path": str(experience_path),
@@ -927,6 +1000,7 @@ def _markdown(report: Mapping[str, Any]) -> str:
         "",
         f"Status: **{report['status']}**",
         f"GPU readiness: **{report['gpu_readiness']}**",
+        f"Grounding mode: **{report['grounding_mode']}**",
         "",
         str(report["interpretation"]),
         "",
@@ -996,6 +1070,15 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--max-steps", type=int, default=DEFAULT_MAX_STEPS)
+    parser.add_argument(
+        "--grounding-mode",
+        choices=(TEXT_GROUNDING_MODE, PROVENANCE_GROUNDING_MODE),
+        default=TEXT_GROUNDING_MODE,
+        help=(
+            "Use the frozen text matcher or validated model-declared Stage-1 "
+            "source pointers. The latter remains reward-only."
+        ),
+    )
     args = parser.parse_args()
     if args.output_dir.exists() and any(args.output_dir.iterdir()):
         raise SystemExit(f"refusing non-empty output directory: {args.output_dir}")
@@ -1014,6 +1097,7 @@ def main() -> int:
         lock_path=args.lock_path.resolve(),
         seed=args.seed,
         max_steps=args.max_steps,
+        grounding_mode=args.grounding_mode,
     )
     if os.name != "nt":
         os.chmod(args.output_dir, 0o700)

@@ -31,8 +31,9 @@ from .memory_store import MemoryManager, chat_client
 from .distractors import DISTRACTOR_SOURCES, resolve_stage2_distractors
 from .workflow_metrics import (
     STAGE1_MAX_SENTENCES_PER_TITLE,
-    observed_context_sentences,
     extract_sentences_from_supporting_facts,
+    extract_supporting_fact_pointers,
+    observed_context_sentences,
 )
 from .workflow_prompt import (
     SUMMARY_CONTEXT_SYS_PROMPT,
@@ -896,7 +897,7 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
             if (
                 tool_name == "Add_memory"
                 and self.current_stage == 1
-                and self.stage1_fact_memory_validation
+                and getattr(self, "stage1_fact_memory_validation", False)
             ):
                 context_info = self.context_info or {}
                 fact_memory_error = validate_fact_memory_add(
@@ -1326,6 +1327,15 @@ class AgeMemHotpotWorkflowTraining(MultiTurnWorkflow):
                     ),
                     observed_sentences=observed_context_sentences(
                         self.context_info or {}
+                    ),
+                    supporting_fact_pointers=(
+                        extract_supporting_fact_pointers(
+                            self.supporting_facts or {},
+                            self.context_info or {},
+                        )
+                        if self.stage1_fact_memory_enabled
+                        and self.stage1_fact_memory_validation
+                        else ()
                     ),
                     indexed_sentences=list(self._e3_indexed_sentences),
                     retrieved_contents=list(self._e3_retrieved_contents),

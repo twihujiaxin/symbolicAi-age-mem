@@ -314,6 +314,281 @@ class E3OracleDfaTest(unittest.TestCase):
             replay.flat.credits[0].atomic_propositions,
         )
 
+    def test_validated_source_pointer_grounds_paraphrased_add_and_retrieve(self):
+        support = ("Alice was born in Paris.",)
+        pointer = ("Alice", 0)
+        metadata = {
+            "source_title": pointer[0],
+            "source_sentence_indices": [pointer[1]],
+        }
+        rollout_id = "batch/task/provenance"
+        actions = (
+            self._action(
+                rollout_id=rollout_id,
+                turn=0,
+                index=0,
+                name="Add_memory",
+                arguments={
+                    "content": "Paris is Alice's birthplace.",
+                    "metadata": metadata,
+                },
+                output={"memory_id": "m1", "outcome": "added"},
+            ),
+            self._action(
+                rollout_id=rollout_id,
+                turn=2,
+                index=0,
+                name="Retrieve_memory",
+                arguments={"query": "Alice birthplace"},
+                output={
+                    "items": [
+                        {
+                            "memory_id": "m1",
+                            "content": "Paris is Alice's birthplace.",
+                            "metadata": metadata,
+                        }
+                    ]
+                },
+            ),
+        )
+        replay = replay_hotpotqa_oracle_comparison(
+            task_id="batch/task",
+            rollout_id=rollout_id,
+            seed=7,
+            supporting_sentences=support,
+            observed_sentences=support,
+            supporting_fact_pointers=(pointer,),
+            action_events=actions,
+        )
+
+        self.assertIn(
+            "stored_supporting_fact",
+            replay.flat.credits[0].atomic_propositions,
+        )
+        self.assertIn(
+            "retrieved_supporting_fact",
+            replay.flat.credits[1].atomic_propositions,
+        )
+        self.assertEqual(
+            replay.dfa.grounding_mode,
+            "validated_source_pointer_v1",
+        )
+        self.assertEqual(
+            replay.dfa.reward_version,
+            "agemem.reward.e3_oracle_dfa_provenance.v1",
+        )
+
+    def test_source_pointer_fails_closed_for_wrong_or_unobserved_pointer(self):
+        support = ("Alice was born in Paris.",)
+        rollout_id = "batch/task/bad-provenance"
+        action = self._action(
+            rollout_id=rollout_id,
+            turn=0,
+            index=0,
+            name="Add_memory",
+            arguments={
+                "content": "Paris is Alice's birthplace.",
+                "metadata": {
+                    "source_title": "Alice",
+                    "source_sentence_indices": [1],
+                },
+            },
+            output={"memory_id": "m1", "outcome": "added"},
+        )
+        wrong = replay_hotpotqa_oracle_comparison(
+            task_id="batch/task",
+            rollout_id=rollout_id,
+            seed=7,
+            supporting_sentences=support,
+            observed_sentences=support,
+            supporting_fact_pointers=(("Alice", 0),),
+            action_events=(action,),
+        )
+        unobserved = replay_hotpotqa_oracle_comparison(
+            task_id="batch/task",
+            rollout_id=rollout_id,
+            seed=7,
+            supporting_sentences=support,
+            observed_sentences=(),
+            supporting_fact_pointers=(("Alice", 0),),
+            action_events=(action,),
+        )
+
+        for result in (wrong, unobserved):
+            self.assertNotIn(
+                "stored_supporting_fact",
+                result.flat.credits[0].atomic_propositions,
+            )
+
+    def test_rejected_add_cannot_claim_valid_source_pointer(self):
+        support = ("Alice was born in Paris.",)
+        rollout_id = "batch/task/rejected-provenance"
+        action = self._action(
+            rollout_id=rollout_id,
+            turn=0,
+            index=0,
+            name="Add_memory",
+            arguments={
+                "content": "Paris is Alice's birthplace.",
+                "metadata": {
+                    "source_title": "Alice",
+                    "source_sentence_indices": [0],
+                },
+            },
+            output={
+                "effect_applied": False,
+                "outcome": "rejected_fact_memory",
+            },
+        )
+        replay = replay_hotpotqa_oracle_comparison(
+            task_id="batch/task",
+            rollout_id=rollout_id,
+            seed=7,
+            supporting_sentences=support,
+            observed_sentences=support,
+            supporting_fact_pointers=(("Alice", 0),),
+            action_events=(action,),
+        )
+        self.assertNotIn(
+            "stored_supporting_fact",
+            replay.flat.credits[0].atomic_propositions,
+        )
+
+    def test_changed_update_cannot_inherit_or_forge_add_provenance(self):
+        support = ("Alice was born in Paris.",)
+        pointer_metadata = {
+            "source_title": "Alice",
+            "source_sentence_indices": [0],
+        }
+        rollout_id = "batch/task/update-provenance"
+        actions = (
+            self._action(
+                rollout_id=rollout_id,
+                turn=0,
+                index=0,
+                name="Add_memory",
+                arguments={
+                    "content": "Paris is Alice's birthplace.",
+                    "metadata": pointer_metadata,
+                },
+                output={"memory_id": "m1", "outcome": "added"},
+            ),
+            self._action(
+                rollout_id=rollout_id,
+                turn=1,
+                index=0,
+                name="Update_memory",
+                arguments={
+                    "memory_id": "m1",
+                    "content": "This is unrelated replacement text.",
+                    "metadata": pointer_metadata,
+                },
+                output={
+                    "memory_id": "m1",
+                    "outcome": "updated",
+                    "effect_applied": True,
+                },
+            ),
+            self._action(
+                rollout_id=rollout_id,
+                turn=2,
+                index=0,
+                name="Retrieve_memory",
+                arguments={"query": "Alice"},
+                output={
+                    "items": [
+                        {
+                            "memory_id": "m1",
+                            "content": "This is unrelated replacement text.",
+                        }
+                    ]
+                },
+            ),
+        )
+        replay = replay_hotpotqa_oracle_comparison(
+            task_id="batch/task",
+            rollout_id=rollout_id,
+            seed=7,
+            supporting_sentences=support,
+            observed_sentences=support,
+            supporting_fact_pointers=(("Alice", 0),),
+            action_events=actions,
+        )
+
+        self.assertIn(
+            "stored_supporting_fact",
+            replay.flat.credits[0].atomic_propositions,
+        )
+        self.assertIn(
+            "deleted_supporting_fact",
+            replay.flat.credits[1].atomic_propositions,
+        )
+        self.assertNotIn(
+            "retrieved_supporting_fact",
+            replay.flat.credits[2].atomic_propositions,
+        )
+
+    def test_failed_update_and_delete_do_not_mutate_provenance(self):
+        support = ("Alice was born in Paris.",)
+        metadata = {
+            "source_title": "Alice",
+            "source_sentence_indices": [0],
+        }
+        rollout_id = "batch/task/failed-mutations"
+        actions = (
+            self._action(
+                rollout_id=rollout_id,
+                turn=0,
+                index=0,
+                name="Add_memory",
+                arguments={"content": "Alice birthplace: Paris.", "metadata": metadata},
+                output={"memory_id": "m1", "outcome": "added"},
+            ),
+            self._action(
+                rollout_id=rollout_id,
+                turn=1,
+                index=0,
+                name="Update_memory",
+                arguments={"memory_id": "m1", "content": "irrelevant"},
+                output={"memory_id": "m1", "outcome": "not_found", "effect_applied": False},
+            ),
+            self._action(
+                rollout_id=rollout_id,
+                turn=2,
+                index=0,
+                name="Delete_memory",
+                arguments={"memory_id": "m1", "confirmation": False},
+                output={"memory_id": "m1", "outcome": "cancelled", "effect_applied": False},
+            ),
+            self._action(
+                rollout_id=rollout_id,
+                turn=3,
+                index=0,
+                name="Retrieve_memory",
+                arguments={"query": "Alice"},
+                output={"items": [{"memory_id": "m1", "content": "Alice birthplace: Paris."}]},
+            ),
+        )
+        replay = replay_hotpotqa_oracle_comparison(
+            task_id="batch/task",
+            rollout_id=rollout_id,
+            seed=7,
+            supporting_sentences=support,
+            observed_sentences=support,
+            supporting_fact_pointers=(("Alice", 0),),
+            action_events=actions,
+        )
+
+        for credit in replay.flat.credits[1:3]:
+            self.assertNotIn("stored_supporting_fact", credit.atomic_propositions)
+            self.assertNotIn("deleted_supporting_fact", credit.atomic_propositions)
+            self.assertNotIn("retrieved_supporting_fact", credit.atomic_propositions)
+            self.assertEqual(credit.reward_breakdown.milestone, 0.0)
+        self.assertIn(
+            "retrieved_supporting_fact",
+            replay.flat.credits[3].atomic_propositions,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

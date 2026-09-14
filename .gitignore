@@ -103,6 +103,11 @@ wandb/
 checkpoints/
 /trajectories/
 
+# Privileged human/LLM semantic audits (contain HotpotQA gold labels)
+/data/semantic_audit*.csv
+/data/semantic_audit*.json
+/data/semantic_audit*.jsonl
+
 # database file
 *.db
 

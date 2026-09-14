@@ -2,14 +2,14 @@
 
 > 面向：VS Code 中的 Codex 插件  
 > 项目方向：AgeMem 式可学习记忆管理 + GLARE 式 LTLf/DFA 逻辑奖励  
-> 文档版本：v2.3<br>
-> 更新时间：2026-09-10<br>
+> 文档版本：v2.4<br>
+> 更新时间：2026-09-14<br>
 > 本地项目根目录：`D:\Project\Age-Mem\AgeMem`  
-> 当前状态：M0～M7、M8a、M8b-prep 已完成。action-complete 冻结诊断已得到 96 rollout / 408 Experience / 207 唯一 ActionEvent；E1 36-step pilot 的 LoRA 参数确实变化，但 32-dev F1 从 E0 到 s36 均约 0.246，作为 terminal-only 可信负结果关闭。commit `684747f5` 的真实轨迹 CPU 重放已完成：Flat/DFA 各 207 credits 与 207 ActionEvent 精确 join，结构 PASS；但 terminal / Flat / DFA mean 均为 0.382492，三者都只有 2/24 非零标准差组，所有臂间差异为 0，DFA accepted 0/96，科学信号 FAIL。无 QR E3 GPU 训练继续暂停。当前唯一下一步是 CPU-only 的真实记忆动作语义审计与四类 real-HotpotQA 正控，区分模型未保留证据和规则 grounder 漏判；不要直接运行旧无 QR E3 launcher，不要实现 E4/E5，不要改冻结 dry-run YAML。部署根 `/data/hjx/Age_mem`，冻结 runtime gate 仍为 318。
+> 当前状态：M0～M7、M8a、M8b-prep 已完成。E1 36-step terminal-only pilot 的 LoRA 参数确实变化，但 32-dev F1 从 E0 到 s36 均约 0.246，作为可信负结果关闭。commit `ff0578a` 的 fact-memory 冻结诊断已得到 24 tasks / 96 rollouts / 319 Experiences / 400 唯一 ActionEvents（Add 274、Retrieve 126），terminal F1 mean 0.387753，只有 2/24 非零组内标准差；保存/检索/暴露 supporting-fact exact-text recall 分别为 0.045455 / 0.040909 / 0.040909。400 动作经去重人工审计后，最终展开标签为 supports 103、not_support 291、unclear 6；旧 exact/substring grounder 只命中 23/103 个已确认正例，precision 1.000、recall 0.223，确认存在严重 false negative。当前代码已加入 reward-only 的 validated source-pointer grounding 和独立 CPU 重放启动器，下一步只运行 provenance replay；结构及信号结果验收前，不运行旧无 QR E3 GPU launcher，不进入 E4/E5，不改冻结 dry-run YAML。部署根 `/data/hjx/Age_mem`，冻结 runtime gate 仍为 318。
 
-> 2026-09-10 优先级说明：上述状态覆盖本文后部保留的旧 OOM、旧 commit 和“下一步直接上 GPU”历史表述；历史结果不删除，但不得作为当前执行指令。
+> 2026-09-14 优先级说明：上述状态覆盖本文后部保留的旧 OOM、旧 commit、旧 207-action 审计和“下一步直接上 GPU”历史表述；历史结果不删除，但不得作为当前执行指令。
 
-> 最新 CPU 扩展结果：real-HotpotQA 四类正控为 24 tasks / 96 cases / 0 failures，奖励器本身有效；真实动作则为 Add 52、Retrieve 62、Summary 62、Clear 31，114 个 memory actions 的 Oracle-positive 与 lexical ≥0.5 候选均为 0。另有 93 个 Summary/Clear 动作不在当前正向 AP 集内。下一步人工审计全部 114 个 memory actions；审计文件含 privileged gold，只保留在远端并设 600 权限。审计完成前无 QR E3 仍禁止上 GPU。
+> 最新 CPU 扩展结论：人工审计以人工标签优先、空缺项采用大模型结果；142 个去重组中 123 组为人工、19 组为回填，最终 supports/not_support/unclear 为 37/99/6。按原始动作展开为 103/291/6。审计文件含 privileged gold，必须留在 Git 外并设 600 权限。新的 provenance grounder 只奖励已由 fact-memory validator 接受、由模型公开声明、且指向 Stage 1 可见 supporting sentence 的来源；它不向 policy 暴露 gold。接下来先用现有 96 条轨迹做 CPU-only terminal/Flat/DFA 重放，并将 400 个预测按 action ID 与最终审计严格 join，报告排除 unclear 后的 precision/recall/F1，再决定是否实现在线 operator。
 
 ---
 

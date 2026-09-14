@@ -26,6 +26,7 @@ from trinity.common.action_event_contract import (
 
 
 REWARD_VERSION = "agemem.reward.e3_oracle_dfa.v1"
+PROVENANCE_REWARD_VERSION = "agemem.reward.e3_oracle_dfa_provenance.v1"
 DFA_SPEC_ID = "m4-memory-oracle-positive-v1"
 LOGIC_BETA = 1.0
 MILESTONE_WEIGHT = 0.25
@@ -33,6 +34,9 @@ VIOLATION_WEIGHT = 0.0
 DEFAULT_MAX_STEPS = 48
 FLAT_SPEC_ID = "agemem-flat-oracle-positive-v1"
 FLAT_REWARD_VERSION = "agemem.reward.flat_oracle.v1"
+FLAT_PROVENANCE_REWARD_VERSION = "agemem.reward.flat_oracle_provenance.v1"
+TEXT_GROUNDING_MODE = "normalized_text_v1"
+PROVENANCE_GROUNDING_MODE = "validated_source_pointer_v1"
 
 # ``answered_correctly`` is deliberately excluded here: HotpotQA F1 already
 # supplies the terminal answer reward.  Rewarding it again would both double
@@ -75,6 +79,8 @@ class E3CreditReplay:
     final_state: str
     final_status: str
     accepted: bool
+    reward_version: str = REWARD_VERSION
+    grounding_mode: str = TEXT_GROUNDING_MODE
 
 
 @dataclass
@@ -96,10 +102,15 @@ class HotpotQAOracleGrounder:
     seed: int
     supporting_sentences: tuple[str, ...]
     observed_sentences: tuple[str, ...]
+    supporting_fact_pointers: tuple[tuple[str, int], ...] = ()
     _gold_norm: dict[str, str] = field(init=False, repr=False)
+    _gold_pointers: dict[tuple[str, int], str] = field(init=False, repr=False)
     _observed_gold: set[str] = field(init=False, repr=False)
     _stored_gold: set[str] = field(default_factory=set, init=False, repr=False)
     _contents: dict[str, str] = field(default_factory=dict, init=False, repr=False)
+    _memory_gold: dict[str, tuple[str, ...]] = field(
+        default_factory=dict, init=False, repr=False
+    )
     _timestep: int = field(default=0, init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -108,23 +119,121 @@ class HotpotQAOracleGrounder:
             key = normalize_sentence(sentence)
             if key:
                 self._gold_norm[key] = f"gold:{index}"
-        self._observed_gold = {
-            self._gold_norm[normalize_sentence(sentence)]
+        if self.supporting_fact_pointers and len(self.supporting_fact_pointers) != len(
+            self.supporting_sentences
+        ):
+            raise ValueError(
+                "supporting_fact_pointers must align one-to-one with "
+                "supporting_sentences"
+            )
+        self._gold_pointers = {}
+        for index, raw_pointer in enumerate(self.supporting_fact_pointers):
+            if (
+                not isinstance(raw_pointer, (tuple, list))
+                or len(raw_pointer) != 2
+            ):
+                raise ValueError("supporting fact pointers must be title/index pairs")
+            raw_title, raw_index = raw_pointer
+            if isinstance(raw_index, bool) or not isinstance(raw_index, int):
+                raise ValueError("supporting fact pointer indices must be integers")
+            pointer = (str(raw_title).strip(), raw_index)
+            if not pointer[0] or pointer[1] < 0 or pointer in self._gold_pointers:
+                raise ValueError("supporting fact pointers must be unique and valid")
+            self._gold_pointers[pointer] = f"gold:{index}"
+        observed_norm = {
+            normalize_sentence(sentence)
             for sentence in self.observed_sentences
-            if normalize_sentence(sentence) in self._gold_norm
+            if normalize_sentence(sentence)
         }
+        if self._gold_pointers:
+            # Preserve distinct fact IDs even when two supporting pointers have
+            # identical sentence text. Provenance can distinguish those facts;
+            # the legacy text-only matcher deliberately keeps its old behavior.
+            self._observed_gold = {
+                f"gold:{index}"
+                for index, sentence in enumerate(self.supporting_sentences)
+                if normalize_sentence(sentence) in observed_norm
+            }
+        else:
+            self._observed_gold = {
+                self._gold_norm[key]
+                for key in observed_norm
+                if key in self._gold_norm
+            }
 
-    def _match_gold(self, text: str) -> tuple[str, ...]:
+    @property
+    def grounding_mode(self) -> str:
+        return (
+            PROVENANCE_GROUNDING_MODE
+            if self._gold_pointers
+            else TEXT_GROUNDING_MODE
+        )
+
+    @property
+    def reward_version(self) -> str:
+        return (
+            PROVENANCE_REWARD_VERSION
+            if self._gold_pointers
+            else REWARD_VERSION
+        )
+
+    @property
+    def flat_reward_version(self) -> str:
+        return (
+            FLAT_PROVENANCE_REWARD_VERSION
+            if self._gold_pointers
+            else FLAT_REWARD_VERSION
+        )
+
+    def _match_pointer_metadata(self, metadata: Any) -> tuple[str, ...]:
+        """Match model-declared provenance against visible Oracle pointers.
+
+        The policy chooses the public title/sentence indices itself.  The gold
+        membership test happens only in this reward-side grounder.  A pointer
+        is ignored unless its supporting sentence was actually visible in the
+        Stage-1 prefix.
+        """
+
+        if not self._gold_pointers or not isinstance(metadata, Mapping):
+            return ()
+        raw_title = metadata.get("source_title")
+        raw_indices = metadata.get("source_sentence_indices")
+        if not isinstance(raw_title, str) or not isinstance(raw_indices, list):
+            return ()
+        title = raw_title.strip()
+        hits: list[str] = []
+        for raw_index in raw_indices:
+            if isinstance(raw_index, bool) or not isinstance(raw_index, int):
+                continue
+            fact_id = self._gold_pointers.get((title, raw_index))
+            if fact_id and fact_id in self._observed_gold:
+                hits.append(fact_id)
+        return _unique(hits)
+
+    def _match_gold(
+        self,
+        text: str,
+        *,
+        metadata: Any = None,
+        memory_id: str = "",
+    ) -> tuple[str, ...]:
         key = normalize_sentence(text)
         if not key:
             return ()
+        hits: list[str] = list(self._match_pointer_metadata(metadata))
+        if memory_id:
+            hits.extend(self._memory_gold.get(memory_id, ()))
         fact_id = self._gold_norm.get(key)
         if fact_id:
-            return (fact_id,)
-        hits = []
+            hits.append(fact_id)
         for gold_key, gold_id in self._gold_norm.items():
             if gold_key in key or key in gold_key:
                 hits.append(gold_id)
+        if self._gold_pointers:
+            # The provenance protocol must not reward a supporting sentence
+            # that was outside the Stage-1 visible prefix. Keep the frozen
+            # legacy text-only matcher unchanged when no pointers are supplied.
+            hits = [fact_id for fact_id in hits if fact_id in self._observed_gold]
         return _unique(hits)
 
     def _coverage_complete(self) -> bool:
@@ -220,7 +329,8 @@ class HotpotQAOracleGrounder:
             add_applied = payload.get("outcome") == "added" and bool(memory_id)
             if add_applied:
                 self._contents[memory_id] = content
-                gold = self._match_gold(content)
+                gold = self._match_gold(content, metadata=args.get("metadata"))
+                self._memory_gold[memory_id] = gold
                 if gold:
                     self._stored_gold.update(gold)
                     evidence["stored_supporting_fact"] = gold
@@ -228,30 +338,47 @@ class HotpotQAOracleGrounder:
                     evidence["stored_irrelevant_fact"] = (memory_id,)
         elif tool_name == "Update_memory":
             memory_id = str(args.get("memory_id") or payload.get("memory_id") or "")
-            previous = self._contents.get(memory_id, "")
-            content = args.get("content")
-            if content is None:
-                content = previous
-            content_text = str(content or "")
-            if memory_id:
+            update_applied = (
+                payload.get("outcome") == "updated"
+                or payload.get("effect_applied") is True
+            )
+            if memory_id and update_applied:
+                previous = self._contents.get(memory_id, "")
+                previous_gold = self._match_gold(previous, memory_id=memory_id)
+                content_provided = "content" in args and args.get("content") is not None
+                content_text = (
+                    str(args.get("content") or "") if content_provided else previous
+                )
+                if content_provided:
+                    # Stage-1 fact-memory validation currently guards Add only.
+                    # Therefore changed Update content cannot claim fresh source
+                    # pointers; it must match the visible supporting text. This
+                    # prevents unvalidated metadata from laundering provenance.
+                    new_gold = self._match_gold(content_text)
+                else:
+                    new_gold = previous_gold
                 self._contents[memory_id] = content_text
-            previous_gold = self._match_gold(previous)
-            new_gold = self._match_gold(content_text)
-            if previous_gold and not new_gold:
-                evidence["deleted_supporting_fact"] = previous_gold
-                self._stored_gold.difference_update(previous_gold)
-            if new_gold:
-                evidence["stored_supporting_fact"] = new_gold
-                self._stored_gold.update(new_gold)
-            elif previous_gold:
-                evidence["stored_irrelevant_fact"] = (memory_id or "irr:update",)
+                self._memory_gold[memory_id] = new_gold
+                removed_gold = tuple(
+                    fact_id for fact_id in previous_gold if fact_id not in new_gold
+                )
+                if removed_gold:
+                    evidence["deleted_supporting_fact"] = removed_gold
+                    self._stored_gold.difference_update(removed_gold)
+                if new_gold:
+                    evidence["stored_supporting_fact"] = new_gold
+                    self._stored_gold.update(new_gold)
+                elif normalize_sentence(content_text):
+                    evidence["stored_irrelevant_fact"] = (memory_id,)
         elif tool_name == "Delete_memory":
             memory_id = str(args.get("memory_id") or payload.get("memory_id") or "")
-            previous = self._contents.pop(memory_id, "")
-            gold = self._match_gold(previous)
-            if gold and payload.get("outcome") == "deleted":
-                evidence["deleted_supporting_fact"] = gold
-                self._stored_gold.difference_update(gold)
+            if memory_id and payload.get("outcome") == "deleted":
+                previous = self._contents.pop(memory_id, "")
+                gold = self._match_gold(previous, memory_id=memory_id)
+                self._memory_gold.pop(memory_id, None)
+                if gold:
+                    evidence["deleted_supporting_fact"] = gold
+                    self._stored_gold.difference_update(gold)
         elif tool_name == "Retrieve_memory":
             items = payload.get("items") or []
             supporting: list[str] = []
@@ -259,9 +386,17 @@ class HotpotQAOracleGrounder:
             if isinstance(items, list):
                 for item in items:
                     content = ""
+                    item_metadata: Any = None
+                    memory_id = ""
                     if isinstance(item, Mapping):
                         content = str(item.get("content") or "")
-                    gold = self._match_gold(content)
+                        item_metadata = item.get("metadata")
+                        memory_id = str(item.get("memory_id") or "")
+                    gold = self._match_gold(
+                        content,
+                        metadata=item_metadata,
+                        memory_id=memory_id,
+                    )
                     if gold:
                         supporting.extend(gold)
                     elif normalize_sentence(content):
@@ -295,6 +430,7 @@ def _credit_for_event(
     event: OracleAPEvent,
     transition: Any,
     env_reward: float,
+    reward_version: str = REWARD_VERSION,
 ) -> ActionCreditRecord:
     milestone = MILESTONE_WEIGHT * len(transition.new_progress_edges)
     violation = VIOLATION_WEIGHT * len(transition.violations)
@@ -336,7 +472,7 @@ def _credit_for_event(
         reward_breakdown=breakdown,
         return_to_go=None,
         advantage=None,
-        reward_version=REWARD_VERSION,
+        reward_version=reward_version,
     )
 
 
@@ -345,6 +481,7 @@ def _flat_credit_for_event(
     action: ActionEvent,
     event: OracleAPEvent,
     seen_milestones: set[str],
+    reward_version: str = FLAT_REWARD_VERSION,
 ) -> ActionCreditRecord:
     newly_rewarded = tuple(
         proposition
@@ -392,7 +529,7 @@ def _flat_credit_for_event(
         reward_breakdown=breakdown,
         return_to_go=None,
         advantage=None,
-        reward_version=FLAT_REWARD_VERSION,
+        reward_version=reward_version,
     )
 
 
@@ -433,6 +570,7 @@ def replay_hotpotqa_oracle_comparison(
     supporting_sentences: Sequence[str],
     observed_sentences: Sequence[str],
     action_events: Sequence[ActionEvent | Mapping[str, Any]],
+    supporting_fact_pointers: Sequence[tuple[str, int]] = (),
     exact_match: float = 0.0,
     task_f1: float = 0.0,
     found_answer: bool = False,
@@ -458,6 +596,7 @@ def replay_hotpotqa_oracle_comparison(
         seed=seed,
         supporting_sentences=tuple(supporting_sentences),
         observed_sentences=tuple(observed_sentences),
+        supporting_fact_pointers=tuple(supporting_fact_pointers),
     )
     dfa_runner = DFARunner(hand_authored_memory_dfa(), max_steps=max_steps)
 
@@ -490,6 +629,7 @@ def replay_hotpotqa_oracle_comparison(
                 event=event,
                 transition=transition,
                 env_reward=0.0,
+                reward_version=grounder.reward_version,
             )
         )
 
@@ -506,6 +646,7 @@ def replay_hotpotqa_oracle_comparison(
             action=action,
             event=event,
             seen_milestones=flat_seen,
+            reward_version=grounder.flat_reward_version,
         )
         for action, event in grounded_actions
     )
@@ -535,6 +676,8 @@ def replay_hotpotqa_oracle_comparison(
         final_state=f"flat:{len(flat_seen)}",
         final_status=flat_status,
         accepted=flat_status == "accepted",
+        reward_version=grounder.flat_reward_version,
+        grounding_mode=grounder.grounding_mode,
     )
     dfa = E3CreditReplay(
         credits=dfa_credit_tuple,
@@ -546,6 +689,8 @@ def replay_hotpotqa_oracle_comparison(
         final_state=dfa_runner.state,
         final_status=str(dfa_runner.status),
         accepted=dfa_runner.status == "accepted",
+        reward_version=grounder.reward_version,
+        grounding_mode=grounder.grounding_mode,
     )
     if abs(
         sum(item.reward_breakdown.total for item in flat.credits)
@@ -571,6 +716,7 @@ def replay_hotpotqa_oracle_dfa(
     seed: int,
     supporting_sentences: Sequence[str],
     observed_sentences: Sequence[str],
+    supporting_fact_pointers: Sequence[tuple[str, int]] = (),
     indexed_sentences: Sequence[str] = (),
     retrieved_contents: Sequence[str] = (),
     tool_events: Sequence[Mapping[str, Any]] = (),
@@ -588,6 +734,7 @@ def replay_hotpotqa_oracle_dfa(
         seed=seed,
         supporting_sentences=tuple(supporting_sentences),
         observed_sentences=tuple(observed_sentences),
+        supporting_fact_pointers=tuple(supporting_fact_pointers),
     )
     spec = hand_authored_memory_dfa()
     runner = DFARunner(spec, max_steps=max_steps)
@@ -675,6 +822,7 @@ def replay_hotpotqa_oracle_dfa(
                 event=event,
                 transition=transition,
                 env_reward=env_reward,
+                reward_version=grounder.reward_version,
             )
         )
 
@@ -692,12 +840,15 @@ def replay_hotpotqa_oracle_dfa(
         final_state=runner.state,
         final_status=str(runner.status),
         accepted=runner.status == "accepted",
+        reward_version=grounder.reward_version,
+        grounding_mode=grounder.grounding_mode,
     )
 
 
 def replay_summary(replay: E3CreditReplay) -> dict[str, Any]:
     return {
-        "e3_reward_version": REWARD_VERSION,
+        "e3_reward_version": replay.reward_version,
+        "e3_grounding_mode": replay.grounding_mode,
         "e3_dfa_spec_id": DFA_SPEC_ID,
         "e3_env_total": replay.env_total,
         "e3_milestone_total": replay.milestone_total,
