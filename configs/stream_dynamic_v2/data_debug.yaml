@@ -1,0 +1,22 @@
+{
+  "extends": "base.yaml",
+  "experiment": {"name": "dynamic_v2_cpu_debug", "seed": 7},
+  "model": {
+    "tokenizer_path": "debug-lexical",
+    "tokenizer_revision": "fixture-v1"
+  },
+  "budget": {
+    "context_total_tokens": 512, "persistent_memory_tokens": 1024,
+    "ingest_max_new_tokens": 96, "answer_max_new_tokens": 64,
+    "answer_tail_tokens": 96, "retrieved_payload_tokens": 400,
+    "max_decisions_per_chunk": 3, "chunk_target_tokens": 128,
+    "chunk_max_tokens": 160
+  },
+  "data": {
+    "output_root": "runs/dynamic_v2/data_debug",
+    "d1_family_counts": {"train": 40, "dev": 10, "test": 10}
+  },
+  "memory": {"retriever_revision": "agemem-frozen-lexical-v1"},
+  "grounding": {"validator_revision": "agemem.dynamic.controlled_grounder.v1"},
+  "runtime": {"run_root": "runs/dynamic_v2/cpu_fixture", "gpu_ids": []}
+}

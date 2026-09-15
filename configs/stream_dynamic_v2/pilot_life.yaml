@@ -1,0 +1,6 @@
+{
+  "extends": "base.yaml",
+  "experiment": {"name": "dynamic_v2_pilot_life"},
+  "reward": {"profile": "V2_LIFE"},
+  "runtime": {"run_root": "runs/dynamic_v2/pilot_life"}
+}

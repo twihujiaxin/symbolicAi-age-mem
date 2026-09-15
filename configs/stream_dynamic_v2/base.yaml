@@ -1,0 +1,66 @@
+{
+  "schema_version": "agemem.dynamic.config.v2",
+  "protocol_version": "streaming_dynamic_multiquery_v2",
+  "experiment": {"name": "dynamic_memory_v2", "seed": 7},
+  "inherit": {"v1_runtime_lock": null, "initialization_checkpoint": null},
+  "model": {
+    "policy_path": null, "policy_revision": null,
+    "tokenizer_path": null, "tokenizer_revision": null,
+    "reader_path": null, "reader_revision": null, "train_reader": false
+  },
+  "budget": {
+    "context_total_tokens": 4096, "persistent_memory_tokens": 2048,
+    "ingest_max_new_tokens": 512, "answer_max_new_tokens": 256,
+    "answer_tail_tokens": 512, "retrieved_payload_tokens": 2048,
+    "max_decisions_per_chunk": 3, "chunk_target_tokens": 640,
+    "chunk_max_tokens": 768
+  },
+  "data": {
+    "output_root": "runs/dynamic_v2/data",
+    "d0_fixture_count": 60,
+    "d1_family_counts": {"train": 400, "dev": 80, "test": 120},
+    "generator_version": "dynamic_world_v2_0",
+    "time_semantics": "monotonic_single_valued_v1",
+    "train_length_ratio": 5.0,
+    "evaluation_length_ratios": [5.0, 7.5, 10.0],
+    "query_pool_min": 8, "query_pool_max": 12,
+    "questions_per_snapshot": 4, "memory_rollouts_per_group": 4,
+    "split_unit": "history_family_id",
+    "text_render_mode": "deterministic_templates",
+    "main_feasibility_profile": "feasible_control",
+    "manifest": null
+  },
+  "memory": {
+    "allow_raw_source_retrieval": false,
+    "allow_audit_history_read": false,
+    "accessible_metadata_counts_in_budget": true,
+    "retriever_revision": null
+  },
+  "grounding": {
+    "mode": "controlled_semantics", "validator_revision": null,
+    "unclear_policy": "review_then_diagnostic_only",
+    "natural_audit_precision_target": 0.95,
+    "natural_audit_recall_target": 0.80
+  },
+  "reward": {
+    "profile": "V2_LIFE", "lambda_semantic": 0.25,
+    "end_memory_weight": 0.5, "end_exposure_weight": 0.5,
+    "life_end_weight": 0.5, "life_retention_weight": 0.5,
+    "checkpoint_schedule": "every_chunk_commit",
+    "checkpoint_normalization": "per_query_eligible_mean_then_query_mean",
+    "cost_weight": 0.0, "format_weight": 0.0,
+    "backend": "direct_state_evaluator"
+  },
+  "training": {
+    "advantage_mode": "inherited_read_trajectory", "optimizer_lock": null,
+    "shared_prefix_weighting": "once_per_read_rollout",
+    "answer_tokens_in_actor_loss": false,
+    "automatic_cross_group_reward_normalization": false,
+    "std_ddof": 0, "max_optimizer_updates": 30, "dev_every_steps": 10
+  },
+  "evaluation": {
+    "main_metric": "history_macro_exact_match", "checkpoint_probe": true,
+    "bootstrap_unit": "history_family_id", "frozen_test_manifest": null
+  },
+  "runtime": {"run_root": "runs/dynamic_v2", "gpu_ids": null}
+}

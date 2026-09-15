@@ -1,0 +1,5 @@
+{
+  "extends": "data_debug.yaml",
+  "experiment": {"name": "dynamic_v2_cpu_replay"},
+  "reward": {"profile": "V2_LIFE", "backend": "direct_state_evaluator"}
+}
