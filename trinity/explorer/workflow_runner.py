@@ -13,6 +13,7 @@ from trinity.common.action_event_contract import (
     freeze_rollout_policy_version,
 )
 from trinity.common.config import Config
+from trinity.common.diagnostic_bench import should_persist_diagnostic_bench
 from trinity.common.experience import Experience
 from trinity.common.models import get_debug_inference_model
 from trinity.common.models.model import InferenceModel, ModelWrapper
@@ -156,24 +157,22 @@ class WorkflowRunner:
 
             retain_bench_experiences = (
                 task.is_eval
-                and getattr(self.config, "mode", None) == "bench"
-                and getattr(
+                and should_persist_diagnostic_bench(
+                    getattr(self.config, "mode", None),
                     getattr(
-                        getattr(self.config, "buffer", None),
-                        "explorer_input",
+                        getattr(
+                            getattr(self.config, "buffer", None),
+                            "explorer_input",
+                            None,
+                        ),
+                        "default_eval_workflow_type",
                         None,
                     ),
-                    "default_eval_workflow_type",
-                    None,
                 )
-                in {
-                    "AgeMem_hotpot_workflow_training",
-                    "AgeMem_dynamic_multiquery_v2_training",
-                }
             )
             if task.is_eval and not retain_bench_experiences:
                 # Ordinary evaluation keeps the historical behavior. The
-                # frozen AgeMem bench is the sole exception: Explorer persists
+                # opt-in diagnostic benches are exceptions: Explorer persists
                 # its validated records only to the diagnostic input sink.
                 return Status(True, metric=metric), []
             return Status(True, metric=metric), exps

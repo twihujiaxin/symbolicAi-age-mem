@@ -15,6 +15,7 @@ from ray.util.scheduling_strategies import NodeAffinitySchedulingStrategy
 from trinity.buffer.buffer import get_buffer_reader
 from trinity.buffer.pipelines.experience_pipeline import ExperiencePipeline
 from trinity.common.config import Config
+from trinity.common.diagnostic_bench import should_persist_diagnostic_bench
 from trinity.common.constants import (
     ROLLOUT_WEIGHT_SYNC_GROUP_NAME,
     RunningStatus,
@@ -379,10 +380,9 @@ class Explorer:
                     f"{failed_count}/{len(eval_results)} evaluation tasks failed "
                     f"for {eval_task_name} at step {step}"
                 )
-            if (
-                self.config.mode == "bench"
-                and self.config.buffer.explorer_input.default_eval_workflow_type
-                == "AgeMem_hotpot_workflow_training"
+            if should_persist_diagnostic_bench(
+                self.config.mode,
+                self.config.buffer.explorer_input.default_eval_workflow_type,
             ):
                 diagnostic_metrics = (
                     await self.experience_pipeline.persist_diagnostic_input.remote(
