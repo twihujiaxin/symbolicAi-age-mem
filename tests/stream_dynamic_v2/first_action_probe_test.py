@@ -9,13 +9,51 @@ from pathlib import Path
 
 from AgeMem_code_agentscope.streaming_memory.dynamic.environment import DYNAMIC_INGEST_SYSTEM
 from AgeMem_code_agentscope.streaming_memory.dynamic.first_action_probe import (
-    SINGLE_ACTION_SYSTEM, TASK_EXPLICIT_SYSTEM, build_plan, execute_probe,
+    SINGLE_ACTION_SYSTEM, STRUCTURE_ONLY_SYSTEM, TASK_EXPLICIT_SYSTEM, build_plan, execute_probe,
 )
 from AgeMem_code_agentscope.streaming_memory.dynamic.schema import DynamicHistoryPublic, DynamicPublicChunk
 from AgeMem_code_agentscope.streaming_memory.token_budget import DebugLexicalTokenizer, TokenAccounting
 
 
 class FirstActionProbeTest(unittest.TestCase):
+    def test_v4_structure_only_changes_system_and_preserves_v3_baseline(self):
+        h, accounting, budget, sampling = self.multichunk_fixture()
+        old = build_plan(h, accounting, budget, sampling, comparison="single_vs_no_example_v3")
+        plan = build_plan(h, accounting, budget, sampling, comparison="no_example_vs_structure_v4")
+        self.assertEqual(plan["probe_version"], "agemem.dynamic.first_action_probe.v4")
+        self.assertEqual(plan["chunk_indices"], old["chunk_indices"])
+        self.assertEqual(plan["sampling"], old["sampling"])
+        self.assertEqual(plan["response_token_upper_bound"], 6144)
+        self.assertTrue(STRUCTURE_ONLY_SYSTEM.startswith(SINGLE_ACTION_SYSTEM))
+        self.assertNotIn("FIRST_FACT", STRUCTURE_ONLY_SYSTEM)
+        self.assertNotIn("SECOND_FACT", STRUCTURE_ONLY_SYSTEM)
+        for previous, control, treatment in zip(old["cases"][1::2], plan["cases"][::2], plan["cases"][1::2]):
+            self.assertEqual(previous, control)
+            self.assertEqual(control["seed"], treatment["seed"])
+            self.assertEqual(control["messages"][1:], treatment["messages"][1:])
+            self.assertNotIn("ADD FORMAT EXAMPLE", str(treatment["messages"]))
+            self.assertIn('"memory_id":"<fresh_id>"', treatment["messages"][0]["content"])
+
+    def test_v4_missing_id_is_rejected_not_repaired_and_valid_content_is_stored(self):
+        h, accounting, budget, sampling = self.multichunk_fixture()
+        plan = build_plan(h, accounting, budget, sampling, comparison="no_example_vs_structure_v4")
+        def generate(prompts, params):
+            outputs = []
+            for case, ids in zip(plan["cases"], prompts):
+                index = case["chunk_index"]
+                args = {"content": f"SECOND_FACT_{index}", "source_refs": [f"source-{index}-second"]}
+                if case["profile"] == "structure_only_no_example_v4":
+                    args["memory_id"] = "m1"
+                outputs.append({"prompt_token_ids": ids, "response_text": json.dumps([{"name": "ADD", "arguments": args}]),
+                                "response_token_ids": [1] * 100, "finish_reason": "stop"})
+            return outputs
+        rows, report = execute_probe(plan, accounting, generate)
+        self.assertTrue(all(not row["action_result"]["admitted"] for row in rows[::2]))
+        self.assertEqual(report["arms"]["single_action_no_example_v3"]["admitted_writes"], 0)
+        self.assertEqual(report["arms"]["structure_only_no_example_v4"]["admitted_writes"], 6)
+        self.assertFalse(any(row["concrete_add_example_present"] for row in rows))
+        self.assertFalse(report["learning_effectiveness_checked"])
+
     def multichunk_fixture(self):
         h, accounting, budget, sampling = self.fixture()
         chunks = tuple(DynamicPublicChunk(chunk_id=f"chunk-{i}", observed_at=i,

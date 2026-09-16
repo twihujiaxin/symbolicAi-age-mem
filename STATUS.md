@@ -1,5 +1,11 @@
 # Project Status
 
+> **2026-09-16 v4结构级说明本地实现，GPU未运行：** 新独立no_example_vs_structure_v4比较原去例提示与仅追加必填memory_id/content/source_refs及无事实字段形状的提示。事实/entity/relation/value/time必须在content内，占位符不可复制，NEXT不禁止；parser/主协议/旧profile不改。继续3公开chunk/12独立首动作/6144输出上限，不冒充顺序阅读。本地63项V2 PASS、旧31PASS/3SKIP；新增基线与v3cases逐项一致、仅system变化、缺ID不修补/合法写入测试。远端CPU部署prepare待执行，GPU再次确认。说明见 docs/v2_structure_only_probe.md。
+
+> **2026-09-16 v3真实GPU诊断完成：** 用户确认后仅物理GPU1执行12次冻结采样，17.661秒，prompt14040/response535tokens，reader/optimizer0。具体ADD例条件1/6成功写入；去例3/6成功写入，精确正文2/6但另1条仅句号“。”→“.”，人工逐条对照公开body/source/time语义可信，不判为语义失败。去例另1ADD缺memory_id被拒绝；两条件各1invalid_json（附带额外文字/句点），无max-token hit。成功写入均首句，非首事实未体现；同首chunk/seed8跨批次输出与上轮不同，复现稳定性未确认，不能认定稳定收益。身份/统计/预算核验PASS，Git干净，GPU回到24MiB/0%。结果保留于cross-chunk-probe-63c6359-20260916-204533/results；完整阅读/知识选择/奖励/学习有效未验证。建议先补纯结构格式说明与必填字段诊断，不直接训练；新增GPU再次确认，记录暂未再提交。
+
+> **2026-09-16 v3远端CPU完成，GPU待确认：** 已推送/同步63c6359，远端61项V2和34项旧协议全部PASS、Git干净。正式prepare及独立digest/代码/config/tokenizer/权重统计/prompt重建、pair仅删例、前轮模型/预算/采样/对照prompt一致核验PASS。选择公开chunk索引0/17/33，12case，新目录 `runtime-v2-smoke-783d785-20260916-112222/cross-chunk-probe-63c6359-20260916-204533`，digest=`9d91dfa0ddb20f2c78cc5d64c8e843724de599ce48e4b8cd264d1535dce78218`。thinkingFalse、maxprompt+output2047≤C4096、B2048，预定response上限6144。实际model/reader/optimizer调用0，无GPU运行；新增GPU须用户确认。记录暂未再提交。
+
 > **2026-09-16 v3跨chunk/具体例消融实现，GPU暂停：** 新可选single_vs_no_example_v3，冻结同一train history首/中/末公开chunk，各2对seed，两条件仅区别具体ADD例是否展示，共12次独立空memory首动作、输出上限6144tokens。无问题/gold/其他chunk上下文，主环境include_add_format_example默认True，旧协议/比较默认不变。报告逐chunk写入及首/非首句精确匹配，明确不代表顺序阅读或12个独立任务。本地61项V2 PASS；旧31PASS/3SKIP。远端新CPU prepare待执行，GPU必须再次确认。说明见 docs/v2_cross_chunk_probe.md。
 
 > **2026-09-16 单卡GPU单动作对照完成：** 用户确认物理GPU1后执行冻结a76b8e9/v2 plan，仅8次采样。task-explicit对照3NEXT+1多ADD截断，0写入；single-action **4/4合法ADD、4成功写入、4精确公开正文匹配**，各70输出tokens、68memorytokens，B2048/C4096内。全部保存同一首句，且正文与公开ADD格式例完全相同，故仅证明该首chunk首动作可执行改善，不能证明事实选择/跨chunk/语义泛化/学习有效。实际prompt11912、response828tokens，启动20.761s/采样8.746s/总29.795s，reader/optimizer0；身份/文件统计/预算复验PASS。GPU已释放（24MiB、0%），远端Git干净。末尾shell Git状态检查因CRLF报错，独立只读复验通过；模型进程和结果正常，不重采样。下一步建议小规模跨chunk及非示例事实检查，不直接GPU训练；任何新增GPU实验另行确认。实测记录未再提交。

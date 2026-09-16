@@ -38,12 +38,29 @@ SINGLE_ACTION_SYSTEM = TASK_EXPLICIT_SYSTEM + (
 )
 SYSTEMS["single_action_probe_v2"] = SINGLE_ACTION_SYSTEM
 SYSTEMS["single_action_no_example_v3"] = SINGLE_ACTION_SYSTEM
+STRUCTURE_ONLY_SYSTEM = SINGLE_ACTION_SYSTEM + (
+    " ADD arguments must contain memory_id (a fresh nonempty string), content "
+    "(one complete factual sentence), and source_refs (a nonempty array of source "
+    "IDs visible in this chunk). Put the entity, relation, value and effective time "
+    "inside content, NOT in separate arguments named entity/relation/value/time. "
+    'Shape only: [{"name":"ADD","arguments":{"memory_id":"<fresh_id>",'
+    '"content":"<one factual sentence from the visible chunk>",'
+    '"source_refs":["<visible_source_id>"]}}]. '
+    "Angle-bracket strings show field roles only: replace them, never copy a "
+    "placeholder as a memory/source ID or factual content. Do not add any text "
+    "or punctuation outside the JSON array. This shape does not require ADD; "
+    "NEXT remains legal with empty arguments."
+)
+SYSTEMS["structure_only_no_example_v4"] = STRUCTURE_ONLY_SYSTEM
+NO_CONCRETE_EXAMPLE_PROFILES = {"single_action_no_example_v3", "structure_only_no_example_v4"}
 MULTICHUNK_COMPARISON = "single_vs_no_example_v3"
+STRUCTURE_COMPARISON = "no_example_vs_structure_v4"
 DEFAULT_COMPARISON = "legacy_vs_task_v1"
 COMPARISONS = {
     DEFAULT_COMPARISON: ("legacy_v3", "task_explicit_probe_v1"),
     "task_vs_single_v2": ("task_explicit_probe_v1", "single_action_probe_v2"),
     MULTICHUNK_COMPARISON: ("single_action_probe_v2", "single_action_no_example_v3"),
+    STRUCTURE_COMPARISON: ("single_action_no_example_v3", "structure_only_no_example_v4"),
 }
 
 
@@ -56,7 +73,7 @@ def make_environment(history, accounting, budget, profile, sample_index):
     return DynamicMemoryEnvironment(
         history, accounting=accounting, read_rollout_id=f"probe:{profile}:{sample_index}",
         policy_version="frozen-first-action-probe", ingest_system=SYSTEMS[profile],
-        include_add_format_example=profile != "single_action_no_example_v3",
+        include_add_format_example=profile not in NO_CONCRETE_EXAMPLE_PROFILES,
         ingest_max_new_tokens=int(budget["ingest_max_new_tokens"]),
         max_decisions_per_chunk=int(budget["max_decisions_per_chunk"]),
         answer_tail_tokens=int(budget["answer_tail_tokens"]),
@@ -83,7 +100,7 @@ def build_plan(history, accounting, budget, sampling, seed=7, comparison=DEFAULT
     maximum = int(budget["ingest_max_new_tokens"])
     if not 0 < maximum <= 512:
         raise ValueError("probe response cap must be <=512")
-    multichunk = comparison == MULTICHUNK_COMPARISON
+    multichunk = comparison in {MULTICHUNK_COMPARISON, STRUCTURE_COMPARISON}
     chunk_indices = [0]
     if multichunk:
         if len(history.chunks) < 3:
@@ -118,6 +135,8 @@ def build_plan(history, accounting, budget, sampling, seed=7, comparison=DEFAULT
     if multichunk:
         plan.update({"probe_version": "agemem.dynamic.first_action_probe.v3", "chunk_indices": chunk_indices,
                      "reading_mode": "isolated_public_chunk_empty_memory_not_sequential"})
+    if comparison == STRUCTURE_COMPARISON:
+        plan["probe_version"] = "agemem.dynamic.first_action_probe.v4"
     return plan
 
 
@@ -178,7 +197,7 @@ def execute_probe(plan, accounting, generate):
                      "human_content_review": "", "human_time_review": "", "human_notes": ""})
         if "chunk_index" in case:
             rows[-1].update({"chunk_index": case["chunk_index"], "chunk_id": chunk.chunk_id,
-                            "concrete_add_example_present": case["profile"] != "single_action_no_example_v3",
+                            "concrete_add_example_present": case["profile"] not in NO_CONCRETE_EXAMPLE_PROFILES,
                             "selects_first_sentence": bool(exact_body and refs == [chunk.source_refs[0]]),
                             "selects_nonfirst_fact": bool(exact_body and any(ref != chunk.source_refs[0] for ref in refs))})
     arms = {}

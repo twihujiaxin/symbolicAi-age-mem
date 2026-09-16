@@ -2,6 +2,32 @@
 
 ## 当前结论
 
+### 2026-09-16 v4结构级说明本地实现（非模型验收）
+
+针对v3缺ID/额外事实字段/JSON外文字问题，新增独立no_example_vs_structure_v4。对照single_action_no_example_v3，处理仅在同一system后追加完整必填memory_id/content/source_refs说明和不含实际事实/ID的字段形状，明确实体/关系/值/time写入content，占位符替换而非照抄，NEXT仍可选。无具体ADD例、无gold/问题或额外私有索引；保持3公开chunk、每chunk2pairedseed、12独立首动作及原预算采样。不改变主协议/parser/旧默认profile，v4单独命名。
+
+本地实测 **63 V2 PASS / 31旧回归PASS+3环境性SKIP**，diff-check PASS。新增2测试：v3去例基线cases逐项相同、处理仅system后缀且无具体事实；缺memory_id真实拒绝且不修补、合法独立完整content写入、mock成功不是learning验收。远端CPU部署/prepare待执行；GPU未运行，需用户再次确认单物理GPU1/12×512=6144输出上限。文档 docs/v2_structure_only_probe.md。完整顺序阅读未在本轮运行，需后续单独冻结和确认预算，不直接启动训练。
+
+### 2026-09-16 用户授权后的v3真实GPU结果
+
+用户确认本轮物理GPU1后检查24MiB/0%、无compute进程，63c6359工作区干净，results/run.log不存在；仅运行冻结12case（plan digest9d91dfa0ddb20f2c78cc5d64c8e843724de599ce48e4b8cd264d1535dce78218），正常exit0。具体例条件6case：1ADD成功、4NEXT、1invalid_json，逐chunk写入0/17/33为1/0/0；去例6case：4ADD解析、1NEXT、1invalid_json，3ADD成功，逐chunk写入1/1/1。两条件parse_ok均5/6，均无max-token hit。
+
+真实动作审计：去例chunk0/seed7保存项目负责人首句，body/source/time与公开原文完全一致；chunk17/seed8保存背景实体0000-0377/区域3830/第6日起，只将“。”改成“.”，内容语义/来源/时间人工核对可信，exact-body false不表示语义错误；chunk33/seed8保存背景实体0000-0730/区域9957/第8日起且完全匹配。去例chunk33/seed7试图用额外entity/relation/value/time参数、content仅实体编号且无memory_id，被环境invalid_or_duplicate_memory_id正确拒绝，不能计为保存事实。去例chunk17/seed7输出NEXT数组后附ADD说明，严格parser拒绝；有例chunk33/seed8完整数组后附句点也被拒绝，不修补。所有成功写入仍为当前chunk首句，nonfirst_fact_count为0；去例可生成具体事实，但不证明自主重要性选择或泛化稳定。
+
+实际prompt14040、response535tokens；engine_startup15.455348s、sampling1.858743s、total17.660520s。无reader/optimizer/API/其他GPU。独立复验digest/提交/代码SHA/config/tokenizerSHA/权重统计/行数/预算PASS，结束Git干净，GPU24MiB/0%。全部旧产物保留。结果目录 `cross-chunk-probe-63c6359-20260916-204533/results`；report SHA=`ff16d9bf923ada8e7cef5034afbd847e7f29796ab4d57dcc22fc9572beeb47b3`；actions=`ed17b154dbb8362ccad4a6ece5ee477aa3500d7e6f75f712b5dc09941529b5a4`；run.log=`cbad8d76c6f4aff0c2c7464e1cdd4a964b3d14ab083433ee887fb4dc0a2406a1`。
+
+科学边界：单history/3独立chunk/每条件每chunk2样本，不是独立任务或顺序rollout；1/6与3/6不构成稳定或统计充分的收益证据。同首chunk有例seed8本轮NEXT、上轮v2同提示seed8为ADD，跨批次复现性未确认，不把seed匹配当作确定输出一致，不推断具体差异机制。完整权重SHA、自然grounder、连续记忆构建、检索必要性、END/LIFE、非零advantage、learning有效均未验证。建议先冻结无事实的结构级格式示例/必填memory_id与content说明诊断，再决定有限顺序smoke；任何新增GPU实验再次请求确认，不自动重采样/训练。实测记录仅本地更新，未再提交/改变远端HEAD。
+
+### 2026-09-16 v3远端CPU部署/prepare验收（GPU暂停）
+
+提交63c6359d9c09d0a17b10f9a3a346cf1cb9e7cc9d已推送并远端快进同步。首次SSH连接被关闭，重试成功；无GPU或结果覆盖。远端实测 **61 V2 PASS / 34旧协议PASS，无SKIP**。正式prepare生成：
+
+`/data/hjx/Age_mem/runtime-v2-smoke-783d785-20260916-112222/cross-chunk-probe-63c6359-20260916-204533/plan.public.json`
+
+独立 **CROSS_CHUNK_CPU_IDENTITY_PASS**：plan digest=`9d91dfa0ddb20f2c78cc5d64c8e843724de599ce48e4b8cd264d1535dce78218`，HEAD/代码SHA/config/tokenizer SHA/权重统计/实际prompt IDs重建一致，only-example删减和pairedseed验证通过。模型/history/budget/sampling与v2完全相同，首chunk有例对照messages与v2原处理相同。选择公开chunk索引0/17/33，对应chunk_8a9034b45c9e633b2017、chunk_1b0405de7b5f8d581713、chunk_1cc952be81800d9fc5ab；有例prompt长度1535/1510/593，最大prompt+output2047≤C4096，B2048，thinkingFalse，temperature0.6/top_p1/top_k-1/n1/max512。12call预定response上限6144，实际model/reader/optimizer调用0。
+
+远端工作区干净，新results/run.log不存在。GPU明确未执行，待确认物理GPU1上12call实验；不把prepare或CPU资源替身写成模型改善。实测记录本地暂未再提交以保持冻结HEAD。完整权重SHA、自然语义、去例是否仍写入/是否选非首句、顺序阅读和学习有效仍未验证。
+
 ### 2026-09-16 跨chunk/具体例消融本地实现（v3）
 
 用户确认下一步后，新增可选comparison single_vs_no_example_v3，不自动运行GPU。稳定选同一冻结train history首/中/末公开chunk，至少3chunk才接受；每chunk两对seed7/8，总12次独立首动作，不连续阅读、不共享memory、不按gold选chunk。两条件完全相同single-action system，处理仅移除当前chunk具体ADD例，全部公开正文/source ID仍可见。主环境boolean include_add_format_example默认True，不变更旧主协议/配置/reward。v1/v2比较保留，v3锁定chunk_indices/reading_mode/实际cases与12call预算，run/execute重建一致性检查。新增首句/非首句精确匹配、max-token hit和逐chunk写入统计，无奖励或强制非首句。
