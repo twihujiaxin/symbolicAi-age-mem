@@ -1,8 +1,12 @@
+import importlib.util
 import unittest
+from pathlib import Path
 
 from AgeMem_code_agentscope.streaming_memory.dynamic.environment import (
     DynamicMemoryEnvironment,
+    DynamicEnvironmentError,
     canonical_dynamic_payload,
+    render_public_chunk,
 )
 from AgeMem_code_agentscope.streaming_memory.dynamic.schema import (
     DynamicHistoryPublic,
@@ -100,6 +104,31 @@ def good_action(content=TEXT):
 
 
 class DynamicEnvironmentGroundingTest(unittest.TestCase):
+    def test_public_sentence_source_map_is_visible_and_unambiguous(self):
+        chunk = history().chunks[0]
+        self.assertEqual(render_public_chunk(chunk), "STREAM CHUNK\n[src] " + TEXT)
+        ambiguous = chunk.model_copy(update={"source_refs": ("src", "other")})
+        with self.assertRaisesRegex(DynamicEnvironmentError, "ambiguous"):
+            render_public_chunk(ambiguous)
+
+    def test_cpu_prompt_preflight_counts_source_labels_and_rejects_small_c(self):
+        path = Path(__file__).resolve().parents[2] / "scripts/agemem_dynamic_v2_prompt_preflight.py"
+        spec = importlib.util.spec_from_file_location("dynamic_prompt_preflight_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        check_history = module.check_history
+        accounting = TokenAccounting.from_tokenizer(DebugLexicalTokenizer())
+        budget = {
+            "ingest_max_new_tokens": 40, "max_decisions_per_chunk": 3,
+            "answer_tail_tokens": 40, "retrieved_payload_tokens": 80,
+        }
+        maximum = check_history(history(), accounting, budget)
+        self.assertGreater(maximum, 40)
+        self.assertLessEqual(maximum, 260)
+        too_small = history().model_copy(update={"context_budget_tokens": 40})
+        with self.assertRaisesRegex(DynamicEnvironmentError, "satisfy C"):
+            check_history(too_small, accounting, budget)
+
     def setUp(self):
         self.accounting = TokenAccounting.from_tokenizer(DebugLexicalTokenizer())
         self.source, self.event, self.query = objects()

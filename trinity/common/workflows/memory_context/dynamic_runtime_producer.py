@@ -64,6 +64,7 @@ from trinity.common.streaming_multiquery_contract import ReadActorSample
 
 
 RUNTIME_PRODUCER_VERSION = "agemem.dynamic.runtime_producer.v1"
+ACTION_INTERFACE_VERSION = "agemem.dynamic.action_interface.v2"
 INGEST_STAGE_ID = 1
 
 
@@ -148,9 +149,19 @@ def actor_sample_from_experience(
 
 
 def _one_public_action(response_text: str) -> tuple[str, dict[str, Any]] | None:
+    # Unlike the legacy tolerant protocol, V2 admits exactly one complete JSON
+    # array and no surrounding prose, extra envelopes or synthetic repairs.
+    payload = response_text.strip()
+    if payload.startswith("<tool_call>") and payload.endswith("</tool_call>"):
+        payload = payload[len("<tool_call>") : -len("</tool_call>")].strip()
     try:
-        calls = parse_tool_calls_with_char_spans(response_text)
-    except ActionContractError:
+        value = json.loads(payload)
+        if not isinstance(value, list) or len(value) != 1:
+            return None
+        calls = parse_tool_calls_with_char_spans(
+            response_text, allow_bare_json_array=True
+        )
+    except (ActionContractError, json.JSONDecodeError):
         return None
     if len(calls) != 1 or not isinstance(calls[0].call, dict):
         return None
@@ -347,6 +358,7 @@ class DynamicRuntimeProducer:
                         stage_id=INGEST_STAGE_ID,
                         timestep=timestep,
                         assistant_turn_id=timestep,
+                        allow_bare_json_array=True,
                     )
                     action = {"type": action_name, **arguments}
                     result = environment.execute(
@@ -376,6 +388,7 @@ class DynamicRuntimeProducer:
                 info.update(
                     {
                         "dynamic_runtime_producer": RUNTIME_PRODUCER_VERSION,
+                        "dynamic_action_interface": ACTION_INTERFACE_VERSION,
                         "dynamic_action_id": action_id,
                         "dynamic_action_type": action_name,
                         "dynamic_action_admitted": result.admitted,
@@ -594,6 +607,16 @@ class DynamicRuntimeProducer:
                 "experience_count": len(experiences),
                 "model_used": True,
                 "reader_frozen": True,
+                "action_interface_version": ACTION_INTERFACE_VERSION,
+                "invalid_response_count": sum(
+                    exp.info["dynamic_action_type"] == "<invalid_tool_call>"
+                    for exp in experiences
+                ),
+                "admitted_memory_write_count": sum(
+                    exp.info["dynamic_action_type"].upper() in {"ADD", "UPDATE"}
+                    and exp.info["dynamic_action_admitted"]
+                    for exp in experiences
+                ),
             }
         )
         return ProducedDynamicGroup(

@@ -884,6 +884,22 @@ def validate_dynamic_manifest(path: Path) -> dict[str, Any]:
     registry_map = {item.source_ref: item for item in registry}
     if len(registry_map) != len(registry):
         raise DynamicDataError("duplicate source_ref")
+    # Ordered public lines are the only policy-visible provenance map. Verify
+    # it against reward-side registry, never inject registry bodies into policy.
+    for history in histories:
+        for chunk in history.chunks:
+            lines = chunk.text.split("\n")
+            if len(lines) != len(chunk.source_refs):
+                raise DynamicDataError("ambiguous public source mapping")
+            for ref, line in zip(chunk.source_refs, lines):
+                source = registry_map.get(ref)
+                if (
+                    source is None
+                    or source.history_id != history.history_id
+                    or source.observed_at != chunk.observed_at
+                    or source.text != line
+                ):
+                    raise DynamicDataError("public sentence/source mapping mismatch")
     if any(item.source_ref not in registry_map for item in events):
         raise DynamicDataError("event source missing from private registry")
     if any(

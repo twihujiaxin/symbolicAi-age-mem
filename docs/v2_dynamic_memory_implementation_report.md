@@ -2,6 +2,12 @@
 
 ## 当前结论
 
+2026-09-16 retry2 已恢复 Experience 持久化，但用户实测 204 responses 全为 invalid_action，ActionEvent=0。完整裸 JSON NEXT 未识别；ADD 示例同时存在多动作、512-token 截断、虚构 source_refs 和重复 memory ID。**这是实际工程失败，不是模型学习结果，也不是 smoke PASS。** vLLM 当前使用 skip_special_tokens=True，标签可能在解码时消失；没有原始 token-ID 审计，不能断言这些响应原本有没有标签。
+
+本次增量修复：V2 执行与 ActionEvent draft 显式共用裸数组解析，原响应不加字符，旧三阶段默认行为不变；V2 只接纳一个完整 JSON action envelope，截断/多动作/额外正文继续判失败。公开输入按生成器的逐句/ref 顺序展示 `[ID] 正文`，manifest validator 对 public line 与 reward-side registry 的正文、history 和 observed_at 做精确连接验证；policy 不读 registry。提示词精简到单动作、唯一 memory_id、复制真实 source ID，全部新增渲染成本仍计 C。动作接口身份新增 `agemem.dynamic.action_interface.v2`，不修改旧 reward/profile 身份。receipt 新增 invalid_response_count 与 admitted_memory_write_count，避免 NEXT-only 被误解为记忆成功。
+
+实测：V2 scope **40/40 PASS**；旧 action/streaming scope运行 34 项，31 PASS、3 环境性 SKIP；diff-check PASS。包含裸 JSON 完整 2×2 fake-policy group 的真实 draft/finalize/validate-on-policy 契约回归、多动作/截断拒绝、可见来源映射及 CPU 初始 prompt 的 C 拒绝测试。新增 CLI `scripts/agemem_dynamic_v2_prompt_preflight.py` 的完整 datasets/Qwen 路径未在本地运行（缺 datasets/模型），helper 使用 debug tokenizer 实测。远端 Qwen tokenizer prompt preflight、GPU retry3、自然来源/正文正确率与 trainer update **未运行**。commands、预算和验收门禁见 `docs/v2_runtime_retry3.md`。初始 prompt 预检不等于带模型动作/handles/receipt 的全部预算验收，后者仍由运行时逐次 enforce。
+
 2026-09-16 远端 retry1 已运行真实 policy 和 4 次 frozen-reader 调用，但 Explorer 仍用旧持久化白名单，因此无可审计 Experience。该次不能记为完整 runtime PASS。现共享 runner/Explorer bench gate，并新增 4 项 CPU 回归（执行实际 `_finish_eval_step` 函数体，边界用 doubles）；动态 V2 总计 34 tests PASS。修复后的 GPU 重跑与落盘审计仍未运行；原产物不覆盖。
 
 P0～P3 的本地代码与 CPU 受控闭环已完成；远端 production Qwen3-4B tokenizer 数据和 CPU replay 也已由用户报告通过。P5 已实现模型 runtime producer、冻结 reader 分支、Trinity workflow 注册、完整 K×m 发布和 ddof=0 advantage operator，并通过 fake-policy 边界测试；尚未在远端 Ray/vLLM/veRL 上验证。P4 冻结模型诊断与 P6 GPU pilot 未运行。当前证据证明受控数据、版本环境、grounding、END/LIFE 数学和本地 runtime 契约可执行，**不证明模型学会动态记忆，也不证明 LIFE 优于 END。**
@@ -95,7 +101,7 @@ END/LIFE 在 2/4 条轨迹上不同。direct evaluator 与 compiled monitor 对 
 
 ```powershell
 python -m unittest discover -s tests\stream_dynamic_v2 -p '*_test.py'
-# 34 tests, OK
+# 40 tests, OK（2026-09-16 动作接口修复后）
 
 python scripts\agemem_dynamic_v2.py build-data --config configs\stream_dynamic_v2\data_debug.yaml
 python scripts\agemem_dynamic_v2.py validate-data --manifest runs\dynamic_v2\data_debug\manifest.json

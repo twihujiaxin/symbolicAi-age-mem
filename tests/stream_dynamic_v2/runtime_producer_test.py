@@ -28,10 +28,14 @@ if importlib.util.find_spec("datasets") is None:
 from trinity.common.action_event_contract import (
     ACTION_EVENTS_KEY,
     RESPONSE_TOKEN_OFFSETS_KEY,
+    ActionContractError,
+    parse_tool_calls_with_char_spans,
+    prepare_experience_action_drafts,
+    record_experience_action_result,
     finalize_experience_action_contract,
     validate_on_policy_experiences,
 )
-from trinity.common.experience import Experience
+from trinity.common.experience import EID, Experience
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -89,6 +93,51 @@ class FakePolicy:
 
 
 class DynamicRuntimeProducerTest(unittest.TestCase):
+    def test_bare_next_has_exact_executable_spans_without_repair(self):
+        text = '  [{"name":"NEXT","arguments":{}}]  '
+        self.assertEqual(parse_tool_calls_with_char_spans(text), ())
+        self.assertEqual(RUNTIME_MODULE._one_public_action(text), ("NEXT", {}))
+        call, = parse_tool_calls_with_char_spans(text, allow_bare_json_array=True)
+        self.assertEqual(json.loads(text[call.char_start:call.char_end])["name"], "NEXT")
+        exp = experience(text)
+        exp.eid = EID(batch="b", task=0, run=0, step=0, suffix="bare")
+        prepare_experience_action_drafts(
+            exp, stage_id=1, timestep=0, assistant_turn_id=0,
+            allow_bare_json_array=True,
+        )
+        record_experience_action_result(
+            [exp], action_index_in_turn=0, trace_call_id="bare-call",
+            action_type="NEXT", status="success", result={"admitted": True},
+            error=None,
+        )
+        exp.info["tool_call_ids"] = ["bare-call"]
+        finalize_experience_action_contract(exp, policy_version="model_version:0")
+        self.assertEqual(len(exp.info[ACTION_EVENTS_KEY]), 1)
+        validate_on_policy_experiences([exp])
+
+    def test_v2_rejects_batches_truncation_and_surrounding_prose(self):
+        valid = '[{"name":"NEXT","arguments":{}}]'
+        for text in (
+            valid[:-1], valid + ' trailing',
+            '[{"name":"NEXT","arguments":{}},{"name":"NEXT","arguments":{}}]',
+            '[{"name":"NEXT","arguments":{}},]',
+            '<tool_call>' + valid, 'prose <tool_call>' + valid + '</tool_call>',
+        ):
+            with self.subTest(text=text):
+                self.assertIsNone(RUNTIME_MODULE._one_public_action(text))
+        with self.assertRaises(ActionContractError):
+            parse_tool_calls_with_char_spans(valid[:-1], allow_bare_json_array=True)
+
+    def test_bare_model_group_uses_same_contract_as_tagged_group(self):
+        original = globals()["tool_call"]
+        try:
+            globals()["tool_call"] = lambda *a, **kw: original(*a, **kw).replace(
+                "<tool_call>", ""
+            ).replace("</tool_call>", "")
+            self.test_model_group_reaches_experience_and_ddof0_advantage()
+        finally:
+            globals()["tool_call"] = original
+
     def fixture(self):
         text0 = "projectA project_owner Alice effective 0"
         text1 = "projectA site_region Blue effective 0"

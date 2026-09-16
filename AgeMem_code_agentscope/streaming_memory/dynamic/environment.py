@@ -13,15 +13,28 @@ from .schema import DynamicHistoryPublic, PROTOCOL_VERSION, project_public_obser
 
 
 DYNAMIC_INGEST_SYSTEM = (
-    "Read a changing information stream and maintain useful long-term memory. "
-    "Future questions are hidden. Times and historical values can both matter. "
-    "Use exactly one public action per response: ADD, UPDATE, DELETE, RETRIEVE, "
-    "or NEXT. Return only "
+    "Keep stream facts and times/history. Questions hidden. "
+    "Exactly ONE action: ADD/UPDATE/DELETE/RETRIEVE/NEXT. No batches or prose. Return "
     "<tool_call>[{\"name\":\"ACTION\",\"arguments\":{...}}]</tool_call>. "
-    "ADD and UPDATE arguments may contain memory_id, content, title, tags, "
-    "source_refs, claims, and custom. DELETE and RETRIEVE require memory_id; "
-    "NEXT uses an empty arguments object."
+    "ADD: fresh unique memory_id, content, source_refs copied from sentence [ID]. "
+    "UPDATE: existing memory_id, new content/source_refs. Never invent source IDs. "
+    "Short complete JSON; omit optional fields. DELETE/RETRIEVE: memory_id. "
+    "NEXT: empty arguments."
 )
+
+
+def render_public_chunk(chunk: Any) -> str:
+    """Bind ordered public sentence lines to public refs, without registry RAG.
+
+    The frozen V2 generator joins one source sentence per line in ref order.
+    Reject ambiguous imported chunks rather than guessing a provenance map.
+    """
+    lines = chunk.text.split("\n")
+    if len(lines) != len(chunk.source_refs) or any(not line.strip() for line in lines):
+        raise DynamicEnvironmentError("ambiguous_public_source_mapping")
+    return "STREAM CHUNK\n" + "\n".join(
+        f"[{ref}] {line}" for ref, line in zip(chunk.source_refs, lines)
+    )
 
 
 class DynamicEnvironmentError(ValueError):
@@ -257,7 +270,7 @@ class DynamicMemoryEnvironment:
         self._context.append(
             _ContextGroup(
                 group_id=chunk.chunk_id,
-                messages=[{"role": "user", "content": f"STREAM CHUNK\n{chunk.text}"}],
+                messages=[{"role": "user", "content": render_public_chunk(chunk)}],
                 source_refs=set(chunk.source_refs),
             )
         )

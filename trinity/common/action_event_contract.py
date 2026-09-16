@@ -626,11 +626,25 @@ def _calls_from_segment(
     return calls
 
 
-def parse_tool_calls_with_char_spans(text: str) -> tuple[ParsedToolCallSpan, ...]:
+def parse_tool_calls_with_char_spans(
+    text: str, *, allow_bare_json_array: bool = False
+) -> tuple[ParsedToolCallSpan, ...]:
     """Mirror AgeMem's tolerant parser while retaining exact action spans."""
 
     if not isinstance(text, str) or not text.strip():
         return ()
+
+    if allow_bare_json_array and text.lstrip().startswith("["):
+        # V2 opt-in: vLLM can omit special tool tags during decoding. Parse the
+        # entire original response, never repair it or manufacture token spans.
+        try:
+            value = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ActionContractError(INVALID_TOOL_CALL_JSON_ERROR) from exc
+        if not isinstance(value, list):
+            return ()
+        start = len(text) - len(text.lstrip())
+        return tuple(_calls_from_segment(text, start, len(text.rstrip())))
 
     standard_matches = tuple(
         re.finditer(r"<tool_call>\s*(.*?)\s*</tool_call>", text, re.DOTALL)
@@ -707,6 +721,7 @@ def prepare_experience_action_drafts(
     stage_id: int,
     timestep: int,
     assistant_turn_id: int,
+    allow_bare_json_array: bool = False,
 ) -> None:
     """Attach validated, policy-version-free action drafts to an Experience."""
 
@@ -721,7 +736,9 @@ def prepare_experience_action_drafts(
         raise ActionContractError("Experience.response_text is required")
     parse_error: Optional[str] = None
     try:
-        parsed = parse_tool_calls_with_char_spans(response_text)
+        parsed = parse_tool_calls_with_char_spans(
+            response_text, allow_bare_json_array=allow_bare_json_array
+        )
     except ActionContractError as exc:
         if str(exc) not in NON_EXECUTABLE_TOOL_CALL_ERRORS:
             raise
