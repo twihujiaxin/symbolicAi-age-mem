@@ -1,3 +1,6 @@
+import importlib.util
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -10,10 +13,23 @@ from trinity.common.dynamic_multiquery_contract import (
     DynamicReadRollout,
 )
 from trinity.common.streaming_multiquery_contract import ReadActorSample
-from scripts.agemem_dynamic_v2 import _valid_gpu_ids, preflight_report
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+# scripts/ is a CLI directory, not an importable package. Load the exact
+# repository file so an unrelated installed `scripts` package cannot shadow it.
+CLI_SPEC = importlib.util.spec_from_file_location(
+    "agemem_dynamic_v2_contract_cli",
+    ROOT / "scripts/agemem_dynamic_v2.py",
+)
+if CLI_SPEC is None or CLI_SPEC.loader is None:
+    raise ImportError("cannot load the repository dynamic V2 CLI")
+CLI_MODULE = importlib.util.module_from_spec(CLI_SPEC)
+sys.modules[CLI_SPEC.name] = CLI_MODULE
+CLI_SPEC.loader.exec_module(CLI_MODULE)
+_valid_gpu_ids = CLI_MODULE._valid_gpu_ids
+preflight_report = CLI_MODULE.preflight_report
 
 
 def rollout(index, task_scores, semantic, profile="V2_LIFE"):
@@ -47,6 +63,24 @@ def rollout(index, task_scores, semantic, profile="V2_LIFE"):
 
 
 class DynamicTrainingContractTest(unittest.TestCase):
+    def test_cli_import_ignores_unrelated_scripts_package(self):
+        code = (
+            "import runpy, sys, types; "
+            "sys.modules['scripts'] = types.ModuleType('scripts'); "
+            f"loaded = runpy.run_path({str(Path(__file__).resolve())!r}, "
+            "run_name='contract_import_regression'); "
+            "assert callable(loaded['preflight_report']); "
+            "assert loaded['_valid_gpu_ids']([1, 2])"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def bundle(self, m=2):
         scores_a = (1, 0) * (m // 2)
         scores_b = (0, 0) * (m // 2)
