@@ -142,6 +142,15 @@ def cmd_compare_backends(args: argparse.Namespace) -> int:
     return 0 if comparison["status"] == "pass" else 1
 
 
+def _valid_gpu_ids(value) -> bool:
+    return (
+        isinstance(value, list)
+        and bool(value)
+        and all(type(item) is int and item >= 0 for item in value)
+        and len(value) == len(set(value))
+    )
+
+
 def preflight_report(config_path: Path) -> dict:
     config = load_dynamic_config(config_path)
     missing = []
@@ -168,6 +177,9 @@ def preflight_report(config_path: Path) -> dict:
     for name, value in requirements.items():
         if value is None or value == "":
             missing.append(name)
+    gpu_ids = requirements["runtime.gpu_ids"]
+    if not _valid_gpu_ids(gpu_ids) and "runtime.gpu_ids" not in missing:
+        missing.append("runtime.gpu_ids")
     if config.model.get("tokenizer_path") == "debug-lexical":
         missing.append("production_frozen_tokenizer_required")
     return {
@@ -176,8 +188,8 @@ def preflight_report(config_path: Path) -> dict:
         "reward_profile": config.reward["profile"],
         "protocol_version": config.protocol_version,
         "missing_or_unresolved": missing,
-        "model_runtime_producer": "not_implemented" if not missing else "not_checked",
-        "note": "P4-P6 require a production tokenizer/model/reader lock and real runtime producer; CPU fixtures are not model diagnostics.",
+        "model_runtime_producer": "implemented_gpu_unverified",
+        "note": "The Trinity producer/workflow exists, but preflight does not launch Ray/vLLM. P4-P6 still require a production lock, launcher config, and real GPU validation.",
     }
 
 
@@ -192,7 +204,7 @@ def cmd_model_phase(args: argparse.Namespace) -> int:
     if result["status"] == "pass":
         result["status"] = "blocked"
         result["missing_or_unresolved"] = [
-            "dynamic_v2_model_runtime_producer_not_implemented"
+            "dynamic_v2_trinity_launcher_config_and_explicit_gpu_run_required"
         ]
     result["requested_phase"] = args.command
     _print(result)

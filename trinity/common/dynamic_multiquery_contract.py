@@ -6,6 +6,8 @@ GPU runtime is initialized here.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from dataclasses import dataclass
 from typing import Any
@@ -159,6 +161,54 @@ class DynamicMemoryRolloutGroupBundle:
                     }
                 )
         return tuple(rows)
+
+    def receipt(self) -> dict[str, Any]:
+        self.validate_complete()
+        rewards = [item.total_reward for item in self.rollouts]
+        advantages = self.advantages()
+        mean = sum(rewards) / len(rewards)
+        payload = {
+            "schema_version": "agemem.dynamic.runtime_receipt.v2",
+            "protocol": "streaming_dynamic_multiquery_v2",
+            "contract_version": self.contract_version,
+            "group_id": self.group_id,
+            "history_family_id": self.history_family_id,
+            "complete_bundle_count": 1,
+            "read_rollout_count": len(self.rollouts),
+            "query_branch_count": sum(
+                len(item.branches) for item in self.rollouts
+            ),
+            "actor_sample_count": sum(
+                len(item.samples) for item in self.rollouts
+            ),
+            "reader_actor_loss_tokens": 0,
+            "reward_mean": mean,
+            "reward_std_ddof0": math.sqrt(
+                sum((value - mean) ** 2 for value in rewards) / len(rewards)
+            ),
+            "nonzero_advantage_rollouts": sum(
+                abs(value) > 0 for value in advantages
+            ),
+            "reward_version": self.reward_version,
+            "reward_profile": self.reward_profile,
+            "lambda_semantic": self.lambda_semantic,
+            "std_ddof": self.std_ddof,
+            "policy_version": self.rollouts[0].policy_version,
+            "reader_versions": sorted(
+                {
+                    branch.reader_version
+                    for rollout in self.rollouts
+                    for branch in rollout.branches
+                }
+            ),
+        }
+        encoded = json.dumps(
+            payload, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        return {
+            **payload,
+            "receipt_sha256": hashlib.sha256(encoded).hexdigest(),
+        }
 
 
 __all__ = [

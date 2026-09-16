@@ -52,6 +52,9 @@ from trinity.common.workflows.workflow import (
 
 from trinity.common.workflows.memory_context.train_hotpotQA import AgeMemHotpotWorkflowTraining
 from trinity.common.workflows.memory_context.eval_hotpotQA import AgeMemHotpotWorkflowEvaluation
+from trinity.common.workflows.memory_context.train_dynamic_multiquery import (
+    AgeMemDynamicMultiQueryV2Training,
+)
 
 __all__ = [
     "Task",
@@ -83,4 +86,5 @@ __all__ = [
     "AgentScopeWorkflowAdapter",
     "AgeMemHotpotWorkflowTraining",
     "AgeMemHotpotWorkflowEvaluation",
+    "AgeMemDynamicMultiQueryV2Training",
 ]

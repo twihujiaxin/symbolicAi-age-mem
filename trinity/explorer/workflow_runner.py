@@ -166,7 +166,10 @@ class WorkflowRunner:
                     "default_eval_workflow_type",
                     None,
                 )
-                == "AgeMem_hotpot_workflow_training"
+                in {
+                    "AgeMem_hotpot_workflow_training",
+                    "AgeMem_dynamic_multiquery_v2_training",
+                }
             )
             if task.is_eval and not retain_bench_experiences:
                 # Ordinary evaluation keeps the historical behavior. The

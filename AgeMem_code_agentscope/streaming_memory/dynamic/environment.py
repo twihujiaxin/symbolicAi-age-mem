@@ -15,7 +15,12 @@ from .schema import DynamicHistoryPublic, PROTOCOL_VERSION, project_public_obser
 DYNAMIC_INGEST_SYSTEM = (
     "Read a changing information stream and maintain useful long-term memory. "
     "Future questions are hidden. Times and historical values can both matter. "
-    "Use one public action per response: ADD, UPDATE, DELETE, RETRIEVE, or NEXT."
+    "Use exactly one public action per response: ADD, UPDATE, DELETE, RETRIEVE, "
+    "or NEXT. Return only "
+    "<tool_call>[{\"name\":\"ACTION\",\"arguments\":{...}}]</tool_call>. "
+    "ADD and UPDATE arguments may contain memory_id, content, title, tags, "
+    "source_refs, claims, and custom. DELETE and RETRIEVE require memory_id; "
+    "NEXT uses an empty arguments object."
 )
 
 
@@ -160,6 +165,19 @@ class DynamicMemoryEnvironment:
         return project_public_observation(
             self.history, self._current_chunk.observed_at, self.policy_memory()
         )
+
+    def current_messages(self) -> tuple[dict[str, str], ...]:
+        """Return a defensive copy of the current policy-visible prompt only."""
+
+        if self._current_chunk is None:
+            raise DynamicEnvironmentError("no current chunk")
+        messages = self._messages()
+        self.accounting.enforce_context(
+            messages,
+            max_new_tokens=self.ingest_max_new_tokens,
+            context_total_tokens=self.history.context_budget_tokens,
+        )
+        return tuple(copy.deepcopy(messages))
 
     def _handles(self) -> str:
         return _canonical(
@@ -338,7 +356,12 @@ class DynamicMemoryEnvironment:
                 hi = mid - 1
         return raw[:lo], True
 
-    def execute(self, action: Mapping[str, Any]) -> DynamicActionResult:
+    def execute(
+        self,
+        action: Mapping[str, Any],
+        *,
+        response_text: str | None = None,
+    ) -> DynamicActionResult:
         if self._current_chunk is None or self._chunk_committed:
             raise DynamicEnvironmentError("admit an uncommitted chunk before acting")
         if self._decisions >= self.max_decisions_per_chunk:
@@ -423,10 +446,14 @@ class DynamicMemoryEnvironment:
             public_message = f"MEMORY {displayed_revision}\n{displayed}"
         elif not success:
             public_message = f"ERROR {code}"
+        receipt_messages = []
+        if response_text is not None:
+            receipt_messages.append({"role": "assistant", "content": response_text})
+        receipt_messages.append({"role": "tool", "content": public_message})
         self._context.append(
             _ContextGroup(
                 group_id=f"receipt-{len(self._ledger):06d}-{self._decisions}",
-                messages=[{"role": "tool", "content": public_message}],
+                messages=receipt_messages,
             )
         )
         self._fit_context()

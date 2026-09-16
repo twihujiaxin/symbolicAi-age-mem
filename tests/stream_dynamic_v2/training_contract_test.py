@@ -10,6 +10,10 @@ from trinity.common.dynamic_multiquery_contract import (
     DynamicReadRollout,
 )
 from trinity.common.streaming_multiquery_contract import ReadActorSample
+from scripts.agemem_dynamic_v2 import _valid_gpu_ids, preflight_report
+
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def rollout(index, task_scores, semantic, profile="V2_LIFE"):
@@ -80,11 +84,10 @@ class DynamicTrainingContractTest(unittest.TestCase):
             DynamicQueryBranchScore("b", "q", 1, "reader", 5, actor_loss_token_count=1)
 
     def test_main_profiles_change_only_reward_identity_and_run_name(self):
-        root = Path(__file__).resolve().parents[2]
         values = []
         for name in ("pilot_terminal.yaml", "pilot_end.yaml", "pilot_life.yaml"):
             raw = load_dynamic_config(
-                root / "configs/stream_dynamic_v2" / name
+                ROOT / "configs/stream_dynamic_v2" / name
             ).model_dump(mode="json")
             raw["experiment"]["name"] = "PROFILE"
             raw["reward"]["profile"] = "PROFILE"
@@ -92,6 +95,19 @@ class DynamicTrainingContractTest(unittest.TestCase):
             values.append(raw)
         self.assertEqual(values[0], values[1])
         self.assertEqual(values[1], values[2])
+
+    def test_preflight_rejects_empty_gpu_ids(self):
+        result = preflight_report(
+            ROOT / "configs/stream_dynamic_v2/data_debug.yaml"
+        )
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("runtime.gpu_ids", result["missing_or_unresolved"])
+
+    def test_gpu_id_contract_is_nonempty_unique_nonnegative_integers(self):
+        for gpu_ids in ([], [1, 1], [-1], [True], ["1"], None):
+            with self.subTest(gpu_ids=gpu_ids):
+                self.assertFalse(_valid_gpu_ids(gpu_ids))
+        self.assertTrue(_valid_gpu_ids([1, 2]))
 
 
 if __name__ == "__main__":

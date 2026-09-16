@@ -2,7 +2,7 @@
 
 ## 当前结论
 
-P0～P3 的本地代码与 CPU 受控闭环已完成；P5 仅完成训练发布契约和三臂配置骨架。P4 冻结模型诊断、P5 真实 runtime 接线与 P6 GPU pilot 未运行。当前证据证明受控数据、版本环境、grounding、END/LIFE 数学和 monitor 等价契约可执行，**不证明模型学会动态记忆，也不证明 LIFE 优于 END。**
+P0～P3 的本地代码与 CPU 受控闭环已完成；远端 production Qwen3-4B tokenizer 数据和 CPU replay 也已由用户报告通过。P5 已实现模型 runtime producer、冻结 reader 分支、Trinity workflow 注册、完整 K×m 发布和 ddof=0 advantage operator，并通过 fake-policy 边界测试；尚未在远端 Ray/vLLM/veRL 上验证。P4 冻结模型诊断与 P6 GPU pilot 未运行。当前证据证明受控数据、版本环境、grounding、END/LIFE 数学和本地 runtime 契约可执行，**不证明模型学会动态记忆，也不证明 LIFE 优于 END。**
 
 协议身份：
 
@@ -48,6 +48,8 @@ P0～P3 的本地代码与 CPU 受控闭环已完成；P5 仅完成训练发布�
 
 这是 debug lexical tokenizer 的受控 D1，不是 Qwen production 数据，也不是规范建议的 400/80/120 完整训练池。
 
+2026-09-16，用户报告在远端提交 `4a134f249b57f29d56cdfacfb16b71a99400228b` 上完成 production Qwen3-4B tokenizer 构建与 CPU replay：build ID=`build_6356da44495c7078566d`，600 histories、6,000 queries，alpha=`5.002197265625C`，独立 Oracle issues=`0`、split overlap=`0`。对应四臂均值为 `V2_T=0.75`、`V2_END=0.90234375`、`V2_LIFE=V2_LIFE_MONITOR=0.875061765491453`；END/LIFE 在 2/4 轨迹不同，direct/compiled 最大差值为 `0.0`。这些远端 manifest/replay 文件尚未迁回本地核对 digest，因此记录为带明确代码/build 身份的用户报告结果，不扩展为本地复验或学习结论。
+
 ## P2：版本存储与 grounding
 
 已实现：
@@ -80,10 +82,10 @@ END/LIFE 在 2/4 条轨迹上不同。direct evaluator 与 compiled monitor 对 
 ## P4～P6 状态
 
 - P4：未运行。当前本地没有生产 Qwen tokenizer/model/reader lock，也没有可核验 GPU。
-- P5：三臂配置、30-update/10-step-dev 上限与完整 K×m 发布契约已实现；真实 model runtime producer 尚未实现，不能声称接入 trainer。
+- P5：三臂配置、30-update/10-step-dev 上限、模型 runtime producer、冻结 reader 分支、完整 K×m 发布契约、Trinity workflow 注册和 population-std advantage operator 已实现。本地 fake policy 测试覆盖 2×2 group、真实 `Experience` 字段、ActionEvent join、private observation 隔离与 reader token mask；Ray/vLLM/veRL 真实 trainer 接线仍未验证。
 - P6：未运行。不得用 CPU fixture、mock PASS 或参数变化替代学习结果。
 
-`preflight` 对 pilot 配置返回 exit 2，并列出未解析的 v1 runtime lock、初始化 checkpoint、policy/tokenizer/reader revision、retriever/grounder、optimizer、production manifest、frozen test manifest 和 GPU IDs。
+`preflight` 对 pilot 配置返回 exit 2，并列出未解析的 v1 runtime lock、初始化 checkpoint、policy/tokenizer/reader revision、retriever/grounder、optimizer、production manifest、frozen test manifest 和 GPU IDs。GPU ID 门禁拒绝 `null`、空列表、重复、负数、布尔值或其他非整数值；`runtime.gpu_ids=[]` 不再被误判为已配置。
 
 ## 实际验证命令
 
@@ -91,14 +93,14 @@ END/LIFE 在 2/4 条轨迹上不同。direct evaluator 与 compiled monitor 对 
 
 ```powershell
 python -m unittest discover -s tests\stream_dynamic_v2 -p '*_test.py'
-# 27 tests, OK
+# 30 tests, OK
 
 python scripts\agemem_dynamic_v2.py build-data --config configs\stream_dynamic_v2\data_debug.yaml
 python scripts\agemem_dynamic_v2.py validate-data --manifest runs\dynamic_v2\data_debug\manifest.json
 python scripts\agemem_dynamic_v2.py env-smoke --config configs\stream_dynamic_v2\data_debug.yaml
 python scripts\agemem_dynamic_v2.py replay --run-dir runs\dynamic_v2\cpu_fixture --profiles V2_T,V2_END,V2_LIFE,V2_LIFE_MONITOR
 python scripts\agemem_dynamic_v2.py compare-backends --run-dir runs\dynamic_v2\cpu_fixture
-python -m compileall -q AgeMem_code_agentscope\streaming_memory\dynamic trinity\common\dynamic_multiquery_contract.py trinity\common\workflows\memory_context\train_dynamic_multiquery.py scripts\agemem_dynamic_v2.py
+python -m py_compile AgeMem_code_agentscope\streaming_memory\dynamic\environment.py trinity\common\dynamic_multiquery_contract.py trinity\common\workflows\memory_context\dynamic_runtime_producer.py trinity\common\workflows\memory_context\train_dynamic_multiquery.py trinity\algorithm\advantage_fn\dynamic_v2_advantage.py scripts\agemem_dynamic_v2.py
 ```
 
 预期 blocked：
@@ -133,9 +135,9 @@ python -m unittest tests.common.m8_action_event_contract_test
 
 - 动态实现：`AgeMem_code_agentscope/streaming_memory/dynamic/{schema,config,world_generator,world_oracle,independent_validator,environment,temporal_grounder,state_evaluator,lifecycle_monitor,reward_profiles,checkpoint_probe,replay}.py`
 - CLI：`scripts/agemem_dynamic_v2.py`
-- 训练发布边界：`trinity/common/dynamic_multiquery_contract.py`、`trinity/common/workflows/memory_context/train_dynamic_multiquery.py`
+- 训练发布边界：`trinity/common/dynamic_multiquery_contract.py`、`trinity/common/workflows/memory_context/{dynamic_runtime_producer,train_dynamic_multiquery}.py`、`trinity/algorithm/advantage_fn/dynamic_v2_advantage.py` 及相应 registry import；`trinity/explorer/workflow_runner.py` 保留动态 bench Experience 供严格审计
 - 配置：`configs/stream_dynamic_v2/{base,data_debug,replay,frozen_diagnostic,pilot_terminal,pilot_end,pilot_life}.yaml`
-- 测试：`tests/stream_dynamic_v2/` 下 4 个测试模块
+- 测试：`tests/stream_dynamic_v2/` 下 5 个测试模块
 - 文档：本报告、`docs/v2_current_implementation_audit.md`、`docs/v2_baseline_fidelity.md`、`STATUS.md`
 - 用户提供的根规范 `AGEMEM_DYNAMIC_LOGIC_INCREMENTAL_SPEC_V2.md` 保持原文，未把它当成已完成状态。
 
@@ -147,7 +149,7 @@ python -m unittest tests.common.m8_action_event_contract_test
 
 1. 在远端把实际 v1 runtime lock、Qwen policy/tokenizer/reader revision、初始化 checkpoint、optimizer 与 GPU IDs 写入三臂共享锁。
 2. 用冻结 Qwen tokenizer 在新 output root 构建 production 5C，并验证参考记忆同时满足 B 和 query prompt C；冻结 test 后不查看。
-3. 实现真实 runtime producer，将 checkpoint/retrieval payload/reader branch 与 action IDs 接入 v2 bundle；做 K=2,m=2 单组 smoke。
-4. 固定 24～40 dev histories 做一次共享冻结 rollout，离线重放 T/END/LIFE；报告自然 grounder unclear、group std、END-LIFE 差异和成本。
+3. 在远端先运行 runtime/registry 单测，再配置仅 1 个 history、K=2、m=2 的 Trinity bench smoke；核对完整组、ActionEvent、reader token=0、policy version 和预算 receipt。该步需要 GPU，但不做 optimizer update。
+4. smoke 通过后，固定 24～40 dev histories 做一次共享冻结 rollout，离线重放 T/END/LIFE；报告自然 grounder unclear、group std、END-LIFE 差异和成本。
 5. 自由摘要若要进入语义训练，先完成约 200 个去重的 source/content/time 分层审计并达到预冻结门槛；否则继续 controlled/extractive 臂。
 6. 门禁通过后才按每臂最多 30 update、每 10 step dev、seed 7 跑 V2_T/V2_END/V2_LIFE；不跑等价 monitor GPU 臂。

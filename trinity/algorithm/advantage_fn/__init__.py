@@ -4,6 +4,9 @@ from trinity.algorithm.advantage_fn.advantage_fn import (
     GroupAdvantage,
 )
 from trinity.algorithm.advantage_fn.asymre_advantage import ASYMREAdvantageFn
+from trinity.algorithm.advantage_fn.dynamic_v2_advantage import (
+    DynamicV2StepWiseGRPOAdvantageFn,
+)
 from trinity.algorithm.advantage_fn.grpo_advantage import (
     GRPOAdvantageFn,
     GRPOGroupedAdvantage,
@@ -40,4 +43,5 @@ __all__ = [
     "REINFORCEGroupAdvantage",
     "ASYMREAdvantageFn",
     "RECGroupedAdvantage",
+    "DynamicV2StepWiseGRPOAdvantageFn",
 ]
