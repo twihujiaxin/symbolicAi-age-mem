@@ -1,4 +1,4 @@
-"""Prepare on CPU, then sample eight first actions with one local vLLM GPU."""
+"""Prepare on CPU, then sample locked first actions with one local vLLM GPU."""
 from __future__ import annotations
 
 import argparse
@@ -142,7 +142,7 @@ def prepare(args):
     (args.output_dir / "plan.public.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({"status": "prepared_cpu", "plan": str(args.output_dir / "plan.public.json"),
                       "sampling": plan["sampling"], "enable_thinking": thinking,
-                      "model_call_count": 8, "response_token_upper_bound": plan["response_token_upper_bound"],
+                      "model_call_count": plan["model_call_count"], "response_token_upper_bound": plan["response_token_upper_bound"],
                       "max_prompt_plus_output": max(len(case["prompt_token_ids"]) for case in plan["cases"])
                           + plan["sampling"]["max_tokens"],
                       "reader_calls": 0, "optimizer_updates": 0}, indent=2))

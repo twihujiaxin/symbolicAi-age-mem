@@ -16,6 +16,66 @@ from AgeMem_code_agentscope.streaming_memory.token_budget import DebugLexicalTok
 
 
 class FirstActionProbeTest(unittest.TestCase):
+    def multichunk_fixture(self):
+        h, accounting, budget, sampling = self.fixture()
+        chunks = tuple(DynamicPublicChunk(chunk_id=f"chunk-{i}", observed_at=i,
+                       text=f"FIRST_FACT_{i}\nSECOND_FACT_{i}",
+                       source_refs=(f"source-{i}-first", f"source-{i}-second"), content_token_count=10)
+                       for i in range(5))
+        return h.model_copy(update={"chunks": chunks}), accounting, budget, sampling
+
+    def test_v3_chunk_selection_example_ablation_and_isolation(self):
+        h, accounting, budget, sampling = self.multichunk_fixture()
+        plan = build_plan(h, accounting, budget, sampling, comparison="single_vs_no_example_v3")
+        self.assertEqual(plan["chunk_indices"], [0, 2, 4])
+        self.assertEqual(plan["model_call_count"], 12)
+        self.assertEqual(plan["response_token_upper_bound"], 6144)
+        self.assertEqual(plan["probe_version"], "agemem.dynamic.first_action_probe.v3")
+        for with_example, without_example in zip(plan["cases"][::2], plan["cases"][1::2]):
+            self.assertEqual(with_example["seed"], without_example["seed"])
+            self.assertEqual(with_example["messages"][0], without_example["messages"][0])
+            self.assertEqual(with_example["messages"][-1], without_example["messages"][-1])
+            self.assertEqual(with_example["messages"][1]["content"].split("\nADD FORMAT EXAMPLE")[0],
+                             without_example["messages"][1]["content"])
+            self.assertNotIn("ADD FORMAT EXAMPLE", str(without_example["messages"]))
+            index = with_example["chunk_index"]
+            self.assertIn(f"SECOND_FACT_{index}", str(without_example["messages"]))
+            for other in set(range(5)) - {index}:
+                self.assertNotIn(f"FACT_{other}", str(without_example["messages"]))
+
+    def test_v3_nonfirst_fact_metrics_and_zero_write_are_honest(self):
+        h, accounting, budget, sampling = self.multichunk_fixture()
+        plan = build_plan(h, accounting, budget, sampling, comparison="single_vs_no_example_v3")
+        def generate(prompts, params):
+            outputs = []
+            for case, ids in zip(plan["cases"], prompts):
+                index = case["chunk_index"]
+                text = '[{"name":"NEXT","arguments":{}}]' if case["profile"] == "single_action_probe_v2" else json.dumps([
+                    {"name": "ADD", "arguments": {"memory_id": "m1", "content": f"SECOND_FACT_{index}",
+                                                   "source_refs": [f"source-{index}-second"]}}])
+                outputs.append({"prompt_token_ids": ids, "response_text": text, "response_token_ids": [1] * 80})
+            return outputs
+        rows, report = execute_probe(plan, accounting, generate)
+        self.assertEqual(len(rows), 12)
+        self.assertEqual(report["arms"]["single_action_probe_v2"]["admitted_writes"], 0)
+        arm = report["arms"]["single_action_no_example_v3"]
+        self.assertEqual(arm["sample_count"], 6)
+        self.assertEqual(arm["admitted_writes_by_chunk"], {"0": 2, "2": 2, "4": 2})
+        self.assertEqual(arm["first_sentence_count"], 0)
+        self.assertEqual(arm["nonfirst_fact_count"], 6)
+        self.assertFalse(report["sequential_ingest_checked"])
+        self.assertEqual(report["independent_history_count"], 1)
+
+    def test_v3_selection_tamper_and_too_few_chunks_rejected(self):
+        h, accounting, budget, sampling = self.multichunk_fixture()
+        plan = build_plan(h, accounting, budget, sampling, comparison="single_vs_no_example_v3")
+        plan["chunk_indices"] = [0, 1, 4]
+        with self.assertRaises(ValueError):
+            execute_probe(plan, accounting, lambda *_: self.fail("no model call"))
+        with self.assertRaisesRegex(ValueError, "at least three"):
+            build_plan(h.model_copy(update={"chunks": h.chunks[:2]}), accounting, budget, sampling,
+                       comparison="single_vs_no_example_v3")
+
     def test_v2_comparison_changes_only_single_action_system_suffix(self):
         h, accounting, budget, sampling = self.fixture()
         old = build_plan(h, accounting, budget, sampling)

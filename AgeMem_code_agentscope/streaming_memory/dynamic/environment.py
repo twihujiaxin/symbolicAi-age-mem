@@ -149,6 +149,7 @@ class DynamicMemoryEnvironment:
         answer_tail_tokens: int,
         retrieval_payload_tokens: int,
         ingest_system: str | None = None,
+        include_add_format_example: bool = True,
     ) -> None:
         self.history = history
         self.accounting = accounting
@@ -159,6 +160,9 @@ class DynamicMemoryEnvironment:
         self.answer_tail_tokens = answer_tail_tokens
         self.retrieval_payload_tokens = retrieval_payload_tokens
         self.ingest_system = DYNAMIC_INGEST_SYSTEM if ingest_system is None else ingest_system
+        if type(include_add_format_example) is not bool:
+            raise DynamicEnvironmentError("include_add_format_example_must_be_boolean")
+        self.include_add_format_example = include_add_format_example
         if not isinstance(self.ingest_system, str) or not self.ingest_system.strip():
             raise DynamicEnvironmentError("ingest_system_required")
         self._active: dict[str, dict[str, Any]] = {}
@@ -281,10 +285,10 @@ class DynamicMemoryEnvironment:
             "memory_id": example_id, "content": chunk.text.split("\n")[0],
             "source_refs": [chunk.source_refs[0]],
         }}]
-        chunk_message = render_public_chunk(chunk) + (
+        chunk_message = render_public_chunk(chunk) + ((
             "\nADD FORMAT EXAMPLE (choose your own actions/facts, not a required step): "
             + _canonical(example)
-        )
+        ) if self.include_add_format_example else "")
         self._context.append(
             _ContextGroup(
                 group_id=chunk.chunk_id,

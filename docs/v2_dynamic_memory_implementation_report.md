@@ -2,6 +2,32 @@
 
 ## 当前结论
 
+### 2026-09-16 跨chunk/具体例消融本地实现（v3）
+
+用户确认下一步后，新增可选comparison single_vs_no_example_v3，不自动运行GPU。稳定选同一冻结train history首/中/末公开chunk，至少3chunk才接受；每chunk两对seed7/8，总12次独立首动作，不连续阅读、不共享memory、不按gold选chunk。两条件完全相同single-action system，处理仅移除当前chunk具体ADD例，全部公开正文/source ID仍可见。主环境boolean include_add_format_example默认True，不变更旧主协议/配置/reward。v1/v2比较保留，v3锁定chunk_indices/reading_mode/实际cases与12call预算，run/execute重建一致性检查。新增首句/非首句精确匹配、max-token hit和逐chunk写入统计，无奖励或强制非首句。
+
+本地实测V2 **61 PASS**，旧回归 **31 PASS/3环境性SKIP**，diff-check PASS。新增3测试：公开chunk `[0,2,4]`确定选择、paired seed/system相同、仅删例且其他正文不变/其他chunk不可见；12case非首句合法执行和零写入真实计数；chunk选择篡改/不足3chunk拒绝。CPU fixture不是自然语义PASS。远端新CPU部署/prepare待执行，GPU前再次确认，预算单GPU1/12×最多512=6144response tokens，无reader/optimizer/API。命令见 docs/v2_cross_chunk_probe.md。
+
+### 2026-09-16 用户授权物理GPU1后的真实v2探针结果
+
+执行前物理GPU1 A6000占用24MiB、0%且无compute进程；HEAD=a76b8e9、干净工作区，results/run.log不存在。使用已冻结plan（digest bb6a356d24b57d73f8389617d8e36bacbb51395ffd14d9a5d299979345c4dce5），仅8次采样，GPU1/TP1/BF16/utilization0.55/vLLM0.10.2/thinkingFalse。对照task-explicit **3NEXT+1invalid_json(length512)，0写入**；single-action **4ADD/4parse_ok/4admitted/4exact-body**，seed7–10，每条response70tokens、memory68tokens，正文均为“自第 1 日起，星河项目0000的负责人为成员甲0000。”，source ID与公开首句一致。环境revision0→1，无截断；四份独立空memory中m1不构成重复ID。
+
+实际prompt11912tokens、response828tokens；engine_startup20.761172s、sampling8.745864s、total29.794555s。reader/optimizer0，无训练、API或其他GPU启动。对照response文本及token IDs与上轮完全一致。独立复验plan/report提交/digest、代码SHA、config/tokenizer SHA、权重统计、行数、C/B和四条公开正文匹配PASS（非完整权重SHA）。远端Git干净，GPU结束后24MiB/0%，无强制终止其他任务。
+
+结果仍在 `single-action-probe-a76b8e9-20260916-203631/results`。report SHA256=`21d2e6668b009e87f53d0f7633262588d2f36a6070bcaff8f130fa5623beec69`；actions=`db8b003592473afb0dc9304037123144504958b51ec65d3eb7a9272b950c0a68`；run.log=`fd970862eb6e4dec4e9e80783a3f7e414044ca9716112728e4cc46ba60405232`。模型run返回正常并输出GPU_PROBE_COMPLETE，但随后shell最后一条git status因PowerShell管道末尾CRLF报未知开关，整个SSH命令exit1；单独Python调用Git已确认干净，不能将该后置命令错误计为模型失败，也未重复采样。
+
+研究边界：四条ADD都是公开格式例里的同一首句，存在示例照抄混杂；不能由4/4推广为稳定事实选择或整段信息保留。精确正文/time核对不代替一般语义grounder，未验收非示例事实、后续工具交互、跨chunk、memory必要性、END/LIFE奖励、非零advantage或学习有效。建议下一步先冻结小规模跨chunk/非示例事实诊断，不直接启动完整GPU训练；新增GPU运行需用户再次确认。本轮记录仅本地更新，未再提交/改变远端锁定HEAD。
+
+### 2026-09-16 单动作对照远端CPU部署验收（GPU暂停）
+
+提交 `a76b8e911a5dcd9e9d67ec5bffe05b6bbdc62887` 已推送fix/training-protocol并快进同步tx-06，未改变全局GitHub代理。远端实测V2 **58 PASS**、旧协议 **34 PASS，无SKIP**。正式CPU prepare完成，CUDA_VISIBLE_DEVICES空值，未运行模型采样。新plan目录：
+
+`/data/hjx/Age_mem/runtime-v2-smoke-783d785-20260916-112222/single-action-probe-a76b8e9-20260916-203631`
+
+独立只读复验 **INDEPENDENT_CPU_PLAN_VERIFY_PASS**：digest=`bb6a356d24b57d73f8389617d8e36bacbb51395ffd14d9a5d299979345c4dce5`，提交、代码SHA、model/config/tokenizer文件SHA、权重统计、实际prompt IDs重建通过。新旧comparison的history/model/budget/sampling相同，task-explicit对照messages/token IDs/seed与上轮逐项一致。task-explicit1443、新提示1535prompttokens，最大prompt+output2047≤C4096，B2048，max_tokens512，temperature0.6/top_p1/top_k-1，thinkingFalse，四对seed7–10，版本first_action_probe.v2/comparison task_vs_single_v2。远端工作区干净，results/run.log尚不存在，历史目录完整保留。
+
+实际model/reader/optimizer调用0。待用户确认的GPU命令为 `python scripts/agemem_dynamic_v2_first_action_probe.py run --plan <上述目录>/plan.public.json --output-dir <上述目录>/results`，单物理GPU1、TP1/BF16/utilization0.55、8completions/最多4096response tokens、无reader/训练/API；执行前检查卡资源和既有结果。禁止在确认前运行GPU。完整权重SHA、自然语义、写入改善、全流式表现、非零advantage和学习有效均未验证。本段实测记录本地暂未再提交，不使既有plan锁定HEAD失效。
+
 ### 2026-09-16 首轮 GPU负结果与独立单动作对照
 
 直接只读远端 report/actions/log，HEAD=c4f7fcb、干净工作区。真实单A6000/vLLM0.10.2/thinkingFalse/temperature0.6：legacy4NEXT；task-explicit3NEXT和1invalid_json，后者512tokens/finish_reason=length，是连续多ADD后截断。成功写入均0，不能推进无信号pilot。只读解码的7个完整ADD与首公开chunk正文/ID/时间一致，不修补、不执行。实际8calls、prompt11052tokens、response595tokens；engine15.403s、sampling8.399s、total24.094s，reader/optimizer0。身份/文件统计/行数/预算核验通过，完整权重hash未核验。
