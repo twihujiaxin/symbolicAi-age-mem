@@ -2,6 +2,22 @@
 
 ## 当前结论
 
+### 2026-09-16 retry3 当前结论（覆盖下面 retry2 时点状态）
+
+远端用户报告 204 Experiences，203 条非数组 JSON（示例为完整 ACTION-key 对象），1 条 `[{"name":"ACTION","arguments":{"type":"ADD",...}}]` 被日志记为 ACTION/ok。已在本地复现 `arguments.type` 覆盖 name 的实际 bug：该条执行 ADD，但 ActionEvent 标签与 write_count 按 ACTION 记录。不能再用旧 count=0 推断实际完全没有写入，也不能把 pointer 合法/正文看似正确写成语义验收。该次 receipt reward_mean/reward_std=0、nonzero_advantage_rollouts=0，**仍未通过 smoke，不具备已观测的 GRPO 学习信号**。203 条完整对象不符合严格数组协议；当前证据不支持把 retry3 主因归于截断。
+
+本次已实现 action-interface v3（reward/profile 身份不变）：
+
+- 独立 CPU public-action parser 校验完整 JSON 单元素数组与 name/arguments envelope；合法名称仅 ADD/UPDATE/DELETE/RETRIEVE/NEXT，拒绝 arguments.type、重复 JSON keys、非有限常量、多动作和截断。旧 tagged/default parser 未改。
+- 执行动作 type 由已校验 name 最后赋值；准备 draft 使用同一原始响应的真实 spans，不加入合成字符。非法响应不产生 ActionEvent。
+- 移除 ACTION 占位名称。system 给具体 NEXT 例，当前公开 chunk 给具有真实公开正文/ref 的完整 ADD 例，不使用 private registry/gold，也不强制任何动作顺序。例子是格式条件，不是支持事实提示；所有后续实验臂须统一采用 v3 格式条件。
+- 非法响应按 not_array/unknown_action/reserved_type_argument 等分类，返回具体纠错；receipt 的 successful write 与 ActionEvent/执行名称一致。
+- `scripts/agemem_dynamic_v2_response_audit.py` 只读分类旧落盘，不修补、不执行动作；`--verify-runtime` 对 v3 K2/m2 检查实际响应名称与 info/event 连接、唯一 action IDs、policy version、快照/问题分支数、成功写入计数和答案正文隔离。JSON exporter 不含原始完整 model tensors，故该脚本不声称重新验收全部 token/logprob；语义质量及学习效果也明确未检查。
+
+实测命令：`python -m unittest discover -s tests/stream_dynamic_v2 -p '*_test.py'` → **47 tests PASS**。旧 action/streaming scope 34 项 → **31 PASS / 3 环境性 SKIP**。包括 retry3 两类真实形状的公开替代 fixture、203+1 只读分类计数、非法响应→具体反馈→正确 ADD 的完整 fake-policy 2×2 group、原始 span/draft/finalize、持久化 audit、标签/计数篡改拒绝。语义测试的 debug fixture C 从 260 调至 400，为新增公开 ADD 例及 receipts 留空间，专门的极小 C 拒绝测试保留；实际 production C/B、旧配置、manifest 和 checkpoint 均未更改。
+
+未验证：真实 retry3 全文件离线审计（本地仅有用户分类/样例）、本地完整 datasets/Qwen CLI、远端 v3 production-tokenizer prompt preflight、GPU retry4、自然正文/source/time 正确率、trainer update。此前 retry3 时点的“GPU未运行”段落为历史；已运行但失败的 retry3 以上述新段为准。下一步命令见 `docs/v2_runtime_retry4.md`，部署前需要提交/同步本次改动。
+
 2026-09-16 retry2 已恢复 Experience 持久化，但用户实测 204 responses 全为 invalid_action，ActionEvent=0。完整裸 JSON NEXT 未识别；ADD 示例同时存在多动作、512-token 截断、虚构 source_refs 和重复 memory ID。**这是实际工程失败，不是模型学习结果，也不是 smoke PASS。** vLLM 当前使用 skip_special_tokens=True，标签可能在解码时消失；没有原始 token-ID 审计，不能断言这些响应原本有没有标签。
 
 本次增量修复：V2 执行与 ActionEvent draft 显式共用裸数组解析，原响应不加字符，旧三阶段默认行为不变；V2 只接纳一个完整 JSON action envelope，截断/多动作/额外正文继续判失败。公开输入按生成器的逐句/ref 顺序展示 `[ID] 正文`，manifest validator 对 public line 与 reward-side registry 的正文、history 和 observed_at 做精确连接验证；policy 不读 registry。提示词精简到单动作、唯一 memory_id、复制真实 source ID，全部新增渲染成本仍计 C。动作接口身份新增 `agemem.dynamic.action_interface.v2`，不修改旧 reward/profile 身份。receipt 新增 invalid_response_count 与 admitted_memory_write_count，避免 NEXT-only 被误解为记忆成功。
@@ -101,7 +117,7 @@ END/LIFE 在 2/4 条轨迹上不同。direct evaluator 与 compiled monitor 对 
 
 ```powershell
 python -m unittest discover -s tests\stream_dynamic_v2 -p '*_test.py'
-# 40 tests, OK（2026-09-16 动作接口修复后）
+# 47 tests, OK（2026-09-16 v3 动作接口修复后）
 
 python scripts\agemem_dynamic_v2.py build-data --config configs\stream_dynamic_v2\data_debug.yaml
 python scripts\agemem_dynamic_v2.py validate-data --manifest runs\dynamic_v2\data_debug\manifest.json

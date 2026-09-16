@@ -18,6 +18,7 @@ from AgeMem_code_agentscope.streaming_memory.dynamic.environment import (
     DynamicMemorySnapshot,
     canonical_dynamic_payload,
 )
+from AgeMem_code_agentscope.streaming_memory.dynamic.action_parser import parse_public_action
 from AgeMem_code_agentscope.streaming_memory.dynamic.reward_profiles import (
     DynamicReward,
     aggregate_dynamic_reward,
@@ -64,7 +65,7 @@ from trinity.common.streaming_multiquery_contract import ReadActorSample
 
 
 RUNTIME_PRODUCER_VERSION = "agemem.dynamic.runtime_producer.v1"
-ACTION_INTERFACE_VERSION = "agemem.dynamic.action_interface.v2"
+ACTION_INTERFACE_VERSION = "agemem.dynamic.action_interface.v3"
 INGEST_STAGE_ID = 1
 
 
@@ -151,26 +152,21 @@ def actor_sample_from_experience(
 def _one_public_action(response_text: str) -> tuple[str, dict[str, Any]] | None:
     # Unlike the legacy tolerant protocol, V2 admits exactly one complete JSON
     # array and no surrounding prose, extra envelopes or synthetic repairs.
-    payload = response_text.strip()
-    if payload.startswith("<tool_call>") and payload.endswith("</tool_call>"):
-        payload = payload[len("<tool_call>") : -len("</tool_call>")].strip()
+    parsed = parse_public_action(response_text)
+    if parsed.code != "ok":
+        return None
     try:
-        value = json.loads(payload)
-        if not isinstance(value, list) or len(value) != 1:
-            return None
         calls = parse_tool_calls_with_char_spans(
             response_text, allow_bare_json_array=True
         )
-    except (ActionContractError, json.JSONDecodeError):
+    except ActionContractError:
         return None
     if len(calls) != 1 or not isinstance(calls[0].call, dict):
         return None
     call = calls[0].call
-    name = call.get("name")
-    arguments = call.get("arguments", {})
-    if not isinstance(name, str) or not name or not isinstance(arguments, dict):
+    if call != {"name": parsed.name, "arguments": parsed.arguments}:
         return None
-    return name, dict(arguments)
+    return parsed.name, parsed.arguments
 
 
 class DynamicRuntimeProducer:
@@ -339,10 +335,11 @@ class DynamicRuntimeProducer:
                     ).hexdigest()[:6],
                 )
                 parsed = _one_public_action(experience.response_text)
+                parse_code = parse_public_action(experience.response_text).code
                 if parsed is None:
                     action_name, arguments = "<invalid_tool_call>", {}
                     result = environment.execute(
-                        {"type": "<invalid_tool_call>"},
+                        {"type": "<invalid_tool_call>", "format_error": parse_code},
                         response_text=experience.response_text,
                     )
                     action_id = (
@@ -360,7 +357,9 @@ class DynamicRuntimeProducer:
                         assistant_turn_id=timestep,
                         allow_bare_json_array=True,
                     )
-                    action = {"type": action_name, **arguments}
+                    # The public grammar forbids arguments.type; keep the
+                    # authoritative parsed name last as defense in depth.
+                    action = {**arguments, "type": action_name}
                     result = environment.execute(
                         action, response_text=experience.response_text
                     )
@@ -389,6 +388,7 @@ class DynamicRuntimeProducer:
                     {
                         "dynamic_runtime_producer": RUNTIME_PRODUCER_VERSION,
                         "dynamic_action_interface": ACTION_INTERFACE_VERSION,
+                        "dynamic_action_parse_code": parse_code,
                         "dynamic_action_id": action_id,
                         "dynamic_action_type": action_name,
                         "dynamic_action_admitted": result.admitted,

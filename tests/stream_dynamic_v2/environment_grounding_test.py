@@ -71,7 +71,9 @@ def history(memory=300):
     return DynamicHistoryPublic(
         history_id="h",
         history_family_id="f",
-        context_budget_tokens=260,
+        # V3 adds a public, complete ADD example; semantic tests need room for
+        # that prompt plus receipts. Dedicated small-C tests still fail closed.
+        context_budget_tokens=400,
         memory_budget_tokens=memory,
         chunks=(
             DynamicPublicChunk(
@@ -124,7 +126,7 @@ class DynamicEnvironmentGroundingTest(unittest.TestCase):
         }
         maximum = check_history(history(), accounting, budget)
         self.assertGreater(maximum, 40)
-        self.assertLessEqual(maximum, 260)
+        self.assertLessEqual(maximum, history().context_budget_tokens)
         too_small = history().model_copy(update={"context_budget_tokens": 40})
         with self.assertRaisesRegex(DynamicEnvironmentError, "satisfy C"):
             check_history(too_small, accounting, budget)

@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import hashlib
 import importlib.util
 import json
@@ -128,6 +129,13 @@ class DynamicRuntimeProducerTest(unittest.TestCase):
         with self.assertRaises(ActionContractError):
             parse_tool_calls_with_char_spans(valid[:-1], allow_bare_json_array=True)
 
+    def test_unknown_name_and_reserved_type_never_reach_execution(self):
+        for text in (
+            '[{"name":"ACTION","arguments":{"type":"ADD"}}]',
+            '[{"name":"ADD","arguments":{"type":"NEXT"}}]',
+        ):
+            self.assertIsNone(RUNTIME_MODULE._one_public_action(text))
+
     def test_bare_model_group_uses_same_contract_as_tagged_group(self):
         original = globals()["tool_call"]
         try:
@@ -234,7 +242,12 @@ class DynamicRuntimeProducerTest(unittest.TestCase):
         )
         return history, public, private, events, registry
 
-    def test_model_group_reaches_experience_and_ddof0_advantage(self):
+    def test_invalid_response_feedback_then_correct_add_preserves_group_and_counts(self):
+        self.test_model_group_reaches_experience_and_ddof0_advantage(
+            invalid_prefix='{"ACTION":"ADD","arguments":{"memory_id":"m0"}}'
+        )
+
+    def test_model_group_reaches_experience_and_ddof0_advantage(self, invalid_prefix=None):
         memory = {
             "memory_id": "m0",
             "content": (
@@ -256,9 +269,10 @@ class DynamicRuntimeProducerTest(unittest.TestCase):
                 },
             ],
         }
-        policy = FakePolicy(
-            [tool_call("ADD", memory), tool_call("NEXT"), tool_call("NEXT")]
-        )
+        responses = [tool_call("ADD", memory), tool_call("NEXT"), tool_call("NEXT")]
+        if invalid_prefix:
+            responses.insert(0, invalid_prefix)
+        policy = FakePolicy(responses)
         reader_messages = []
 
         async def reader(messages):
@@ -283,7 +297,7 @@ class DynamicRuntimeProducerTest(unittest.TestCase):
                 "answer_max_new_tokens": 64,
                 "answer_tail_tokens": 64,
                 "retrieved_payload_tokens": 1024,
-                "max_decisions_per_chunk": 2,
+                "max_decisions_per_chunk": 3 if invalid_prefix else 2,
             },
             "data": {
                 "memory_rollouts_per_group": 2,
@@ -317,7 +331,13 @@ class DynamicRuntimeProducerTest(unittest.TestCase):
         self.assertEqual(produced.receipt["runtime_producer_version"], RUNTIME_PRODUCER_VERSION)
         self.assertEqual(produced.receipt["read_rollout_count"], 2)
         self.assertEqual(produced.receipt["query_branch_count"], 4)
-        self.assertEqual(len(produced.experiences), 3)
+        self.assertEqual(produced.receipt["action_interface_version"], "agemem.dynamic.action_interface.v3")
+        self.assertEqual(produced.receipt["admitted_memory_write_count"], 1)
+        self.assertEqual(len(produced.experiences), 4 if invalid_prefix else 3)
+        self.assertEqual(produced.receipt["invalid_response_count"], 1 if invalid_prefix else 0)
+        if invalid_prefix:
+            self.assertEqual(produced.experiences[0].info["dynamic_action_code"], "invalid_response:not_array")
+            self.assertIn("An array is required", str(policy.messages[1][0]))
         self.assertEqual(len(reader_messages), 4)
         self.assertTrue(all("QUESTION" not in str(item[0]) for item in policy.messages))
         self.assertTrue(all(exp.info["phase"] == "ingest" for exp in produced.experiences))
@@ -331,8 +351,31 @@ class DynamicRuntimeProducerTest(unittest.TestCase):
             finalize_experience_action_contract(
                 exp, policy_version="model_version:0"
             )
+            if exp.info["dynamic_action_type"] == "<invalid_tool_call>":
+                self.assertFalse(exp.info.get(ACTION_EVENTS_KEY))
+                continue
             self.assertEqual(len(exp.info[ACTION_EVENTS_KEY]), 1)
+            self.assertEqual(exp.info["dynamic_action_parse_code"], "ok")
+            self.assertEqual(exp.info[ACTION_EVENTS_KEY][0]["action_type"], exp.info["dynamic_action_type"])
         validate_on_policy_experiences(list(produced.experiences))
+        path = ROOT / "scripts/agemem_dynamic_v2_response_audit.py"
+        spec = importlib.util.spec_from_file_location("dynamic_persisted_audit_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        produced.experiences[0].info["dynamic_group_receipt"] = produced.receipt
+        rows = [exp.to_dict() for exp in produced.experiences]
+        audited = module.verify_runtime(rows)
+        self.assertEqual(audited["admitted_memory_write_count"], 1)
+        self.assertFalse(audited["learning_effectiveness_checked"])
+        tampered = copy.deepcopy(rows)
+        valid_row = next(row for row in tampered if row["info"].get(ACTION_EVENTS_KEY))
+        valid_row["info"][ACTION_EVENTS_KEY][0]["action_type"] = "ACTION"
+        with self.assertRaises(AssertionError):
+            module.verify_runtime(tampered)
+        tampered = copy.deepcopy(rows)
+        tampered[0]["info"]["dynamic_group_receipt"]["admitted_memory_write_count"] = 0
+        with self.assertRaises(AssertionError):
+            module.verify_runtime(tampered)
 
         self.assertEqual(
             {

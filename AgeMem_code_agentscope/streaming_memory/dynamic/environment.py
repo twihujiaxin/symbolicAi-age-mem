@@ -10,15 +10,16 @@ from typing import Any, Mapping, Sequence
 
 from ..token_budget import BudgetError, TokenAccounting
 from .schema import DynamicHistoryPublic, PROTOCOL_VERSION, project_public_observation
+from .action_parser import format_error_feedback
 
 
 DYNAMIC_INGEST_SYSTEM = (
     "Keep stream facts and times/history. Questions hidden. "
-    "Exactly ONE action: ADD/UPDATE/DELETE/RETRIEVE/NEXT. No batches or prose. Return "
-    "<tool_call>[{\"name\":\"ACTION\",\"arguments\":{...}}]</tool_call>. "
+    "ONE action: ADD/UPDATE/DELETE/RETRIEVE/NEXT. No prose. JSON array, not object: "
+    '[{"name":"NEXT","arguments":{}}]. '
     "ADD: fresh unique memory_id, content, source_refs copied from sentence [ID]. "
     "UPDATE: existing memory_id, new content/source_refs. Never invent source IDs. "
-    "Short complete JSON; omit optional fields. DELETE/RETRIEVE: memory_id. "
+    "name selects action; no arguments.type. DELETE/RETRIEVE: memory_id. "
     "NEXT: empty arguments."
 )
 
@@ -267,10 +268,23 @@ class DynamicMemoryEnvironment:
         if self._next_chunk >= len(self.history.chunks):
             raise StopIteration("all chunks were shown")
         chunk = self.history.chunks[self._next_chunk]
+        # A complete ADD example grounded only in the already public chunk.
+        # It conveys grammar, not gold relevance or a mandatory storage order.
+        example_id = f"m{self._memory_revision + 1}"
+        while example_id in self._active:
+            example_id += "x"
+        example = [{"name": "ADD", "arguments": {
+            "memory_id": example_id, "content": chunk.text.split("\n")[0],
+            "source_refs": [chunk.source_refs[0]],
+        }}]
+        chunk_message = render_public_chunk(chunk) + (
+            "\nADD FORMAT EXAMPLE (choose your own actions/facts, not a required step): "
+            + _canonical(example)
+        )
         self._context.append(
             _ContextGroup(
                 group_id=chunk.chunk_id,
-                messages=[{"role": "user", "content": render_public_chunk(chunk)}],
+                messages=[{"role": "user", "content": chunk_message}],
                 source_refs=set(chunk.source_refs),
             )
         )
@@ -459,6 +473,9 @@ class DynamicMemoryEnvironment:
             public_message = f"MEMORY {displayed_revision}\n{displayed}"
         elif not success:
             public_message = f"ERROR {code}"
+            if action_type == "<INVALID_TOOL_CALL>" and "format_error" in action:
+                code = "invalid_response:" + str(action["format_error"])
+                public_message = format_error_feedback(str(action["format_error"]))
         receipt_messages = []
         if response_text is not None:
             receipt_messages.append({"role": "assistant", "content": response_text})
