@@ -2,6 +2,36 @@
 
 ## 当前结论
 
+### 2026-09-16 CPU推理审计与有限顺序诊断实现
+
+用户确认先审计再有限顺序诊断后，已直接只读CPU核验四轮实际plan/actions：所有thinkingFalse模板prompt IDs完全重建；tokenizer EOS/PAD/vocab上界、config qwen3/2560/36层、embedding[151936,2560]及tie_word_embeddings声明无明显错配。实际版本与源seed.manual_seed、输出request_id排序核对见 docs/v2_inference_audit_and_sequential_probe.md。12个同输入/采样/seed/model/backend重复组中6组tokens不同，其中3组动作/解析不同，批次布局条件未隔离，不能推断确切原因或stable收益；没有追加GPU复现实验。CPU已计算全部三权重SHA，仅观测文件身份未核对官方固定revision，历史报告不追改。
+
+新sequential_ingest_diagnostic.v1代码使用既有single_action_no_example_v3，不继续调提示。取同一冻结history前3连续公开chunk、两份独立memory；serial逐动作反馈，NEXT或max3的外部checkpoint结束chunk，全部实际调用C/B核验。最多18calls/9216response tokens，无reader/Oracle/gold/问题/Experience/trainer/奖励，不声称短prefix满足原长流alpha/记忆必要性/GRPO组。导出逐action即刻flush与最终snapshot/checkpoints，失败保留记录。CPU prepare复用原probe代码/identity辅助，新增自身SHA/HEAD/source digest锁定，GPU run前和逐调用验证contract。
+
+本地 **67 V2 PASS**，旧 **31 PASS/3环境性SKIP**，diff-check PASS。新增4tests覆盖persistent memory/逐调用反馈/rollout隔离/18上限、invalid不修补并反馈/真实零memory、tamper/超token拒绝，以及CPU CLI source seal/prepare/identity完整资源替身；无测试重复导入膨胀，mock不代表自然顺序模型成功。远端新CPU部署/prepare待执行；GPU未运行，需确认单GPU1/18call预算。完整Experience ActionEvents/token/logprob/on-policy合同、reader/m问题、END/LIFE及学习均未验收。
+
+### 2026-09-16 v4真实GPU负结果（不迁入主协议）
+
+用户确认后检查物理GPU1 A6000为24MiB/0%、无compute进程，1b87cc6工作区干净，新results/run.log不存在。仅运行冻结12case，正常exit0，plan digest2b835a8c660b2433f7c51c1f66fa2ac69b9334020ac06990320705874ed3a04e。原去例对照3ADD/3invalid_json，parse_ok3/6、成功写入3/6；结构处理3NEXT/2invalid_json/1ADD，parse_ok4/6、成功写入1/6，逐chunk0/17/33写入对照1/1/1、处理0/1/0。无max-token hit、无占位符误抄。
+
+公开原文逐项人工核对：对照三条保存项目负责人/第1日起、背景实体0377区域3830/第6日起、背景实体0730区域9957/第8日起；后两条“。”→“.”，exact-body false但语义/source/time正确。处理唯一写入为0377区域3830/第6日起，省略末尾句号，语义/source/time同样可信。所有实际写入仍为各chunk首句。结构组chunk0/seed8为损坏的arguments JSON、chunk33/seed8为JSON数组尾附句点；不能因字段说明存在认为自然模型合规，无修补。对照invalid_json均是完整数组后追加模板说明/ADD文本。
+
+实际prompt14440、response515tokens；startup15.241452s、sampling2.072338s、total17.651404s，reader/optimizer/API0。独立digest/提交/代码SHA/config/tokenizerSHA/权重统计/行数/C/B核验PASS，结束Git干净、GPU24MiB/0%。完整权重hash未核验。目录 `structure-only-probe-1b87cc6-20260916-205209/results`；report SHA=`9f54f00cb687764e52001f0d2e708f9d6dab1a9255fbe62edc42ec2cf0de1a4e`；actions=`2aa625ff752d658852073b27eb0da65b023b95a4f1bc3c79a61aaf8dabdef4e6`；run.log=`3491ca9ed6090a26fde35969df06b6c8df9abfc7dfedc8195101c88174a0863c`。旧结果未覆盖。
+
+结论仅限这份history/三个独立chunk/每条件每chunk2样本：格式3/6→4/6不代表稳定格式提升，写入3/6→1/6不支持本轮结构提示收益；保留负结果，不将v4迁入主协议，不继续无预算追逐提示调优，不启动训练。同一seed跨批次变动的推理复现性问题仍待核验。下一步建议CPU输入/身份/模板检查、预先冻结有限顺序阅读诊断，再单独确认必要GPU预算；不把独立首动作实验当成已完成连续记忆/检索/END/LIFE/学习验收。本轮记录仅本地，未再提交或改变远端HEAD。
+
+### 2026-09-16 v4远端CPU部署/prepare验收（GPU暂停）
+
+1b87cc6b5faa1be70bbe3514676122473633ff62已推送GitHub。远端gh-proxy.com DNS解析失败，未改服务器全局配置；生成增量bundle（前置63c6359），SHA256=`02c79c820a83b51716123293d8118acdca62823260617ce99365c01a437dd10f`，上传 `/data/hjx/Age_mem/structure-sync-1b87cc6-20260916-2053.bundle`，双端bundle verify、远端SHA校验后fetch并快进到已推送提交，远端worktree干净。
+
+远端实测 **63 V2 PASS / 34旧协议PASS，无SKIP**。正式CPU prepare、独立digest/HEAD/code/config/tokenizer/权重统计/prompt IDs重建通过，状态STRUCTURE_CPU_IDENTITY_PASS。输出：
+
+`/data/hjx/Age_mem/runtime-v2-smoke-783d785-20260916-112222/structure-only-probe-1b87cc6-20260916-205209/plan.public.json`
+
+digest=`2b835a8c660b2433f7c51c1f66fa2ac69b9334020ac06990320705874ed3a04e`，版本first_action_probe.v4/comparison no_example_vs_structure_v4，chunk_indices0/17/33；v3去例基线cases完全一致，处理仅system suffix，公开输入/ID/memory观察不变。prompttokens对照/处理为1451/1603、1425/1577、506/658，最大prompt+output2115≤C4096，B2048，temperature0.6/top_p1/top_k-1/thinkingFalse/max512。模型/history/预算/采样与v3一致，无具体事实示例。
+
+实际model/reader/optimizer调用0，CUDA_VISIBLE_DEVICES空值，未启动GPU；新results/run.log不存在。待确认单物理GPU1、12×最多512=6144response tokens、TP1/BF16/utilization0.55。自然模型改善/占位符误抄/格式提升/非首句选择尚未验证，完整顺序阅读未执行；不以CPU/mock替代科学结果。本地本段实测记录暂未再提交，保持新plan锁定远端HEAD。
+
 ### 2026-09-16 v4结构级说明本地实现（非模型验收）
 
 针对v3缺ID/额外事实字段/JSON外文字问题，新增独立no_example_vs_structure_v4。对照single_action_no_example_v3，处理仅在同一system后追加完整必填memory_id/content/source_refs说明和不含实际事实/ID的字段形状，明确实体/关系/值/time写入content，占位符替换而非照抄，NEXT仍可选。无具体ADD例、无gold/问题或额外私有索引；保持3公开chunk、每chunk2pairedseed、12独立首动作及原预算采样。不改变主协议/parser/旧默认profile，v4单独命名。

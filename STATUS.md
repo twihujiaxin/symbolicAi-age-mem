@@ -1,5 +1,11 @@
 # Project Status
 
+> **2026-09-16 CPU推理审计与有限顺序diagnostic实现：** 四轮全部thinkingFalse模板重建prompt IDs一致，模型config/embedding/tokenizer EOS/PAD无明显错配；观测完整三权重SHA已计算（未对官方revision验证）。12同输入/采样/seed/model重复组6组tokens不同、3组action/parse不同，受控GPU复現未执行、原因未确定，不宣称稳定收益。新增独立3连续prefix/2空memory/每块max3动作的serial ingest诊断，复用真实env/parser/反馈/C/B，最多18calls/9216输出tokens，不是GRPO/reader/任务成绩或完整长流。67项本地V2 PASS（新增4tests，含CLI资源替身），旧31PASS/3SKIP。远端新CPUprepare待执行，GPU再次确认。文档 docs/v2_inference_audit_and_sequential_probe.md。
+
+> **2026-09-16 v4真实GPU负结果：** 用户确认单物理GPU1后完成12次冻结采样，正常退出。原去例提示3/6parse_ok、3/6成功写入；结构提示4/6parse_ok、1/6成功写入，未观察到写入改善，不迁入主协议、不训练。四条写入正文/source/time逐项可信（精确匹配因句点变化/省略分别1和0），无占位符误抄/截断，但均首句；结构组仍2个畸形JSON/尾句点。实际prompt14440/response515tokens，总17.651秒，reader/optimizer0。身份/文件统计/计数/C/B核验PASS，Git干净，GPU24MiB/0%。结果在structure-only-probe-1b87cc6-20260916-205209/results保留，记录暂未再提交。小样本负结果不证明普遍无效；下一步优先输入/推理复现性检查及有限顺序诊断，停止无预算追加提示调优，新增GPU另确认。
+
+> **2026-09-16 v4远端CPU完成，等待GPU确认：** 实现已推送1b87cc6b5faa1be70bbe3514676122473633ff62。远端代理DNS失败后，通过SHA校验增量bundle同步（未改代理），63项V2/34项旧协议全部PASS。正式prepare及独立STRUCTURE_CPU_IDENTITY_PASS；v3去例基线cases逐项完全一致，处理仅system后缀。新目录structure-only-probe-1b87cc6-20260916-205209，digest=`2b835a8c660b2433f7c51c1f66fa2ac69b9334020ac06990320705874ed3a04e`，chunk0/17/33，thinkingFalse/C4096/B2048，maxprompt+output2115，12call预定response上限6144。GPU/model/reader/optimizer实际调用0，Git干净；新增GPU再次确认，本段实测记录暂未再提交。
+
 > **2026-09-16 v4结构级说明本地实现，GPU未运行：** 新独立no_example_vs_structure_v4比较原去例提示与仅追加必填memory_id/content/source_refs及无事实字段形状的提示。事实/entity/relation/value/time必须在content内，占位符不可复制，NEXT不禁止；parser/主协议/旧profile不改。继续3公开chunk/12独立首动作/6144输出上限，不冒充顺序阅读。本地63项V2 PASS、旧31PASS/3SKIP；新增基线与v3cases逐项一致、仅system变化、缺ID不修补/合法写入测试。远端CPU部署prepare待执行，GPU再次确认。说明见 docs/v2_structure_only_probe.md。
 
 > **2026-09-16 v3真实GPU诊断完成：** 用户确认后仅物理GPU1执行12次冻结采样，17.661秒，prompt14040/response535tokens，reader/optimizer0。具体ADD例条件1/6成功写入；去例3/6成功写入，精确正文2/6但另1条仅句号“。”→“.”，人工逐条对照公开body/source/time语义可信，不判为语义失败。去例另1ADD缺memory_id被拒绝；两条件各1invalid_json（附带额外文字/句点），无max-token hit。成功写入均首句，非首事实未体现；同首chunk/seed8跨批次输出与上轮不同，复现稳定性未确认，不能认定稳定收益。身份/统计/预算核验PASS，Git干净，GPU回到24MiB/0%。结果保留于cross-chunk-probe-63c6359-20260916-204533/results；完整阅读/知识选择/奖励/学习有效未验证。建议先补纯结构格式说明与必填字段诊断，不直接训练；新增GPU再次确认，记录暂未再提交。
