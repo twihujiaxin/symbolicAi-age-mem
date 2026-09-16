@@ -2,6 +2,23 @@
 
 ## 当前结论
 
+### 2026-09-16 retry4：格式已恢复、首动作探针待上卡
+
+远端用户报告 68/68 responses 为 NEXT/ok/admitted=True，配置 max_decisions_per_chunk=3；每块的第一次 NEXT 立即结束，不是解析失败或额外调用额度耗尽。K2×34 chunks 无成功 ADD/UPDATE，reward mean/std=0、nonzero_advantage_rollouts=0。已经恢复的语法/事件前置连接不等于完整 smoke；不删 writes 断言，不强制每块 ADD，也不启动无信号 pilot。原始完整 retry4 文件未迁回，因此仍是用户报告结果，不伪装成本地复验。
+
+本地增量实现独立首动作诊断，不改变主协议 v3 的默认 system/语法、旧 YAML、冻结数据与历史产物：
+
+- `dynamic/first_action_probe.py`：仅首公开 chunk，legacy-v3 与 task-explicit-probe-v1 各 4 样本；新提示是任务说明前缀＋原 v3 system，动作语法/公开 ADD 示例/handles 完全相同。说明有限 context tail 与独立 reader、NEXT 不保存正文、具体实体关系值时间、历史事实保留，不看问题/gold，不规定动作顺序。
+- 八次调用分别从空 memory 开始，匹配四个 seed；它们不是完整 K-rollout GRPO 组，不经过 trainer/advantage/reader/Oracle。
+- CPU prepare 读取已验证的一份 train taskset，对 bench eval_taskset 的路径、fingerprint/IDs 与采样进行匹配，不错误继承 training rollout_args。explicit enable_thinking 同时用于预算渲染和实际传入 engine 的 prompt IDs。C/B 不放宽，每次输出最多512。
+- CPU plan 固定 prompt IDs/源码/tokenizer/config/index SHA、声明 policy revision、权重文件大小/mtime；run 拒绝输入或资源身份改变。完整权重没有独立 SHA 校验，`full_weight_digest_verified=false`，不能把声明 tokenizer-hash revision 当作已核验权重身份。
+- GPU 后端是单 GPU 的 standalone direct vLLM，八条 n=1 completion，真实 response IDs/长度/finish reason 记录；并行批次中的环境执行各自独立。不是原 Ray runtime 的完整复现、不是 optimizer 接线证明。
+- 后验只将正文与公开可见 source 文字对齐，记录源 ID 可见/精确正文匹配及人工 content/time 复核字段；正确 source ID 不等于正确保存语义。导出实际 prompt/response tokens、engine startup/sampling/runtime 秒、vLLM/GPU 身份；不预填虚假 GPU 成本。
+
+真实本地验证：V2 scope **55 tests PASS**；旧 action/streaming scope **31 PASS / 3 环境性 SKIP**；CLI --help 与 py_compile/diff-check PASS。测试覆盖同一公开输入、未来 chunk 不进入首动作、匹配 seed、空 memory 隔离、原 system 字节保留、source 正确但正文错误不计精确匹配、非法动作不执行、C/token cap 拒绝、实际 bench sampling/thinking 解析，以及完整 prepare/run 函数在 datasets/torch/vLLM 边界 doubles 下的 plan/八行输出/全 NEXT 零写入导出。Windows sandbox 拒绝新临时目录访问，沙箱外运行完成；同时修复了测试读取中文 JSON 的 GBK/UTF-8 问题。上述 mock/double 结果绝不作为学习有效或生产环境 PASS。
+
+未运行：真实 production-tokenizer prepare、单 GPU 8-call 探针、首动作人工语义审计、完整流式 replay/model eval/trainer update。当前本地缺 production 模型/tokenizer/datasets；这些不阻止代码、CPU helper/CLI double 流程和指令交付。下一步在同步代码后按 `docs/v2_first_action_probe.md` 先 CPU prepare 再 GPU run，不直接完整重跑 retry4，也不安排额外等价 monitor GPU 实验。
+
 ### 2026-09-16 retry3 当前结论（覆盖下面 retry2 时点状态）
 
 远端用户报告 204 Experiences，203 条非数组 JSON（示例为完整 ACTION-key 对象），1 条 `[{"name":"ACTION","arguments":{"type":"ADD",...}}]` 被日志记为 ACTION/ok。已在本地复现 `arguments.type` 覆盖 name 的实际 bug：该条执行 ADD，但 ActionEvent 标签与 write_count 按 ACTION 记录。不能再用旧 count=0 推断实际完全没有写入，也不能把 pointer 合法/正文看似正确写成语义验收。该次 receipt reward_mean/reward_std=0、nonzero_advantage_rollouts=0，**仍未通过 smoke，不具备已观测的 GRPO 学习信号**。203 条完整对象不符合严格数组协议；当前证据不支持把 retry3 主因归于截断。
@@ -117,7 +134,7 @@ END/LIFE 在 2/4 条轨迹上不同。direct evaluator 与 compiled monitor 对 
 
 ```powershell
 python -m unittest discover -s tests\stream_dynamic_v2 -p '*_test.py'
-# 47 tests, OK（2026-09-16 v3 动作接口修复后）
+# 55 tests, OK（2026-09-16 独立首动作探针后）
 
 python scripts\agemem_dynamic_v2.py build-data --config configs\stream_dynamic_v2\data_debug.yaml
 python scripts\agemem_dynamic_v2.py validate-data --manifest runs\dynamic_v2\data_debug\manifest.json

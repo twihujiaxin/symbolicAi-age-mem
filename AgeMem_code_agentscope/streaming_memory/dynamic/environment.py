@@ -148,6 +148,7 @@ class DynamicMemoryEnvironment:
         max_decisions_per_chunk: int,
         answer_tail_tokens: int,
         retrieval_payload_tokens: int,
+        ingest_system: str | None = None,
     ) -> None:
         self.history = history
         self.accounting = accounting
@@ -157,6 +158,9 @@ class DynamicMemoryEnvironment:
         self.max_decisions_per_chunk = max_decisions_per_chunk
         self.answer_tail_tokens = answer_tail_tokens
         self.retrieval_payload_tokens = retrieval_payload_tokens
+        self.ingest_system = DYNAMIC_INGEST_SYSTEM if ingest_system is None else ingest_system
+        if not isinstance(self.ingest_system, str) or not self.ingest_system.strip():
+            raise DynamicEnvironmentError("ingest_system_required")
         self._active: dict[str, dict[str, Any]] = {}
         self._ledger: list[AuditRevision] = []
         self._context: list[_ContextGroup] = []
@@ -207,7 +211,7 @@ class DynamicMemoryEnvironment:
         )
 
     def _messages(self) -> list[dict[str, str]]:
-        messages = [{"role": "system", "content": DYNAMIC_INGEST_SYSTEM}]
+        messages = [{"role": "system", "content": self.ingest_system}]
         for group in self._context:
             messages.extend(copy.deepcopy(group.messages))
         messages.append(
