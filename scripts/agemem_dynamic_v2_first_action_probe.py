@@ -14,7 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from AgeMem_code_agentscope.streaming_memory.dynamic.config import load_dynamic_config
-from AgeMem_code_agentscope.streaming_memory.dynamic.first_action_probe import build_plan, digest, execute_probe
+from AgeMem_code_agentscope.streaming_memory.dynamic.first_action_probe import (
+    COMPARISONS, DEFAULT_COMPARISON, build_plan, digest, execute_probe,
+)
 from AgeMem_code_agentscope.streaming_memory.dynamic.schema import DynamicHistoryPublic
 from AgeMem_code_agentscope.streaming_memory.token_budget import TokenAccounting, load_tokenizer
 
@@ -123,7 +125,8 @@ def prepare(args):
     if expected_ids is not None and expected_ids != [history.history_id]:
         raise ValueError("source bench history ID differs from frozen taskset")
     plan = build_plan(history, accounting_for(model), config.budget, sampling,
-                      seed=int(config.experiment["seed"]))
+                      seed=int(config.experiment["seed"]),
+                      comparison=getattr(args, "comparison", DEFAULT_COMPARISON))
     plan.update({"model": model, "physical_gpu_id": args.gpu_id,
                  "backend": {"name": "direct_vllm_llm", "tensor_parallel_size": 1,
                              "gpu_memory_utilization": 0.55, "dtype": "bfloat16",
@@ -164,7 +167,8 @@ def run(args):
     accounting = accounting_for(model)
     # Revalidate prompt IDs and C before loading the GPU engine.
     rebuilt = build_plan(DynamicHistoryPublic.model_validate(plan["history"]), accounting,
-                         plan["budget"], plan["sampling"], plan["cases"][0]["seed"])
+                         plan["budget"], plan["sampling"], plan["cases"][0]["seed"],
+                         comparison=plan.get("comparison", DEFAULT_COMPARISON))
     if rebuilt["cases"] != plan["cases"] or rebuilt["prompt_sha256"] != plan["prompt_sha256"]:
         raise ValueError("prompt or tokenizer mismatch")
     import torch
@@ -221,6 +225,7 @@ def main():
     cpu.add_argument("--launcher", type=Path, required=True)
     cpu.add_argument("--taskset", type=Path, required=True)
     cpu.add_argument("--gpu-id", type=int, default=1)
+    cpu.add_argument("--comparison", choices=tuple(COMPARISONS), default=DEFAULT_COMPARISON)
     cpu.add_argument("--output-dir", type=Path, required=True)
     gpu = commands.add_parser("run")
     gpu.add_argument("--plan", type=Path, required=True)

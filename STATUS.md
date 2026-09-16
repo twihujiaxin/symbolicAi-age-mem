@@ -1,5 +1,9 @@
 # Project Status
 
+> **2026-09-16 独立单动作对照实现，GPU待确认：** 已只读查看 c4f7fcb GPU探针真实结果：legacy4NEXT，新任务提示3NEXT+1多ADD截断，成功写入均0；8次调用共595输出tokens，24.094秒。plan/代码/tokenizer/config/权重统计/计数/C/B复验通过（非完整权重SHA）。新增可选 `task_vs_single_v2`：原task-explicit对照仅追加单动作/一个事实/工具反馈后继续的提示，四对匹配seed，严格parser和预算不变，v1默认/旧产物保留。实测本地V2 **58 PASS**；旧回归 **31 PASS/3 SKIP**。远端同步/CPU prepare待执行；GPU必须再次确认，不据mock写入声称有效。命令见 `docs/v2_single_action_probe.md`。
+
+> **2026-09-16 正式远端 CPU prepare 完成：** 路径修复已提交推送为 `c4f7fcb2f535e46b9e29fa3d8949471e49a64692`，tx-06 已快进同步且工作区干净。修复后远端 V2 55 tests、旧协议 34 tests 全部 PASS。以 CUDA_VISIBLE_DEVICES 空值运行正式 prepare，输出 `prepared_cpu`，plan 位于 `runtime-v2-smoke-783d785-20260916-112222/first-action-probe-c4f7fcb-20260916-202258/plan.public.json`；thinking=False，temperature0.6/top_p1/top_k-1，max_tokens512，prompt+output最大1955≤C4096，预定8-call response上限4096。未运行 GPU/reader/optimizer。结束后再次确认远端 HEAD、干净工作区及 plan 文件存在；额外独立 digest/代码身份复验连接超时，未计 PASS。不要在 GPU run 前改变锁定代码/HEAD；完整权重 SHA、自然动作语义和学习效果仍未验证。
+
 > **2026-09-16 远端 SSH CPU 实测：** 已通过密钥连接 tx-06。远端干净工作区 `9e30fd5` 的 V2 55 tests、旧协议 34 tests 全部 PASS（无 SKIP）。未部署本地路径修复，只以内存修复函数核验真实 retry4 launcher、冻结 taskset 和 production Qwen tokenizer：thinking=False，temperature=0.6/top_p=1/top_k=-1，最大 prompt+output=1955≤C4096，B2048，预定 response 上限4096；taskset fingerprint=`23a45e57acf0e480`。无模型采样、reader、optimizer、GPU 或 plan 写入。完整 prepare 仍需提交/同步修复后执行，不能把内存核验当作已部署验收。
 
 > **2026-09-16 首动作 probe launcher 路径修复：** `resolve_settings()` 从 `explorer.rollout_model.enable_thinking` 读取并严格校验布尔值，不再读取顶层 `model.enable_thinking`；顶层 `model.model_path` 仍用于原有模型身份核对。未修改 launcher、sampling 或 thinking 条件。V2 scope 55 tests PASS，包含嵌套 False/True、缺失及非布尔值拒绝、顶层冲突不覆盖、CLI resource-double prepare 锁定 False。真实 production prepare/GPU 未运行；远端同步修复后重跑原 prepare（CPU）即可。

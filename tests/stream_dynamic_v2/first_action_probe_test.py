@@ -9,13 +9,61 @@ from pathlib import Path
 
 from AgeMem_code_agentscope.streaming_memory.dynamic.environment import DYNAMIC_INGEST_SYSTEM
 from AgeMem_code_agentscope.streaming_memory.dynamic.first_action_probe import (
-    TASK_EXPLICIT_SYSTEM, build_plan, execute_probe,
+    SINGLE_ACTION_SYSTEM, TASK_EXPLICIT_SYSTEM, build_plan, execute_probe,
 )
 from AgeMem_code_agentscope.streaming_memory.dynamic.schema import DynamicHistoryPublic, DynamicPublicChunk
 from AgeMem_code_agentscope.streaming_memory.token_budget import DebugLexicalTokenizer, TokenAccounting
 
 
 class FirstActionProbeTest(unittest.TestCase):
+    def test_v2_comparison_changes_only_single_action_system_suffix(self):
+        h, accounting, budget, sampling = self.fixture()
+        old = build_plan(h, accounting, budget, sampling)
+        plan = build_plan(h, accounting, budget, sampling, comparison="task_vs_single_v2")
+        self.assertNotIn("comparison", old)
+        self.assertEqual(old["probe_version"], "agemem.dynamic.first_action_probe.v1")
+        self.assertEqual(plan["probe_version"], "agemem.dynamic.first_action_probe.v2")
+        self.assertTrue(SINGLE_ACTION_SYSTEM.startswith(TASK_EXPLICIT_SYSTEM))
+        self.assertEqual(plan["sampling"], old["sampling"])
+        self.assertEqual(plan["budget"], old["budget"])
+        self.assertEqual(plan["response_token_upper_bound"], 4096)
+        for baseline, treatment in zip(plan["cases"][::2], plan["cases"][1::2]):
+            self.assertEqual(baseline["profile"], "task_explicit_probe_v1")
+            self.assertEqual(treatment["profile"], "single_action_probe_v2")
+            self.assertEqual(baseline["seed"], treatment["seed"])
+            self.assertEqual(baseline["messages"][1:], treatment["messages"][1:])
+        self.assertEqual(plan["cases"][0]["messages"], old["cases"][1]["messages"])
+
+    def test_v2_multi_action_is_not_repaired_and_single_fact_can_be_admitted(self):
+        h, accounting, budget, sampling = self.fixture()
+        plan = build_plan(h, accounting, budget, sampling, comparison="task_vs_single_v2")
+        action = {"name": "ADD", "arguments": {"memory_id": "m1",
+                  "content": h.chunks[0].text, "source_refs": ["public-src"]}}
+        def generate(prompts, params):
+            return [{"prompt_token_ids": ids,
+                     "response_text": json.dumps([action, action] if index % 2 == 0 else [action]),
+                     "response_token_ids": [1] * 150, "finish_reason": "stop"}
+                    for index, ids in enumerate(prompts)]
+        rows, report = execute_probe(plan, accounting, generate)
+        self.assertTrue(all(row["action_result"] is None for row in rows[::2]))
+        self.assertEqual(report["arms"]["task_explicit_probe_v1"]["admitted_writes"], 0)
+        self.assertEqual(report["arms"]["single_action_probe_v2"]["admitted_writes"], 4)
+        self.assertEqual(report["arms"]["single_action_probe_v2"]["exact_visible_source_body_count"], 4)
+        self.assertEqual(report["comparison"], "task_vs_single_v2")
+        self.assertFalse(report["learning_effectiveness_checked"])
+
+    def test_v2_comparison_and_version_tampering_fail_before_model(self):
+        h, accounting, budget, sampling = self.fixture()
+        with self.assertRaisesRegex(ValueError, "unknown probe comparison"):
+            build_plan(h, accounting, budget, sampling, comparison="unregistered")
+        plan = build_plan(h, accounting, budget, sampling, comparison="task_vs_single_v2")
+        for key, value in (("comparison", "legacy_vs_task_v1"),
+                           ("probe_version", "agemem.dynamic.first_action_probe.v1")):
+            changed = copy.deepcopy(plan)
+            changed[key] = value
+            with self.assertRaises(ValueError):
+                execute_probe(changed, accounting, lambda *_: self.fail("must not sample"))
+
     def fixture(self):
         text = "自第 1 日起，示例项目的负责人为成员甲。"
         history = DynamicHistoryPublic(

@@ -2,6 +2,28 @@
 
 ## 当前结论
 
+### 2026-09-16 首轮 GPU负结果与独立单动作对照
+
+直接只读远端 report/actions/log，HEAD=c4f7fcb、干净工作区。真实单A6000/vLLM0.10.2/thinkingFalse/temperature0.6：legacy4NEXT；task-explicit3NEXT和1invalid_json，后者512tokens/finish_reason=length，是连续多ADD后截断。成功写入均0，不能推进无信号pilot。只读解码的7个完整ADD与首公开chunk正文/ID/时间一致，不修补、不执行。实际8calls、prompt11052tokens、response595tokens；engine15.403s、sampling8.399s、total24.094s，reader/optimizer0。身份/文件统计/行数/预算核验通过，完整权重hash未核验。
+
+结果文件SHA256：plan=`4a977c2ae2c588dc863b68fef6ee3071d4f2bc09db931fc5f0ab27e382f99264`；report=`e00886974b90aab15c01882c72c358407ca81b3cef371fa18e3fb8b2a9010ae8`；actions=`7a4c94a38aa3d15cf46b598a1829afad48de2728a708e0ceb3845746b095484c`。旧目录与全部结果保持原样。
+
+用户授权修改并执行远端非GPU工作后，新增 `task_vs_single_v2` 可选比较及 v2 probe身份。对照为原task-explicit，处理仅追加一个动作/一个具体事实/等待工具结果的说明，不要求ADD、不强制顺序、不改采样预算或主协议。默认v1两个提示及plan结构仍保持；历史plan重放需原提交。CLI锁定comparison，run/execute重建核对comparison与version，报告仅包含所选两臂。
+
+本地实测：V2 **58 PASS**；旧回归34项 **31 PASS/3环境性SKIP**；diff-check PASS。新增3测试覆盖v1默认保持、新对照非system输入和seed匹配、多动作不修补、独立合法单事实执行、comparison/version篡改拒绝。resource-double不代表自然模型改善。远端新CPU测试/prepare待执行；GPU未运行，需用户再次确认。说明见 `docs/v2_single_action_probe.md`。
+
+### 2026-09-16 正式部署与 CPU prepare 完成
+
+用户授权直接远端执行后，本地提交/推送路径修复与测试记录：`c4f7fcb2f535e46b9e29fa3d8949471e49a64692`。远端检查工作区干净、分支匹配后，fetch + merge --ff-only 并断言完整提交一致。fetch 因全局 GitHub 代理一度延迟，但最终原命令成功；备用增量 bundle 已上传 `/data/hjx/Age_mem/probe-sync-c4f7fcb.bundle`，未用于 fetch，不修改代理配置或其他人的任务。
+
+修复后 CPU 实测：V2 discovery **55 PASS**，旧 action/streaming 回归 **34 PASS，无 SKIP**。禁用 bytecode、设 CUDA_VISIBLE_DEVICES 空值，以既有 retry4 launcher/config/taskset 执行正式 `scripts/agemem_dynamic_v2_first_action_probe.py prepare --gpu-id 1`，新目录：
+
+`/data/hjx/Age_mem/runtime-v2-smoke-783d785-20260916-112222/first-action-probe-c4f7fcb-20260916-202258`
+
+实际输出 **prepared_cpu / FORMAL_CPU_PREPARE_COMPLETE**。plan=`plan.public.json`，thinking=False，sampling temperature0.6/top_p1/top_k-1/n1/max_tokens512；最大 prompt+output=1955≤C4096，预定8-call response上限4096，reader_calls=0、optimizer_updates=0。没有 GPU 模型采样；输出的 model_call_count=8 是未来采样预算，不是实际已执行次数。结束后独立 SSH 再确认完整 HEAD、干净工作区及 plan 文件存在（266098 bytes）。额外独立 plan digest/代码/tokenizer身份复验尝试因 SSH banner 超时未执行，未计 PASS；正常 GPU run 自带这些检查。
+
+下一步保持远端该 HEAD 与锁定代码不变，按 `docs/v2_first_action_probe.md` 用物理 GPU 1 执行已有 plan；本轮未启动。正文/time语义、完整权重密码学身份、全流式记忆保持、非零 advantage 和学习有效性仍未验证。本地本段新实测记录未再次提交，避免让已准备 plan 的锁定 HEAD 失效。
+
 ### 2026-09-16 远端 CPU 实测（非部署验收）
 
 SSH 密钥连接 tx-06 后，直接在远端干净工作区 `9e30fd50bc7f067a6b07e4c9de8afadb53721a0d` 执行：

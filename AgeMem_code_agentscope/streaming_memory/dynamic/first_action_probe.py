@@ -28,6 +28,20 @@ TASK_EXPLICIT_SYSTEM = (
     "order or per-chunk ADD is required. " + DYNAMIC_INGEST_SYSTEM
 )
 SYSTEMS = {"legacy_v3": DYNAMIC_INGEST_SYSTEM, "task_explicit_probe_v1": TASK_EXPLICIT_SYSTEM}
+SINGLE_ACTION_SYSTEM = TASK_EXPLICIT_SYSTEM + (
+    " This call requests ONLY your next single action, not a plan for the whole chunk. "
+    "Return a JSON array containing EXACTLY ONE object, then end the response. "
+    "If writing, select ONE concrete fact for this action; do not enumerate the chunk "
+    "as multiple ADD objects. After the tool result you can decide another action "
+    "while this chunk's decision budget remains. NEXT still ends this chunk. "
+    "ADD is not mandatory; choose any legal action appropriate to the current memory."
+)
+SYSTEMS["single_action_probe_v2"] = SINGLE_ACTION_SYSTEM
+DEFAULT_COMPARISON = "legacy_vs_task_v1"
+COMPARISONS = {
+    DEFAULT_COMPARISON: ("legacy_v3", "task_explicit_probe_v1"),
+    "task_vs_single_v2": ("task_explicit_probe_v1", "single_action_probe_v2"),
+}
 
 
 def digest(value):
@@ -46,7 +60,10 @@ def make_environment(history, accounting, budget, profile, sample_index):
     )
 
 
-def build_plan(history, accounting, budget, sampling, seed=7):
+def build_plan(history, accounting, budget, sampling, seed=7, comparison=DEFAULT_COMPARISON):
+    if comparison not in COMPARISONS:
+        raise ValueError("unknown probe comparison")
+    profiles = COMPARISONS[comparison]
     for name in ("temperature", "top_p"):
         value = sampling.get(name)
         if type(value) not in (int, float) or not math.isfinite(value):
@@ -64,7 +81,7 @@ def build_plan(history, accounting, budget, sampling, seed=7):
         raise ValueError("probe response cap must be <=512")
     cases = []
     for sample_index in range(4):
-        for profile in SYSTEMS:
+        for profile in profiles:
             env = make_environment(history, accounting, budget, profile, sample_index)
             messages = env.admit_next_chunk()
             prompt_ids = list(accounting.tokenizer.apply_chat_template(
@@ -74,21 +91,24 @@ def build_plan(history, accounting, budget, sampling, seed=7):
             cases.append({"profile": profile, "sample_index": sample_index,
                           "seed": seed + sample_index, "messages": messages,
                           "prompt_token_ids": prompt_ids})
-    return {"probe_version": PROBE_VERSION, "history": history.model_dump(mode="json"),
+    plan = {"probe_version": PROBE_VERSION, "history": history.model_dump(mode="json"),
             "history_sha256": digest(history.model_dump(mode="json")),
             "chunk_id": history.chunks[0].chunk_id, "budget": dict(budget),
             "sampling": {**sampling, "n": 1, "max_tokens": maximum},
             "cases": cases, "model_call_count": 8, "reader_call_count": 0,
             "optimizer_update_count": 0, "response_token_upper_bound": 8 * maximum,
-            "prompt_sha256": {profile: digest(SYSTEMS[profile]) for profile in SYSTEMS}}
+            "prompt_sha256": {profile: digest(SYSTEMS[profile]) for profile in profiles}}
+    if comparison != DEFAULT_COMPARISON:
+        plan.update({"comparison": comparison, "probe_version": "agemem.dynamic.first_action_probe.v2"})
+    return plan
 
 
 def execute_probe(plan, accounting, generate):
     """generate accepts eight locked prompts/params and returns actual token receipts."""
     history = DynamicHistoryPublic.model_validate(plan["history"])
     rebuilt = build_plan(history, accounting, plan["budget"], plan["sampling"],
-                         seed=plan["cases"][0]["seed"])
-    for key in ("cases", "history_sha256", "prompt_sha256", "sampling"):
+                         seed=plan["cases"][0]["seed"], comparison=plan.get("comparison", DEFAULT_COMPARISON))
+    for key in ("probe_version", "cases", "history_sha256", "prompt_sha256", "sampling"):
         if rebuilt[key] != plan[key]:
             raise ValueError("probe plan differs from current tokenizer/prompt/budget")
     if plan["model_call_count"] != 8 or len(plan["cases"]) != 8:
@@ -134,7 +154,7 @@ def execute_probe(plan, accounting, generate):
                      "semantic_manual_review_required": True,
                      "human_content_review": "", "human_time_review": "", "human_notes": ""})
     arms = {}
-    for profile in SYSTEMS:
+    for profile in COMPARISONS[plan.get("comparison", DEFAULT_COMPARISON)]:
         selected = [row for row in rows if row["profile"] == profile]
         arms[profile] = {"sample_count": 4, "actions": dict(Counter(row["action_name"] for row in selected)),
                          "parse_codes": dict(Counter(row["parse_code"] for row in selected)),
@@ -142,11 +162,13 @@ def execute_probe(plan, accounting, generate):
                              and bool(row["action_result"] and row["action_result"]["admitted"])
                              for row in selected),
                          "exact_visible_source_body_count": sum(row["exact_visible_source_body"] for row in selected)}
-    report = {"probe_version": PROBE_VERSION, "model_call_count": 8, "reader_call_count": 0,
+    report = {"probe_version": plan["probe_version"], "model_call_count": 8, "reader_call_count": 0,
               "optimizer_update_count": 0, "history_sha256": plan["history_sha256"],
               "chunk_id": plan["chunk_id"], "sampling": plan["sampling"],
               "actual_response_tokens": sum(row["response_token_count"] for row in rows),
               "actual_prompt_tokens": sum(row["prompt_token_count"] for row in rows),
               "arms": arms, "learning_effectiveness_checked": False,
               "whole_stream_retention_checked": False, "oracle_semantics_checked": False}
+    if "comparison" in plan:
+        report["comparison"] = plan["comparison"]
     return rows, report
