@@ -119,12 +119,23 @@ class FirstActionProbeTest(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         taskset = Path("public-taskset")
-        launcher = {"mode": "bench", "model": {"enable_thinking": False}, "buffer": {"explorer_input": {
+        launcher = {"mode": "bench", "model": {"enable_thinking": True},
+            "explorer": {"rollout_model": {"enable_thinking": False}}, "buffer": {"explorer_input": {
             "taskset": {"rollout_args": {"temperature": 0.99}},
             "eval_tasksets": [{"path": str(taskset), "rollout_args": {"temperature": 0.6}}]}}}
         sampling, thinking, _ = module.resolve_settings(launcher, taskset)
         self.assertEqual(sampling["temperature"], 0.6)
         self.assertFalse(thinking)
+        launcher["explorer"]["rollout_model"]["enable_thinking"] = True
+        self.assertTrue(module.resolve_settings(launcher, taskset)[1])
+        for invalid in (None, "False", 0, 1):
+            launcher["explorer"]["rollout_model"]["enable_thinking"] = invalid
+            with self.assertRaisesRegex(ValueError,
+                    "source launcher must explicitly lock explorer.rollout_model.enable_thinking"):
+                module.resolve_settings(launcher, taskset)
+        del launcher["explorer"]["rollout_model"]["enable_thinking"]
+        with self.assertRaisesRegex(ValueError, "explorer.rollout_model.enable_thinking"):
+            module.resolve_settings(launcher, taskset)
         class Tokenizer(DebugLexicalTokenizer):
             def apply_chat_template(self, *a, enable_thinking, **kw):
                 self.last_thinking = enable_thinking
@@ -156,7 +167,8 @@ class FirstActionProbeTest(unittest.TestCase):
             config_path.write_text('{}')
             launcher_path = folder / "launcher.yaml"
             launcher_path.write_text(json.dumps({"mode": "bench", "model": {
-                "enable_thinking": False, "model_path": str(model_path)}, "buffer": {"explorer_input": {
+                "model_path": str(model_path)},
+                "explorer": {"rollout_model": {"enable_thinking": False}}, "buffer": {"explorer_input": {
                     "eval_tasksets": [{"path": str(taskset), "expected_dataset_fingerprint": "frozen",
                         "expected_row_ids": [h.history_id], "rollout_args": {"temperature": 0.6}}]}}}))
             class Dataset(list):
@@ -178,6 +190,7 @@ class FirstActionProbeTest(unittest.TestCase):
                 module.prepare(args)
             plan_path = prepared / "plan.public.json"
             self.assertEqual(json.loads(plan_path.read_text(encoding="utf-8"))["sampling"]["temperature"], 0.6)
+            self.assertIs(json.loads(plan_path.read_text(encoding="utf-8"))["model"]["enable_thinking"], False)
             torch = types.ModuleType("torch")
             torch.cuda = types.SimpleNamespace(device_count=lambda: 1, get_device_name=lambda _: "DOUBLE")
             transformers = types.ModuleType("transformers")

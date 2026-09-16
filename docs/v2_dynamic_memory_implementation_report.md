@@ -2,6 +2,23 @@
 
 ## 当前结论
 
+### 2026-09-16 远端 CPU 实测（非部署验收）
+
+SSH 密钥连接 tx-06 后，直接在远端干净工作区 `9e30fd50bc7f067a6b07e4c9de8afadb53721a0d` 执行：
+
+- `python -m unittest discover -s tests/stream_dynamic_v2 -p '*_test.py'` → **55 PASS**。
+- `python -m unittest tests.common.m8_action_event_contract_test tests.common.stream_mq_data_test tests.common.stream_mq_environment_test tests.common.stream_mq_training_contract_test` → **34 PASS，无 SKIP**。
+
+使用 `/data/hjx/Age_mem/conda-envs/agemem-m8b/bin/python`，禁用 bytecode 写入。额外只读 Python 检查在内存中替换 `resolve_settings()` 的路径和提示，未修改远端文件；读取真实 `runtime-v2-smoke-783d785-20260916-112222/dynamic_v2_k2m2_smoke_retry4.yaml`、`dynamic_runtime_smoke.json` 和 `taskset`，使用 production tokenizer 实际构建 prompt IDs，得到 **CPU_VALIDATION_PASS**：thinking=False，temperature=0.6/top_p=1/top_k=-1/n=1/max_tokens=512，最大 prompt+output=1955≤C4096，B2048，八次采样预定 response 上限4096。fingerprint=`23a45e57acf0e480`，history=`hist_263ef931bf2c89521710`，单行训练数据与 launcher 模型路径/声明 fingerprint/row ID 核对通过，None/字符串/整数 thinking 值拒绝通过。
+
+实际 model calls / reader calls / optimizer updates 均为 0，未写 plan，未启动 GPU；检查结束远端 Git 仍干净且 HEAD 未变。现有 55 项远端回归属于旧提交，不能声称远端已部署路径修复或完整 prepare 已运行。下一步提交/同步修复，然后正式 CPU prepare；GPU probe 及语义/学习有效性仍未验证。
+
+### 2026-09-16 首动作 probe 配置读取路径修复
+
+用户确认 launcher 已在 `explorer.rollout_model.enable_thinking` 显式配置 False。修正 probe `resolve_settings()` 的读取路径及错误提示，保留严格布尔校验；`model.model_path` 仍按现有接口核对，不修改 launcher 或实验 thinking 条件。回归覆盖嵌套 False/True、缺失、字符串及整数拒绝、顶层冲突不覆盖，以及 CLI resource-double prepare 将 False 写入 plan。
+
+实测：`python -m unittest discover -s tests/stream_dynamic_v2 -p '*_test.py'` → **55 tests PASS**。真实 production prepare 和 GPU run 未运行，本地缺模型/tokenizer/datasets；远端同步后重跑原 prepare 命令，prepare 不需要 GPU。已有 plan 不能手工修改，应重新生成以锁定修复后的代码身份。
+
 ### 2026-09-16 retry4：格式已恢复、首动作探针待上卡
 
 远端用户报告 68/68 responses 为 NEXT/ok/admitted=True，配置 max_decisions_per_chunk=3；每块的第一次 NEXT 立即结束，不是解析失败或额外调用额度耗尽。K2×34 chunks 无成功 ADD/UPDATE，reward mean/std=0、nonzero_advantage_rollouts=0。已经恢复的语法/事件前置连接不等于完整 smoke；不删 writes 断言，不强制每块 ADD，也不启动无信号 pilot。原始完整 retry4 文件未迁回，因此仍是用户报告结果，不伪装成本地复验。

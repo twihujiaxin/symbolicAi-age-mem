@@ -76,9 +76,9 @@ def resolve_settings(launcher, taskset):
     # Mirror GenerationConfig defaults; do not inherit training taskset args.
     sampling = {"temperature": rollout.get("temperature", 1.0),
                 "top_p": rollout.get("top_p", 1.0), "top_k": rollout.get("top_k", -1)}
-    model = launcher["model"]
+    model = launcher["explorer"]["rollout_model"]
     if not isinstance(model.get("enable_thinking"), bool):
-        raise ValueError("source launcher must explicitly lock model.enable_thinking")
+        raise ValueError("source launcher must explicitly lock explorer.rollout_model.enable_thinking")
     return sampling, model["enable_thinking"], selected[0]
 
 
